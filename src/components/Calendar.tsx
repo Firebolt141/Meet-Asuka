@@ -5,7 +5,7 @@ import { useMemo } from "react";
 export type PlannerItem = {
   id: string;
   title: string;
-  category: "trip" | "event" | "todo" | "wishlist";
+  category: "trip" | "event" | "wishlist";
   date: string; // YYYY-MM-DD
   details: string;
 };
@@ -85,8 +85,6 @@ export function Calendar({ month, items, selectedDate, onSelectDate }: CalendarP
                         ? "bg-indigo-400"
                         : item.category === "event"
                         ? "bg-emerald-400"
-                        : item.category === "todo"
-                        ? "bg-sky-400"
                         : "bg-amber-400"
                     } ${isSelected ? "ring-2 ring-white/80" : ""}`}
                   />
