@@ -20,13 +20,6 @@ const starterItems: PlannerItem[] = [
   },
   {
     id: "3",
-    title: "Todo: Pack Camera",
-    category: "todo",
-    date: "2024-11-12",
-    details: "Charge batteries + bring the pastel strap."
-  },
-  {
-    id: "4",
     title: "Wish: Disney Date",
     category: "wishlist",
     date: "2024-11-20",
@@ -38,13 +31,6 @@ const pad = (value: number) => value.toString().padStart(2, "0");
 
 const formatDate = (date: Date) =>
   `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-
-const categoryStyles: Record<PlannerItem["category"], { label: string; color: string }> = {
-  trip: { label: "Trip", color: "bg-indigo-100 text-indigo-600" },
-  event: { label: "Event", color: "bg-emerald-100 text-emerald-600" },
-  todo: { label: "Todo", color: "bg-sky-100 text-sky-600" },
-  wishlist: { label: "Wishlist", color: "bg-amber-100 text-amber-600" }
-};
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -96,72 +82,8 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-pink-50 via-blush to-orange-100 px-6 pb-24 pt-10">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 lg:flex-row">
-        <aside className="w-full rounded-3xl bg-white/80 p-6 shadow-soft lg:w-64">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-pink-100 text-2xl">
-              💖
-            </span>
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-pink-400">Asuka</p>
-              <p className="text-lg font-semibold text-slate-800">Sweet Planner</p>
-            </div>
-          </div>
-          <nav className="mt-8 space-y-3">
-            {[
-              {
-                label: "Trips",
-                color: "text-indigo-500",
-                icon: (
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
-                    <path d="M7 2h10a2 2 0 0 1 2 2v4h-2V4H7v4H5V4a2 2 0 0 1 2-2zm-1 8h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zm4 3h4v2h-4v-2z" />
-                  </svg>
-                )
-              },
-              {
-                label: "Events",
-                color: "text-emerald-500",
-                icon: (
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
-                    <path d="M7 2h2v2h6V2h2v2h3a2 2 0 0 1 2 2v13a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V6a2 2 0 0 1 2-2h3V2zm13 8H4v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9z" />
-                  </svg>
-                )
-              },
-              {
-                label: "Todos",
-                color: "text-sky-500",
-                icon: (
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
-                    <path d="M9 2h6a2 2 0 0 1 2 2h2a1 1 0 1 1 0 2h-2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V6H5a1 1 0 1 1 0-2h2a2 2 0 0 1 2-2zm6 4H9v14h6V6zm-4 4h2v2h-2v-2zm0 4h2v2h-2v-2z" />
-                  </svg>
-                )
-              },
-              {
-                label: "Wishlist",
-                color: "text-amber-500",
-                icon: (
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
-                    <path d="M12 21c-4.35-3.63-7-6.62-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 11c0 3.38-2.65 6.37-7 10z" />
-                  </svg>
-                )
-              }
-            ].map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                className="flex w-full items-center gap-3 rounded-2xl border border-transparent bg-white/70 px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-pink-200 hover:bg-pink-50"
-              >
-                <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white ${item.color}`}>
-                  {item.icon}
-                </span>
-                {item.label}
-              </button>
-            ))}
-          </nav>
-        </aside>
-
-        <section className="flex-1 space-y-6">
-          <header className="flex flex-wrap items-center justify-between gap-4">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+        <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-pink-400">
               Your sweet calendar
@@ -186,46 +108,41 @@ export default function Home() {
               <p className="text-sm font-semibold">Sunny 26°C</p>
             </div>
           </div>
-          </header>
+        </header>
 
-          <Calendar
-            month={new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)}
-            items={items}
-            selectedDate={selectedDate}
-            onSelectDate={setSelectedDate}
-          />
+        <Calendar
+          month={new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)}
+          items={items}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+        />
 
-          <section className="rounded-3xl bg-white/80 p-6 shadow-soft">
-            <h3 className="text-lg font-semibold text-slate-800">
-              Plans for {selectedDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })}
-            </h3>
-            <div className="mt-4 space-y-3">
-              {selectedItems.length === 0 ? (
-                <p className="text-sm text-slate-500">
-                  No plans yet. Add something sweet with the plus button!
-                </p>
-              ) : (
-                selectedItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="rounded-2xl border border-pink-100 bg-white px-4 py-3"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-slate-800">
-                        {item.title}
-                      </p>
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${categoryStyles[item.category].color}`}
-                      >
-                        {categoryStyles[item.category].label}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-sm text-slate-600">{item.details}</p>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
+        <section className="rounded-3xl bg-white/80 p-6 shadow-soft">
+          <h3 className="text-lg font-semibold text-slate-800">
+            Plans for {selectedDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })}
+          </h3>
+          <div className="mt-4 space-y-3">
+            {selectedItems.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No plans yet. Add something sweet with the plus button!
+              </p>
+            ) : (
+              selectedItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="rounded-2xl border border-pink-100 bg-white px-4 py-3"
+                >
+                  <p className="text-sm font-semibold text-slate-800">
+                    {item.title}
+                  </p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-pink-400">
+                    {item.category}
+                  </p>
+                  <p className="mt-2 text-sm text-slate-600">{item.details}</p>
+                </div>
+              ))
+            )}
+          </div>
         </section>
       </div>
 
@@ -247,7 +164,7 @@ export default function Home() {
                   Add a sweet plan
                 </h4>
                 <p className="text-sm text-slate-500">
-                  Trips, events, todos, or wishlist ideas.
+                  Trips, events, or wishlist ideas.
                 </p>
               </div>
               <button
@@ -311,7 +228,6 @@ export default function Home() {
                   >
                     <option value="trip">Trip</option>
                     <option value="event">Event</option>
-                    <option value="todo">Todo</option>
                     <option value="wishlist">Wishlist</option>
                   </select>
                 </label>
