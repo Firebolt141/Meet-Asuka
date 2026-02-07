@@ -61,6 +61,9 @@ export default function Home() {
     title: "",
     category: "trip",
     date: formatDate(new Date()),
+    endDate: "",
+    startTime: "",
+    endTime: "",
     details: ""
   });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -80,7 +83,7 @@ export default function Home() {
   }, [activeCategory, items]);
 
   const selectedItems = useMemo(
-    () => filteredItems.filter((item) => item.date === selectedKey),
+    () => filteredItems.filter((item) => item.date && item.date === selectedKey),
     [filteredItems, selectedKey]
   );
 
@@ -92,6 +95,9 @@ export default function Home() {
   const upcomingItems = useMemo(
     () =>
       filteredItems.filter((item) => {
+        if (!item.date) {
+          return false;
+        }
         const itemDate = new Date(item.date);
         itemDate.setHours(0, 0, 0, 0);
         if (activeCategory === "past") {
@@ -105,6 +111,9 @@ export default function Home() {
   const pastItems = useMemo(
     () =>
       filteredItems.filter((item) => {
+        if (!item.date) {
+          return false;
+        }
         const itemDate = new Date(item.date);
         itemDate.setHours(0, 0, 0, 0);
         if (activeCategory === "past") {
@@ -114,6 +123,27 @@ export default function Home() {
       }),
     [activeCategory, filteredItems, normalizedToday]
   );
+
+  const formatMeta = (item: PlannerItem) => {
+    if (item.category === "wishlist") {
+      return "No date set";
+    }
+    if (item.category === "trip") {
+      if (item.endDate && item.endDate !== item.date) {
+        return `Dates: ${item.date} → ${item.endDate}`;
+      }
+      return `Date: ${item.date}`;
+    }
+    if (item.category === "event") {
+      const time = item.startTime
+        ? item.endTime
+          ? `${item.startTime} → ${item.endTime}`
+          : `${item.startTime} → ?`
+        : "Time TBD";
+      return `When: ${item.date} • ${time}`;
+    }
+    return `Due: ${item.date}`;
+  };
 
   useEffect(() => {
     const loadPlanner = async () => {
@@ -241,6 +271,9 @@ export default function Home() {
                         title: item.title,
                         category: item.category,
                         date: item.date,
+                        endDate: item.endDate ?? "",
+                        startTime: item.startTime ?? "",
+                        endTime: item.endTime ?? "",
                         details: item.details
                       });
                       setIsModalOpen(true);
@@ -257,6 +290,9 @@ export default function Home() {
                         {categoryStyles[item.category].label}
                       </span>
                     </div>
+                    <p className="mt-2 text-xs font-semibold text-pink-400">
+                      {formatMeta(item)}
+                    </p>
                     <p className="mt-2 text-sm text-slate-600">{item.details}</p>
                   </button>
                 ))
@@ -280,6 +316,9 @@ export default function Home() {
                       title: item.title,
                       category: item.category,
                       date: item.date,
+                      endDate: item.endDate ?? "",
+                      startTime: item.startTime ?? "",
+                      endTime: item.endTime ?? "",
                       details: item.details
                     });
                     setIsModalOpen(true);
@@ -296,7 +335,7 @@ export default function Home() {
                       {categoryStyles[item.category].label}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-slate-500">{item.date}</p>
+                  <p className="mt-1 text-xs text-slate-500">{formatMeta(item)}</p>
                   <p className="mt-2 text-sm text-slate-600">{item.details}</p>
                 </button>
               ))
@@ -320,6 +359,9 @@ export default function Home() {
                       title: item.title,
                       category: item.category,
                       date: item.date,
+                      endDate: item.endDate ?? "",
+                      startTime: item.startTime ?? "",
+                      endTime: item.endTime ?? "",
                       details: item.details
                     });
                     setIsModalOpen(true);
@@ -336,7 +378,7 @@ export default function Home() {
                       {categoryStyles[item.category].label}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-slate-500">{item.date}</p>
+                  <p className="mt-1 text-xs text-slate-500">{formatMeta(item)}</p>
                   <p className="mt-2 text-sm text-slate-600">{item.details}</p>
                 </button>
               ))
@@ -388,7 +430,13 @@ export default function Home() {
                 const payload = {
                   title: newItem.title.trim() || "Untitled plan",
                   category: newItem.category as PlannerItem["category"],
-                  date: newItem.date,
+                  date: newItem.category === "wishlist" ? "" : newItem.date,
+                  endDate:
+                    newItem.category === "trip"
+                      ? newItem.endDate || newItem.date
+                      : undefined,
+                  startTime: newItem.category === "event" ? newItem.startTime : undefined,
+                  endTime: newItem.category === "event" ? newItem.endTime : undefined,
                   details: newItem.details.trim() || "A dreamy new memory."
                 };
                 if (editingId) {
@@ -419,10 +467,15 @@ export default function Home() {
                   title: "",
                   category: "trip",
                   date: newItem.date,
+                  endDate: "",
+                  startTime: "",
+                  endTime: "",
                   details: ""
                 });
                 setEditingId(null);
-                setSelectedDate(new Date(newItem.date));
+                if (newItem.category !== "wishlist" && newItem.date) {
+                  setSelectedDate(new Date(newItem.date));
+                }
               }}
             >
               <label className="block text-sm font-medium text-slate-700">
@@ -443,10 +496,17 @@ export default function Home() {
                   <select
                     value={newItem.category}
                     onChange={(event) =>
-                      setNewItem((prev) => ({
-                        ...prev,
-                        category: event.target.value
-                      }))
+                      setNewItem((prev) => {
+                        const category = event.target.value as PlannerItem["category"];
+                        return {
+                          ...prev,
+                          category,
+                          date: category === "wishlist" ? "" : prev.date || formatDate(new Date()),
+                          endDate: category === "trip" ? prev.endDate || prev.date : "",
+                          startTime: category === "event" ? prev.startTime : "",
+                          endTime: category === "event" ? prev.endTime : ""
+                        };
+                      })
                     }
                     className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
                   >
@@ -458,17 +518,80 @@ export default function Home() {
                 </label>
 
                 <label className="block text-sm font-medium text-slate-700">
-                  Date
-                  <input
-                    type="date"
-                    value={newItem.date}
-                    onChange={(event) =>
-                      setNewItem((prev) => ({ ...prev, date: event.target.value }))
-                    }
-                    className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                  />
+                  {newItem.category === "wishlist" ? (
+                    <span className="mt-2 block rounded-2xl border border-dashed border-pink-200 bg-pink-50/60 px-4 py-3 text-sm text-slate-500">
+                      No date needed for wishlist dreams ✨
+                    </span>
+                  ) : newItem.category === "trip" ? (
+                    <span className="mt-2 block rounded-2xl border border-dashed border-pink-200 bg-pink-50/60 px-4 py-3 text-sm text-slate-500">
+                      Pick your trip range below.
+                    </span>
+                  ) : (
+                    <input
+                      type="date"
+                      value={newItem.date}
+                      onChange={(event) =>
+                        setNewItem((prev) => ({ ...prev, date: event.target.value }))
+                      }
+                      className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                    />
+                  )}
                 </label>
               </div>
+
+              {newItem.category === "trip" ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    From
+                    <input
+                      type="date"
+                      value={newItem.date}
+                      onChange={(event) =>
+                        setNewItem((prev) => ({ ...prev, date: event.target.value }))
+                      }
+                      className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium text-slate-700">
+                    To
+                    <input
+                      type="date"
+                      value={newItem.endDate}
+                      onChange={(event) =>
+                        setNewItem((prev) => ({ ...prev, endDate: event.target.value }))
+                      }
+                      className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                    />
+                  </label>
+                </div>
+              ) : null}
+
+              {newItem.category === "event" ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    From time
+                    <input
+                      type="time"
+                      value={newItem.startTime}
+                      onChange={(event) =>
+                        setNewItem((prev) => ({ ...prev, startTime: event.target.value }))
+                      }
+                      className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium text-slate-700">
+                    To time (optional)
+                    <input
+                      type="time"
+                      value={newItem.endTime}
+                      onChange={(event) =>
+                        setNewItem((prev) => ({ ...prev, endTime: event.target.value }))
+                      }
+                      className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                    />
+                  </label>
+                </div>
+              ) : null}
 
               <label className="block text-sm font-medium text-slate-700">
                 Details

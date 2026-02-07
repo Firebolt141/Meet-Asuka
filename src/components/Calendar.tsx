@@ -7,6 +7,9 @@ export type PlannerItem = {
   title: string;
   category: "trip" | "event" | "todo" | "wishlist";
   date: string; // YYYY-MM-DD
+  endDate?: string;
+  startTime?: string;
+  endTime?: string;
   details: string;
 };
 
