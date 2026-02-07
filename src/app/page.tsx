@@ -238,7 +238,20 @@ export default function Home() {
             <span>←</span>
             Prev
           </button>
-          <span className="text-xs uppercase tracking-[0.2em] text-pink-400">Swipe vibes</span>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                const today = new Date();
+                setSelectedDate(today);
+                setActiveMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+              }}
+              className="rounded-full border border-pink-100 px-3 py-1 text-xs font-semibold text-pink-500 transition hover:bg-pink-50"
+            >
+              Today
+            </button>
+            <span className="text-xs uppercase tracking-[0.2em] text-pink-400">Swipe vibes</span>
+          </div>
           <button
             type="button"
             onClick={() =>
@@ -519,11 +532,11 @@ export default function Home() {
 
                 <label className="block text-sm font-medium text-slate-700">
                   {newItem.category === "wishlist" ? (
-                    <span className="mt-2 block rounded-2xl border border-dashed border-pink-200 bg-pink-50/60 px-4 py-3 text-sm text-slate-500">
+                    <span className="mt-2 block w-full rounded-2xl border border-dashed border-pink-200 bg-pink-50/60 px-4 py-3 text-sm text-slate-500">
                       No date needed for wishlist dreams ✨
                     </span>
                   ) : newItem.category === "trip" ? (
-                    <span className="mt-2 block rounded-2xl border border-dashed border-pink-200 bg-pink-50/60 px-4 py-3 text-sm text-slate-500">
+                    <span className="mt-2 block w-full rounded-2xl border border-dashed border-pink-200 bg-pink-50/60 px-4 py-3 text-sm text-slate-500">
                       Pick your trip range below.
                     </span>
                   ) : (
