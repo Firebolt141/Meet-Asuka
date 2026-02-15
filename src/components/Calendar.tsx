@@ -10,11 +10,15 @@ export type PlannerItem = {
   endDate?: string;
   startTime?: string;
   endTime?: string;
+  location?: string;
+  recurring?: "none" | "daily" | "weekly" | "monthly";
+  tripTodos?: string;
   details: string;
 };
 
 type CalendarProps = {
   month: Date;
+  monthLabel: string;
   items: PlannerItem[];
   selectedDate: Date;
   onSelectDate: (date: Date) => void;
@@ -27,7 +31,7 @@ const pad = (value: number) => value.toString().padStart(2, "0");
 const formatDate = (date: Date) =>
   `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 
-export function Calendar({ month, items, selectedDate, onSelectDate }: CalendarProps) {
+export function Calendar({ month, monthLabel, items, selectedDate, onSelectDate }: CalendarProps) {
   const { days, leadingBlanks } = useMemo(() => {
     const year = month.getFullYear();
     const monthIndex = month.getMonth();
@@ -80,6 +84,9 @@ export function Calendar({ month, items, selectedDate, onSelectDate }: CalendarP
 
   return (
     <div className="rounded-3xl bg-white/80 p-6 shadow-soft">
+      <div className="mb-4 text-center">
+        <h3 className="text-xl font-bold text-slate-800">{monthLabel}</h3>
+      </div>
       <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase tracking-wide text-pink-500">
         {weekdayLabels.map((label) => (
           <div key={label}>{label}</div>
@@ -105,36 +112,23 @@ export function Calendar({ month, items, selectedDate, onSelectDate }: CalendarP
               key={dateKey}
               type="button"
               onClick={() => onSelectDate(date)}
-              className={`group relative flex h-12 flex-col items-center justify-center rounded-2xl border text-sm font-medium transition hover:border-pink-200 hover:bg-pink-50 focus:outline-none focus:ring-2 focus:ring-pink-300 ${
+              className={`group relative flex h-14 flex-col items-center justify-start rounded-2xl border px-1 pt-1 text-sm font-medium transition hover:border-pink-200 hover:bg-pink-50 focus:outline-none focus:ring-2 focus:ring-pink-300 ${
                 isSelected
                   ? "border-pink-300 bg-pink-100 text-pink-700 shadow"
                   : "border-transparent bg-white text-slate-700"
               }`}
             >
-              {tripSpan ? (
-                <>
-                  {hasTripLeftConnector ? (
-                    <span
-                      className="absolute left-0 top-1/2 z-0 h-2 w-2 -translate-x-2 -translate-y-1/2 bg-indigo-200"
-                      aria-hidden
-                    />
-                  ) : null}
-                  {hasTripRightConnector ? (
-                    <span
-                      className="absolute right-0 top-1/2 z-0 h-2 w-2 translate-x-2 -translate-y-1/2 bg-indigo-200"
-                      aria-hidden
-                    />
-                  ) : null}
-                  <span
-                    className="absolute inset-x-1 top-1/2 z-0 h-2 -translate-y-1/2 rounded-full bg-indigo-200"
-                    aria-hidden
-                  />
-                </>
-              ) : null}
               <span className={`relative z-10 ${tripSpan && !isSelected ? "text-indigo-700" : ""}`}>
                 {date.getDate()}
               </span>
-              <span className="relative z-10 mt-1 flex gap-1">
+              {tripSpan ? (
+                <span className="pointer-events-none absolute bottom-3 left-1 right-1 z-0 flex items-center">
+                  {hasTripLeftConnector ? <span className="h-1 w-2 rounded-l-full bg-indigo-200" /> : null}
+                  <span className="h-1 flex-1 rounded-full bg-indigo-300/90" />
+                  {hasTripRightConnector ? <span className="h-1 w-2 rounded-r-full bg-indigo-200" /> : null}
+                </span>
+              ) : null}
+              <span className="relative z-10 mt-auto mb-1 flex gap-1">
                 {dayItems.slice(0, 3).map((item) => (
                   <span
                     key={item.id}
