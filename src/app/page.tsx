@@ -47,6 +47,8 @@ const categoryStyles: Record<PlannerItem["category"], { label: string; color: st
   wishlist: { label: "Wishlist", color: "bg-amber-100 text-amber-600" }
 };
 
+const LOCAL_ITEMS_KEY = "meet-asuka:planner-items";
+
 export default function Home() {
   type NavGroupKey = PlannerItem["category"] | "past";
 
@@ -212,14 +214,45 @@ export default function Home() {
   };
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const localItems = window.localStorage.getItem(LOCAL_ITEMS_KEY);
+    if (!localItems) {
+      return;
+    }
+
+    try {
+      const parsedItems = JSON.parse(localItems) as PlannerItem[];
+      if (Array.isArray(parsedItems)) {
+        setItems(parsedItems);
+      }
+    } catch {
+      window.localStorage.removeItem(LOCAL_ITEMS_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(LOCAL_ITEMS_KEY, JSON.stringify(items));
+  }, [items]);
+
+  useEffect(() => {
     const loadPlanner = async () => {
       if (!isFirebaseConfigured) {
         return;
       }
-      const remoteItems = await getPlannerItems();
-      setItems(remoteItems);
+      try {
+        const remoteItems = await getPlannerItems();
+        setItems(remoteItems);
+      } catch (error) {
+        console.error("Failed to load planner items from Firestore", error);
+      }
     };
-    loadPlanner();
+    void loadPlanner();
   }, []);
 
   if (!isLoggedIn) {
