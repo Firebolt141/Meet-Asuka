@@ -121,6 +121,9 @@ export default function Home() {
     });
   }, [items, selectedDate, selectedKey]);
 
+  // Backward-compatible alias in case any stale references remain during merges/cherry-picks.
+  const todaysItems = selectedItems;
+
   const activeMonthLabel = activeMonth.toLocaleDateString("en-US", {
     month: "long",
     year: "numeric"
@@ -389,6 +392,14 @@ export default function Home() {
           </div>
         </header>
 
+        <div style={{ fontSize: 10, opacity: 0.6 }} className="px-1 text-slate-600">
+          Firebase configured: {String(isFirebaseConfigured)}
+          {isFirebaseConfigured ? ` • project: ${configuredProjectId}` : ""}
+          {missingFirebaseConfigVars.length > 0
+            ? ` • missing env: ${missingFirebaseConfigVars.join(", ")}`
+            : ""}
+        </div>
+
         <div className="flex items-center justify-between rounded-2xl bg-white/80 px-4 py-3 text-sm font-semibold text-slate-700 shadow">
           <button
             type="button"
@@ -433,15 +444,15 @@ export default function Home() {
 
         <section className="rounded-3xl bg-white/80 p-6 shadow-soft">
           <h3 className="text-lg font-semibold text-slate-800">
-            Plans for {selectedDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })}
+            Plans for today
           </h3>
           <div className="mt-4 space-y-3">
-            {selectedItems.length === 0 ? (
+            {todaysItems.length === 0 ? (
               <p className="text-sm text-slate-500">
                 No plans yet. Add something sweet with the plus button!
               </p>
             ) : (
-                selectedItems.map((item) => (
+                todaysItems.map((item) => (
                   <button
                     key={item.id}
                     type="button"
