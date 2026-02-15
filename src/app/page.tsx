@@ -125,6 +125,9 @@ export default function Home() {
     });
   }, [items, selectedDate, selectedKey]);
 
+  // Backward-compatible alias for stale merge paths still referencing this symbol.
+  const todaysItems = selectedItems;
+
   const activeMonthLabel = activeMonth.toLocaleDateString("en-US", {
     month: "long",
     year: "numeric"
