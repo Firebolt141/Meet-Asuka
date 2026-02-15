@@ -85,7 +85,7 @@ export function Calendar({ month, items, selectedDate, onSelectDate }: CalendarP
           <div key={label}>{label}</div>
         ))}
       </div>
-      <div className="mt-4 grid grid-cols-7 gap-2">
+      <div className="mt-4 grid grid-cols-7 gap-x-0 gap-y-2">
         {Array.from({ length: leadingBlanks }).map((_, index) => (
           <div key={`blank-${index}`} className="h-12" />
         ))}
