@@ -1,39 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, PlannerItem } from "@/components/Calendar";
-import { addPlannerItem, getPlannerItems, isFirebaseConfigured, updatePlannerItem } from "@/lib/firestore";
-
-const starterItems: PlannerItem[] = [
-  {
-    id: "1",
-    title: "Kyoto Cozy Trip",
-    category: "trip",
-    date: "2024-11-05",
-    details: "Book the sweet ryokan and matcha cafe hop."
-  },
-  {
-    id: "2",
-    title: "Bestie Picnic",
-    category: "event",
-    date: "2024-11-12",
-    details: "Pack strawberry bento + pastel blanket."
-  },
-  {
-    id: "3",
-    title: "Todo: Pack Camera",
-    category: "todo",
-    date: "2024-11-12",
-    details: "Charge batteries + bring the pastel strap."
-  },
-  {
-    id: "4",
-    title: "Wish: Disney Date",
-    category: "wishlist",
-    date: "2024-11-20",
-    details: "Collect outfit ideas + snacks list."
-  }
-];
+import { Calendar, PlannerItem, type TripTodoEntry } from "@/components/Calendar";
+import {
+  addPlannerItem,
+  deletePlannerItem,
+  getPlannerItems,
+  isFirebaseConfigured,
+  updatePlannerItem
+} from "@/lib/firestore";
 
 const pad = (value: number) => value.toString().padStart(2, "0");
 
@@ -47,13 +22,47 @@ const categoryStyles: Record<PlannerItem["category"], { label: string; color: st
   wishlist: { label: "Wishlist", color: "bg-amber-100 text-amber-600" }
 };
 
+// Backward-compatible fallback for stale branch merges that still reference this symbol.
+const categoryAccentStyles: Record<PlannerItem["category"], string> = {
+  trip: "",
+  event: "",
+  todo: "",
+  wishlist: ""
+};
+
+// Backward-compatible fallbacks for stale merge references from old Firebase debug UI blocks.
+const configuredProjectId = "";
+const missingFirebaseConfigVars: string[] = [];
+
 const LOCAL_ITEMS_KEY = "meet-asuka:planner-items";
+
+const createEmptyTripTodo = (): TripTodoEntry => ({
+  title: "",
+  date: formatDate(new Date()),
+  details: "",
+  participants: ""
+});
+
+type PlannerFormState = {
+  title: string;
+  category: PlannerItem["category"];
+  date: string;
+  endDate: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  recurring: PlannerItem["recurring"];
+  tripTodos: string;
+  tripTodoItems: TripTodoEntry[];
+  participants: string;
+  details: string;
+};
 
 export default function Home() {
   type NavGroupKey = PlannerItem["category"] | "past";
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [items, setItems] = useState<PlannerItem[]>(starterItems);
+  const [items, setItems] = useState<PlannerItem[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(false);
@@ -61,13 +70,18 @@ export default function Home() {
     PlannerItem["category"] | "past"
   >("event");
   const [activeMonth, setActiveMonth] = useState(() => new Date());
-  const [newItem, setNewItem] = useState({
+  const [newItem, setNewItem] = useState<PlannerFormState>({
     title: "",
     category: "trip",
     date: formatDate(new Date()),
     endDate: "",
     startTime: "",
     endTime: "",
+    location: "",
+    recurring: "none",
+    tripTodos: "",
+    tripTodoItems: [createEmptyTripTodo()],
+    participants: "",
     details: ""
   });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -78,62 +92,46 @@ export default function Home() {
     wishlist: false,
     past: true
   });
+  const [weatherLabel, setWeatherLabel] = useState("Loading...");
 
-  const selectedKey = formatDate(selectedDate);
   const normalizedToday = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return today;
   }, []);
 
-  const filteredItems = useMemo(() => {
-    if (activeCategory === "past") {
-      return items;
-    }
-    return items.filter((item) => item.category === activeCategory);
-  }, [activeCategory, items]);
+  const selectedKey = formatDate(selectedDate);
+  const selectedItems = useMemo(() => {
+    const selectedDateOnly = new Date(selectedDate);
+    selectedDateOnly.setHours(0, 0, 0, 0);
 
-  const selectedItems = useMemo(
-    () => items.filter((item) => item.date && item.date === selectedKey),
-    [items, selectedKey]
-  );
+    return items.filter((item) => {
+      if (!item.date) {
+        return false;
+      }
+      if (item.category !== "trip") {
+        return item.date === selectedKey;
+      }
+
+      const start = new Date(item.date);
+      const end = item.endDate ? new Date(item.endDate) : new Date(item.date);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(0, 0, 0, 0);
+
+      const rangeStart = start <= end ? start : end;
+      const rangeEnd = start <= end ? end : start;
+
+      return selectedDateOnly >= rangeStart && selectedDateOnly <= rangeEnd;
+    });
+  }, [items, selectedDate, selectedKey]);
+
+  // Backward-compatible alias for stale merge paths still referencing this symbol.
+  const todaysItems = selectedItems;
 
   const activeMonthLabel = activeMonth.toLocaleDateString("en-US", {
     month: "long",
     year: "numeric"
   });
-
-  const upcomingItems = useMemo(
-    () =>
-      filteredItems.filter((item) => {
-        if (!item.date) {
-          return false;
-        }
-        const itemDate = new Date(item.date);
-        itemDate.setHours(0, 0, 0, 0);
-        if (activeCategory === "past") {
-          return false;
-        }
-        return itemDate >= normalizedToday;
-      }),
-    [activeCategory, filteredItems, normalizedToday]
-  );
-
-  const pastItems = useMemo(
-    () =>
-      filteredItems.filter((item) => {
-        if (!item.date) {
-          return false;
-        }
-        const itemDate = new Date(item.date);
-        itemDate.setHours(0, 0, 0, 0);
-        if (activeCategory === "past") {
-          return itemDate < normalizedToday;
-        }
-        return itemDate < normalizedToday;
-      }),
-    [activeCategory, filteredItems, normalizedToday]
-  );
 
   const allPastItems = useMemo(
     () =>
@@ -197,10 +195,13 @@ export default function Home() {
       return "No date set";
     }
     if (item.category === "trip") {
-      if (item.endDate && item.endDate !== item.date) {
-        return `Dates: ${item.date} → ${item.endDate}`;
-      }
-      return `Date: ${item.date}`;
+      const dateLabel = item.endDate && item.endDate !== item.date
+        ? `Dates: ${item.date} → ${item.endDate}`
+        : `Date: ${item.date}`;
+      const tripTodoCount = item.tripTodoItems?.length ?? (item.tripTodos ? 1 : 0);
+      const todoLabel = tripTodoCount > 0 ? ` • ${tripTodoCount} trip todo${tripTodoCount > 1 ? "s" : ""}` : "";
+      const participantsLabel = item.participants ? ` • With: ${item.participants}` : "";
+      return `${dateLabel}${todoLabel}${participantsLabel}`;
     }
     if (item.category === "event") {
       const time = item.startTime
@@ -208,9 +209,15 @@ export default function Home() {
           ? `${item.startTime} → ${item.endTime}`
           : `${item.startTime} → ?`
         : "Time TBD";
-      return `When: ${item.date} • ${time}`;
+      const recurringLabel =
+        item.recurring && item.recurring !== "none"
+          ? ` • Repeats ${item.recurring}`
+          : "";
+      const locationLabel = item.location ? ` • ${item.location}` : "";
+      const participantsLabel = item.participants ? ` • With: ${item.participants}` : "";
+      return `When: ${item.date} • ${time}${locationLabel}${participantsLabel}${recurringLabel}`;
     }
-    return `Due: ${item.date}`;
+    return `Due: ${item.date}${item.participants ? ` • With: ${item.participants}` : ""}`;
   };
 
   useEffect(() => {
@@ -265,25 +272,86 @@ export default function Home() {
     window.localStorage.setItem(LOCAL_ITEMS_KEY, JSON.stringify(items));
   }, [items]);
 
+  useEffect(() => {
+    const loadWeather = async () => {
+      try {
+        const response = await fetch(
+          "https://api.open-meteo.com/v1/forecast?latitude=35.7082&longitude=139.6984&current=temperature_2m,weather_code&timezone=Asia%2FTokyo"
+        );
+        if (!response.ok) {
+          throw new Error("Weather request failed");
+        }
+        const data = (await response.json()) as {
+          current?: { temperature_2m?: number; weather_code?: number };
+        };
+        const weatherCode = data.current?.weather_code;
+        const temp = data.current?.temperature_2m;
+        const weatherMap: Record<number, string> = {
+          0: "Clear",
+          1: "Mainly clear",
+          2: "Partly cloudy",
+          3: "Cloudy",
+          45: "Fog",
+          48: "Fog",
+          51: "Drizzle",
+          53: "Drizzle",
+          55: "Drizzle",
+          61: "Rain",
+          63: "Rain",
+          65: "Heavy rain",
+          71: "Snow",
+          80: "Rain showers",
+          95: "Thunderstorm"
+        };
+        const condition = weatherCode !== undefined ? weatherMap[weatherCode] ?? "Weather" : "Weather";
+        const temperature = temp !== undefined ? `${Math.round(temp)}°C` : "--°C";
+        setWeatherLabel(`${condition} ${temperature}`);
+      } catch (error) {
+        console.error("Failed to load weather", error);
+        setWeatherLabel("Weather unavailable");
+      }
+    };
+
+    void loadWeather();
+  }, []);
+
+  const handleDeleteItem = async (id: string) => {
+    setItems((prev) => prev.filter((item) => item.id !== id));
+
+    if (!isFirebaseConfigured) {
+      return;
+    }
+
+    try {
+      await deletePlannerItem(id);
+    } catch (error) {
+      console.error("Failed to delete planner item from Firestore", error);
+    }
+  };
+
   if (!isLoggedIn) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-pink-100 via-blush to-orange-100 p-6">
-        <div className="w-full max-w-lg rounded-[32px] bg-white/80 p-10 text-center shadow-soft">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-pink-400">
-            Welcome home
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-pink-100 via-blush to-orange-100 p-6">
+        <div className="pointer-events-none absolute -left-16 top-10 h-44 w-44 rounded-full bg-pink-300/30 blur-3xl" />
+        <div className="pointer-events-none absolute -right-12 bottom-8 h-52 w-52 rounded-full bg-rose-300/30 blur-3xl" />
+        <div className="w-full max-w-xl rounded-[36px] border border-white/60 bg-white/85 p-10 text-center shadow-soft backdrop-blur">
+          <div className="mx-auto mb-4 flex w-fit items-center gap-2 rounded-full bg-pink-100/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-pink-500">
+            <span>✦</span>
+            Cozy Planner Login
+          </div>
+          <h1 className="text-4xl font-bold text-slate-800">Hi Asuka 💖</h1>
+          <p className="mx-auto mt-3 max-w-md text-base text-slate-600">
+            Let&apos;s open your dreamy planner and map cute trips, events, and todo moments.
           </p>
-          <h1 className="mt-4 text-4xl font-bold text-slate-800">
-            Hi Asuka
-          </h1>
-          <p className="mt-3 text-base text-slate-600">
-            Ready for the cutest travel plans and cozy memories?
-          </p>
+          <div className="mt-7 flex justify-center">
+            <img src="https://raw.githubusercontent.com/chux0519/runcat-tray/master/runcat.gif" alt="RunCat loading" className="h-16 w-auto" />
+          </div>
           <button
             type="button"
             onClick={() => setIsLoggedIn(true)}
-            className="mt-8 inline-flex items-center justify-center rounded-full bg-pink-500 px-8 py-3 text-base font-semibold text-white shadow-lg shadow-pink-200 transition hover:-translate-y-0.5 hover:bg-pink-400"
+            className="mt-8 inline-flex items-center justify-center rounded-full bg-pink-500 px-9 py-3 text-base font-semibold text-white shadow-lg shadow-pink-200 transition hover:-translate-y-0.5 hover:bg-pink-400"
           >
-            Let&apos;s go
+            Enter Planner ✨
           </button>
         </div>
       </main>
@@ -306,9 +374,8 @@ export default function Home() {
           </button>
           <div className="text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-pink-400">
-              Your sweet calendar
+              Asuka's Cozy Plan Board
             </p>
-            <h2 className="mt-1 text-2xl font-bold text-slate-800">{activeMonthLabel}</h2>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-3 rounded-full bg-white/90 px-3 py-2 text-xs font-medium text-slate-700 shadow">
@@ -323,8 +390,7 @@ export default function Home() {
               </svg>
             </span>
             <div>
-              <p className="text-[11px] text-slate-500">Weather</p>
-              <p className="text-xs font-semibold">Sunny 26°C</p>
+              <p className="text-xs font-semibold">{weatherLabel}</p>
             </div>
             </div>
           </div>
@@ -366,6 +432,7 @@ export default function Home() {
 
         <Calendar
           month={new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1)}
+          monthLabel={activeMonthLabel}
           items={items}
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
@@ -394,6 +461,16 @@ export default function Home() {
                         endDate: item.endDate ?? "",
                         startTime: item.startTime ?? "",
                         endTime: item.endTime ?? "",
+                        location: item.location ?? "",
+                        recurring: item.recurring ?? "none",
+                        tripTodos: item.tripTodos ?? "",
+                        tripTodoItems:
+                          item.tripTodoItems && item.tripTodoItems.length > 0
+                            ? item.tripTodoItems
+                            : item.tripTodos
+                              ? [{ title: "Trip todo", date: item.date, details: item.tripTodos, participants: "" }]
+                              : [createEmptyTripTodo()],
+                        participants: item.participants ?? "",
                         details: item.details
                       });
                       setIsModalOpen(true);
@@ -414,52 +491,26 @@ export default function Home() {
                       {formatMeta(item)}
                     </p>
                     <p className="mt-2 text-sm text-slate-600">{item.details}</p>
+                    {item.participants ? (
+                      <p className="mt-1 text-xs text-slate-500">👥 {item.participants}</p>
+                    ) : null}
+                    {item.category === "trip" && item.tripTodoItems && item.tripTodoItems.length > 0 ? (
+                      <div className="mt-2 space-y-1">
+                        {item.tripTodoItems.slice(0, 2).map((todo, index) => (
+                          <p key={`${item.id}-trip-todo-${index}`} className="text-xs text-indigo-500">
+                            📝 {todo.title || "Trip todo"}{todo.date ? ` • ${todo.date}` : ""}
+                          </p>
+                        ))}
+                        {item.tripTodoItems.length > 2 ? (
+                          <p className="text-xs text-indigo-400">+{item.tripTodoItems.length - 2} more</p>
+                        ) : null}
+                      </div>
+                    ) : item.category === "trip" && item.tripTodos ? (
+                      <p className="mt-1 text-xs text-indigo-500">📝 Trip todos: {item.tripTodos}</p>
+                    ) : null}
                   </button>
                 ))
               )}
-          </div>
-        </section>
-
-        <section className="rounded-3xl bg-white/80 p-6 shadow-soft">
-          <h3 className="text-lg font-semibold text-slate-800">Today & upcoming</h3>
-          <div className="mt-4 space-y-3">
-            {upcomingItems.length === 0 ? (
-              <p className="text-sm text-slate-500">No upcoming plans yet.</p>
-            ) : (
-              upcomingItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    setEditingId(item.id);
-                    setNewItem({
-                      title: item.title,
-                      category: item.category,
-                      date: item.date,
-                      endDate: item.endDate ?? "",
-                      startTime: item.startTime ?? "",
-                      endTime: item.endTime ?? "",
-                      details: item.details
-                    });
-                    setIsModalOpen(true);
-                  }}
-                  className="w-full rounded-2xl border border-pink-100 bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 hover:border-pink-200 hover:bg-pink-50/50"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-slate-800">
-                      {item.title}
-                    </p>
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${categoryStyles[item.category].color}`}
-                    >
-                      {categoryStyles[item.category].label}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-slate-500">{formatMeta(item)}</p>
-                  <p className="mt-2 text-sm text-slate-600">{item.details}</p>
-                </button>
-              ))
-            )}
           </div>
         </section>
 
@@ -482,7 +533,7 @@ export default function Home() {
           setEditingId(null);
           setIsModalOpen(true);
         }}
-        className="fixed bottom-8 left-1/2 z-40 flex -translate-x-1/2 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-pink-400 to-rose-400 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-pink-200 transition hover:-translate-y-1 hover:from-pink-300 hover:to-rose-300"
+        className="fixed bottom-8 left-1/2 z-40 flex -translate-x-1/2 items-center justify-center gap-2 rounded-full bg-pink-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-pink-300 transition hover:-translate-y-1 hover:bg-pink-400"
         aria-label="Add plan"
       >
         <span className="text-lg">✨</span>
@@ -490,8 +541,8 @@ export default function Home() {
       </button>
 
       {isModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-6">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-soft">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 sm:p-6">
+          <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 shadow-soft">
             <div className="flex items-start justify-between">
               <div>
                 <h4 className="text-xl font-semibold text-slate-800">
@@ -527,6 +578,24 @@ export default function Home() {
                       : undefined,
                   startTime: newItem.category === "event" ? newItem.startTime : undefined,
                   endTime: newItem.category === "event" ? newItem.endTime : undefined,
+                  location: newItem.category === "event" ? newItem.location.trim() : undefined,
+                  recurring:
+                    newItem.category === "event"
+                      ? (newItem.recurring as PlannerItem["recurring"])
+                      : undefined,
+                  tripTodos: newItem.category === "trip" ? newItem.tripTodos.trim() : undefined,
+                  tripTodoItems:
+                    newItem.category === "trip"
+                      ? newItem.tripTodoItems
+                          .map((todo) => ({
+                            title: todo.title.trim(),
+                            date: todo.date,
+                            details: todo.details.trim(),
+                            participants: todo.participants?.trim() || undefined
+                          }))
+                          .filter((todo) => todo.title || todo.details || todo.date)
+                      : undefined,
+                  participants: newItem.participants.trim() || undefined,
                   details: newItem.details.trim() || "A dreamy new memory."
                 };
                 if (editingId) {
@@ -568,6 +637,11 @@ export default function Home() {
                   endDate: "",
                   startTime: "",
                   endTime: "",
+                  location: "",
+                  recurring: "none",
+                  tripTodos: "",
+                  tripTodoItems: [createEmptyTripTodo()],
+                  participants: "",
                   details: ""
                 });
                 setEditingId(null);
@@ -590,7 +664,16 @@ export default function Home() {
                           date: category === "wishlist" ? "" : prev.date || formatDate(new Date()),
                           endDate: category === "trip" ? prev.endDate || prev.date : "",
                           startTime: category === "event" ? prev.startTime : "",
-                          endTime: category === "event" ? prev.endTime : ""
+                          endTime: category === "event" ? prev.endTime : "",
+                          location: category === "event" ? prev.location : "",
+                          recurring: category === "event" ? prev.recurring : "none",
+                          tripTodos: category === "trip" ? prev.tripTodos : "",
+                          tripTodoItems:
+                            category === "trip"
+                              ? prev.tripTodoItems.length > 0
+                                ? prev.tripTodoItems
+                                : [createEmptyTripTodo()]
+                              : [createEmptyTripTodo()]
                         };
                       })
                     }
@@ -639,58 +722,203 @@ export default function Home() {
               </div>
 
               {newItem.category === "trip" ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="block text-sm font-medium text-slate-700">
-                    From
-                    <input
-                      type="date"
-                      value={newItem.date}
-                      onChange={(event) =>
-                        setNewItem((prev) => ({ ...prev, date: event.target.value }))
-                      }
-                      className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                    />
-                  </label>
-                  <label className="block text-sm font-medium text-slate-700">
-                    To
-                    <input
-                      type="date"
-                      value={newItem.endDate}
-                      onChange={(event) =>
-                        setNewItem((prev) => ({ ...prev, endDate: event.target.value }))
-                      }
-                      className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                    />
-                  </label>
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="block text-sm font-medium text-slate-700">
+                      From
+                      <input
+                        type="date"
+                        value={newItem.date}
+                        onChange={(event) =>
+                          setNewItem((prev) => ({ ...prev, date: event.target.value }))
+                        }
+                        className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium text-slate-700">
+                      To
+                      <input
+                        type="date"
+                        value={newItem.endDate}
+                        onChange={(event) =>
+                          setNewItem((prev) => ({ ...prev, endDate: event.target.value }))
+                        }
+                        className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      />
+                    </label>
+                  </div>
+                  <div className="space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-indigo-700">Trip todos</p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setNewItem((prev) => ({
+                            ...prev,
+                            tripTodoItems: [...prev.tripTodoItems, createEmptyTripTodo()]
+                          }))
+                        }
+                        className="rounded-full border border-indigo-200 px-3 py-1 text-xs font-semibold text-indigo-600 hover:bg-indigo-100"
+                      >
+                        + Add todo
+                      </button>
+                    </div>
+                    {newItem.tripTodoItems.map((todo, todoIndex) => (
+                      <div key={`trip-todo-${todoIndex}`} className="space-y-2 rounded-xl border border-indigo-100 bg-white p-3">
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <label className="block text-xs font-medium text-slate-700">
+                            Todo title
+                            <input
+                              value={todo.title}
+                              onChange={(event) =>
+                                setNewItem((prev) => ({
+                                  ...prev,
+                                  tripTodoItems: prev.tripTodoItems.map((entry, index) =>
+                                    index === todoIndex ? { ...entry, title: event.target.value } : entry
+                                  )
+                                }))
+                              }
+                              className="mt-1 w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none"
+                              placeholder="Pack camera"
+                            />
+                          </label>
+                          <label className="block text-xs font-medium text-slate-700">
+                            Due date
+                            <input
+                              type="date"
+                              value={todo.date}
+                              onChange={(event) =>
+                                setNewItem((prev) => ({
+                                  ...prev,
+                                  tripTodoItems: prev.tripTodoItems.map((entry, index) =>
+                                    index === todoIndex ? { ...entry, date: event.target.value } : entry
+                                  )
+                                }))
+                              }
+                              className="mt-1 w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none"
+                            />
+                          </label>
+                        </div>
+                        <label className="block text-xs font-medium text-slate-700">
+                          Participants
+                          <input
+                            value={todo.participants ?? ""}
+                            onChange={(event) =>
+                              setNewItem((prev) => ({
+                                ...prev,
+                                tripTodoItems: prev.tripTodoItems.map((entry, index) =>
+                                  index === todoIndex ? { ...entry, participants: event.target.value } : entry
+                                )
+                              }))
+                            }
+                            className="mt-1 w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none"
+                            placeholder="Asuka"
+                          />
+                        </label>
+                        <label className="block text-xs font-medium text-slate-700">
+                          Details
+                          <textarea
+                            value={todo.details}
+                            onChange={(event) =>
+                              setNewItem((prev) => ({
+                                ...prev,
+                                tripTodoItems: prev.tripTodoItems.map((entry, index) =>
+                                  index === todoIndex ? { ...entry, details: event.target.value } : entry
+                                )
+                              }))
+                            }
+                            className="mt-1 min-h-[70px] w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none"
+                            placeholder="Charge battery and pack the strap."
+                          />
+                        </label>
+                        {newItem.tripTodoItems.length > 1 ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setNewItem((prev) => ({
+                                ...prev,
+                                tripTodoItems: prev.tripTodoItems.filter((_, index) => index !== todoIndex)
+                              }))
+                            }
+                            className="text-xs font-semibold text-rose-500 hover:text-rose-600"
+                          >
+                            Remove todo
+                          </button>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : null}
 
               {newItem.category === "event" ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="block text-sm font-medium text-slate-700">
-                    From time
-                    <input
-                      type="time"
-                      value={newItem.startTime}
-                      onChange={(event) =>
-                        setNewItem((prev) => ({ ...prev, startTime: event.target.value }))
-                      }
-                      className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                    />
-                  </label>
-                  <label className="block text-sm font-medium text-slate-700">
-                    To time (optional)
-                    <input
-                      type="time"
-                      value={newItem.endTime}
-                      onChange={(event) =>
-                        setNewItem((prev) => ({ ...prev, endTime: event.target.value }))
-                      }
-                      className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                    />
-                  </label>
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="block text-sm font-medium text-slate-700">
+                      From time
+                      <input
+                        type="time"
+                        value={newItem.startTime}
+                        onChange={(event) =>
+                          setNewItem((prev) => ({ ...prev, startTime: event.target.value }))
+                        }
+                        className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium text-slate-700">
+                      To time (optional)
+                      <input
+                        type="time"
+                        value={newItem.endTime}
+                        onChange={(event) =>
+                          setNewItem((prev) => ({ ...prev, endTime: event.target.value }))
+                        }
+                        className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      />
+                    </label>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="block text-sm font-medium text-slate-700">
+                      Location
+                      <input
+                        value={newItem.location}
+                        onChange={(event) =>
+                          setNewItem((prev) => ({ ...prev, location: event.target.value }))
+                        }
+                        className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                        placeholder="Shibuya Sky"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium text-slate-700">
+                      Recurring
+                      <select
+                        value={newItem.recurring}
+                        onChange={(event) =>
+                          setNewItem((prev) => ({ ...prev, recurring: event.target.value as PlannerItem["recurring"] }))
+                        }
+                        className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      >
+                        <option value="none">Does not repeat</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                      </select>
+                    </label>
+                  </div>
                 </div>
               ) : null}
+
+              <label className="block text-sm font-medium text-slate-700">
+                Participants
+                <input
+                  value={newItem.participants}
+                  onChange={(event) =>
+                    setNewItem((prev) => ({ ...prev, participants: event.target.value }))
+                  }
+                  className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  placeholder="Asuka, Yui, Rina"
+                />
+              </label>
 
               <label className="block text-sm font-medium text-slate-700">
                 Details
@@ -705,6 +933,19 @@ export default function Home() {
               </label>
 
               <div className="flex justify-end gap-3">
+                {editingId ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await handleDeleteItem(editingId);
+                      setIsModalOpen(false);
+                      setEditingId(null);
+                    }}
+                    className="rounded-full border border-rose-200 px-5 py-2 text-sm font-semibold text-rose-500 hover:bg-rose-50"
+                  >
+                    Delete
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => {
@@ -813,6 +1054,16 @@ export default function Home() {
                                     endDate: item.endDate ?? "",
                                     startTime: item.startTime ?? "",
                                     endTime: item.endTime ?? "",
+                                    location: item.location ?? "",
+                                    recurring: item.recurring ?? "none",
+                                    tripTodos: item.tripTodos ?? "",
+                                    tripTodoItems:
+                                      item.tripTodoItems && item.tripTodoItems.length > 0
+                                        ? item.tripTodoItems
+                                        : item.tripTodos
+                                          ? [{ title: "Trip todo", date: item.date, details: item.tripTodos, participants: "" }]
+                                          : [createEmptyTripTodo()],
+                                    participants: item.participants ?? "",
                                     details: item.details
                                   });
                                   setIsModalOpen(true);
