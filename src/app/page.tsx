@@ -24,6 +24,13 @@ const categoryStyles: Record<PlannerItem["category"], { label: string; color: st
   wishlist: { label: "Wishlist", color: "bg-amber-100 text-amber-600" }
 };
 
+// Backward-compatible fallback for stale branch merges that still reference this symbol.
+const categoryAccentStyles: Record<PlannerItem["category"], string> = {
+  trip: "",
+  event: "",
+  todo: "",
+  wishlist: ""
+};
 
 const LOCAL_ITEMS_KEY = "meet-asuka:planner-items";
 
