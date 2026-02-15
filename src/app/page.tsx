@@ -92,8 +92,8 @@ export default function Home() {
   }, [activeCategory, items]);
 
   const selectedItems = useMemo(
-    () => filteredItems.filter((item) => item.date && item.date === selectedKey),
-    [filteredItems, selectedKey]
+    () => items.filter((item) => item.date && item.date === selectedKey),
+    [items, selectedKey]
   );
 
   const activeMonthLabel = activeMonth.toLocaleDateString("en-US", {
@@ -217,9 +217,7 @@ export default function Home() {
         return;
       }
       const remoteItems = await getPlannerItems();
-      if (remoteItems.length > 0) {
-        setItems(remoteItems);
-      }
+      setItems(remoteItems);
     };
     loadPlanner();
   }, []);
