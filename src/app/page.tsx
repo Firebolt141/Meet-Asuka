@@ -4,11 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Calendar, PlannerItem, type TripTodoEntry } from "@/components/Calendar";
 import {
   addPlannerItem,
-  configuredProjectId,
   deletePlannerItem,
   getPlannerItems,
   isFirebaseConfigured,
-  missingFirebaseConfigVars,
   updatePlannerItem
 } from "@/lib/firestore";
 
@@ -99,10 +97,29 @@ export default function Home() {
   }, []);
 
   const selectedKey = formatDate(selectedDate);
-  const selectedItems = useMemo(
-    () => items.filter((item) => item.date && item.date === selectedKey),
-    [items, selectedKey]
-  );
+  const selectedItems = useMemo(() => {
+    const selectedDateOnly = new Date(selectedDate);
+    selectedDateOnly.setHours(0, 0, 0, 0);
+
+    return items.filter((item) => {
+      if (!item.date) {
+        return false;
+      }
+      if (item.category !== "trip") {
+        return item.date === selectedKey;
+      }
+
+      const start = new Date(item.date);
+      const end = item.endDate ? new Date(item.endDate) : new Date(item.date);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(0, 0, 0, 0);
+
+      const rangeStart = start <= end ? start : end;
+      const rangeEnd = start <= end ? end : start;
+
+      return selectedDateOnly >= rangeStart && selectedDateOnly <= rangeEnd;
+    });
+  }, [items, selectedDate, selectedKey]);
 
   // Backward-compatible alias in case any stale references remain during merges/cherry-picks.
   const todaysItems = selectedItems;
@@ -310,23 +327,27 @@ export default function Home() {
 
   if (!isLoggedIn) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-pink-100 via-blush to-orange-100 p-6">
-        <div className="w-full max-w-lg rounded-[32px] bg-white/80 p-10 text-center shadow-soft">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-pink-400">
-            Welcome home
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-pink-100 via-blush to-orange-100 p-6">
+        <div className="pointer-events-none absolute -left-16 top-10 h-44 w-44 rounded-full bg-pink-300/30 blur-3xl" />
+        <div className="pointer-events-none absolute -right-12 bottom-8 h-52 w-52 rounded-full bg-rose-300/30 blur-3xl" />
+        <div className="w-full max-w-xl rounded-[36px] border border-white/60 bg-white/85 p-10 text-center shadow-soft backdrop-blur">
+          <div className="mx-auto mb-4 flex w-fit items-center gap-2 rounded-full bg-pink-100/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-pink-500">
+            <span>✦</span>
+            Cozy Planner Login
+          </div>
+          <h1 className="text-4xl font-bold text-slate-800">Hi Asuka 💖</h1>
+          <p className="mx-auto mt-3 max-w-md text-base text-slate-600">
+            Let&apos;s open your dreamy planner and map cute trips, events, and todo moments.
           </p>
-          <h1 className="mt-4 text-4xl font-bold text-slate-800">
-            Hi Asuka
-          </h1>
-          <p className="mt-3 text-base text-slate-600">
-            Ready for the cutest travel plans and cozy memories?
-          </p>
+          <div className="mt-7 flex justify-center">
+            <img src="https://raw.githubusercontent.com/chux0519/runcat-tray/master/runcat.gif" alt="RunCat loading" className="h-16 w-auto" />
+          </div>
           <button
             type="button"
             onClick={() => setIsLoggedIn(true)}
-            className="mt-8 inline-flex items-center justify-center rounded-full bg-pink-500 px-8 py-3 text-base font-semibold text-white shadow-lg shadow-pink-200 transition hover:-translate-y-0.5 hover:bg-pink-400"
+            className="mt-8 inline-flex items-center justify-center rounded-full bg-pink-500 px-9 py-3 text-base font-semibold text-white shadow-lg shadow-pink-200 transition hover:-translate-y-0.5 hover:bg-pink-400"
           >
-            Let&apos;s go
+            Enter Planner ✨
           </button>
         </div>
       </main>
@@ -349,7 +370,7 @@ export default function Home() {
           </button>
           <div className="text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-pink-400">
-              Your sweet calendar
+              Asuka's Cozy Plan Board
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -365,7 +386,6 @@ export default function Home() {
               </svg>
             </span>
             <div>
-              <p className="text-[11px] text-slate-500">Weather</p>
               <p className="text-xs font-semibold">{weatherLabel}</p>
             </div>
             </div>
@@ -517,7 +537,7 @@ export default function Home() {
           setEditingId(null);
           setIsModalOpen(true);
         }}
-        className={`fixed bottom-8 left-1/2 z-40 flex -translate-x-1/2 items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-1 ${categoryAccentStyles[newItem.category]}`}
+        className="fixed bottom-8 left-1/2 z-40 flex -translate-x-1/2 items-center justify-center gap-2 rounded-full bg-pink-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-pink-300 transition hover:-translate-y-1 hover:bg-pink-400"
         aria-label="Add plan"
       >
         <span className="text-lg">✨</span>
@@ -525,8 +545,8 @@ export default function Home() {
       </button>
 
       {isModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-6">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-soft">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 sm:p-6">
+          <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 shadow-soft">
             <div className="flex items-start justify-between">
               <div>
                 <h4 className="text-xl font-semibold text-slate-800">
