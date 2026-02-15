@@ -97,6 +97,9 @@ export default function Home() {
     [items, selectedKey]
   );
 
+  // Backward-compatible alias in case any stale references remain during merges/cherry-picks.
+  const todaysItems = selectedItems;
+
   const activeMonthLabel = activeMonth.toLocaleDateString("en-US", {
     month: "long",
     year: "numeric"
