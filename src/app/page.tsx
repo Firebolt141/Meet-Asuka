@@ -482,10 +482,11 @@ export default function Home() {
           setEditingId(null);
           setIsModalOpen(true);
         }}
-        className="fixed bottom-8 right-8 flex h-14 w-14 items-center justify-center rounded-full bg-pink-500 text-3xl font-semibold text-white shadow-lg shadow-pink-200 transition hover:-translate-y-1 hover:bg-pink-400"
+        className="fixed bottom-8 left-1/2 z-40 flex -translate-x-1/2 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-pink-400 to-rose-400 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-pink-200 transition hover:-translate-y-1 hover:from-pink-300 hover:to-rose-300"
         aria-label="Add plan"
       >
-        +
+        <span className="text-lg">✨</span>
+        <span className="text-base">＋ Add plan</span>
       </button>
 
       {isModalOpen ? (
@@ -575,18 +576,6 @@ export default function Home() {
                 }
               }}
             >
-              <label className="block text-sm font-medium text-slate-700">
-                Title
-                <input
-                  value={newItem.title}
-                  onChange={(event) =>
-                    setNewItem((prev) => ({ ...prev, title: event.target.value }))
-                  }
-                  className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                  placeholder="Cherry blossom day trip"
-                />
-              </label>
-
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block text-sm font-medium text-slate-700">
                   Category
@@ -612,6 +601,18 @@ export default function Home() {
                     <option value="todo">Todo</option>
                     <option value="wishlist">Wishlist</option>
                   </select>
+                </label>
+
+                <label className="block text-sm font-medium text-slate-700">
+                  Title
+                  <input
+                    value={newItem.title}
+                    onChange={(event) =>
+                      setNewItem((prev) => ({ ...prev, title: event.target.value }))
+                    }
+                    className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                    placeholder="Cherry blossom day trip"
+                  />
                 </label>
 
                 <label className="block text-sm font-medium text-slate-700">
