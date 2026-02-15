@@ -97,34 +97,43 @@ export function Calendar({ month, items, selectedDate, onSelectDate }: CalendarP
             date.getDate() === selectedDate.getDate();
           const dayItems = itemsByDate[dateKey] ?? [];
           const tripSpan = tripSpansByDate[dateKey];
-          const tripRangeClass = tripSpan
-            ? tripSpan.isStart && tripSpan.isEnd
-              ? "rounded-xl"
-              : tripSpan.isStart
-              ? "rounded-l-xl rounded-r-md"
-              : tripSpan.isEnd
-              ? "rounded-r-xl rounded-l-md"
-              : "rounded-md"
-            : "rounded-2xl";
+          const hasTripLeftConnector = Boolean(tripSpan && !tripSpan.isStart);
+          const hasTripRightConnector = Boolean(tripSpan && !tripSpan.isEnd);
 
           return (
             <button
               key={dateKey}
               type="button"
               onClick={() => onSelectDate(date)}
-              className={`group relative flex h-12 flex-col items-center justify-center border border-transparent text-sm font-medium transition hover:border-pink-200 hover:bg-pink-50 focus:outline-none focus:ring-2 focus:ring-pink-300 ${tripRangeClass} ${
+              className={`group relative flex h-12 flex-col items-center justify-center rounded-2xl border border-transparent text-sm font-medium transition hover:border-pink-200 hover:bg-pink-50 focus:outline-none focus:ring-2 focus:ring-pink-300 ${
                 isSelected
                   ? "bg-pink-500 text-white shadow"
                   : "bg-white text-slate-700"
               }`}
             >
               {tripSpan ? (
-                <span
-                  className={`absolute inset-x-0 top-1/2 z-0 h-5 -translate-y-1/2 bg-indigo-100 ${tripRangeClass}`}
-                  aria-hidden
-                />
+                <>
+                  {hasTripLeftConnector ? (
+                    <span
+                      className="absolute left-0 top-1/2 z-0 h-2 w-2 -translate-x-2 -translate-y-1/2 bg-indigo-200"
+                      aria-hidden
+                    />
+                  ) : null}
+                  {hasTripRightConnector ? (
+                    <span
+                      className="absolute right-0 top-1/2 z-0 h-2 w-2 translate-x-2 -translate-y-1/2 bg-indigo-200"
+                      aria-hidden
+                    />
+                  ) : null}
+                  <span
+                    className="absolute inset-x-1 top-1/2 z-0 h-2 -translate-y-1/2 rounded-full bg-indigo-200"
+                    aria-hidden
+                  />
+                </>
               ) : null}
-              <span className="relative z-10">{date.getDate()}</span>
+              <span className={`relative z-10 ${tripSpan && !isSelected ? "text-indigo-700" : ""}`}>
+                {date.getDate()}
+              </span>
               <span className="relative z-10 mt-1 flex gap-1">
                 {dayItems.slice(0, 3).map((item) => (
                   <span
