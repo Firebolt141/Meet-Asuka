@@ -48,6 +48,8 @@ const categoryStyles: Record<PlannerItem["category"], { label: string; color: st
 };
 
 export default function Home() {
+  type NavGroupKey = PlannerItem["category"] | "past";
+
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [items, setItems] = useState<PlannerItem[]>(starterItems);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -67,6 +69,13 @@ export default function Home() {
     details: ""
   });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Record<NavGroupKey, boolean>>({
+    trip: false,
+    event: false,
+    todo: false,
+    wishlist: false,
+    past: true
+  });
 
   const selectedKey = formatDate(selectedDate);
   const normalizedToday = useMemo(() => {
@@ -123,6 +132,63 @@ export default function Home() {
       }),
     [activeCategory, filteredItems, normalizedToday]
   );
+
+  const allPastItems = useMemo(
+    () =>
+      items.filter((item) => {
+        if (!item.date) {
+          return false;
+        }
+        const itemDate = new Date(item.date);
+        itemDate.setHours(0, 0, 0, 0);
+        return itemDate < normalizedToday;
+      }),
+    [items, normalizedToday]
+  );
+
+  const navGroups: {
+    key: NavGroupKey;
+    label: string;
+    color: string;
+    icon: string;
+    entries: PlannerItem[];
+  }[] = [
+    {
+      key: "trip",
+      label: "Trips",
+      color: "text-indigo-500",
+      icon: "🧳",
+      entries: items.filter((item) => item.category === "trip")
+    },
+    {
+      key: "event",
+      label: "Events",
+      color: "text-emerald-500",
+      icon: "🎉",
+      entries: items.filter((item) => item.category === "event")
+    },
+    {
+      key: "todo",
+      label: "Todos",
+      color: "text-sky-500",
+      icon: "📝",
+      entries: items.filter((item) => item.category === "todo")
+    },
+    {
+      key: "wishlist",
+      label: "Wishlist",
+      color: "text-amber-500",
+      icon: "🌟",
+      entries: items.filter((item) => item.category === "wishlist")
+    },
+    {
+      key: "past",
+      label: "Past plans",
+      color: "text-rose-500",
+      icon: "⏳",
+      entries: allPastItems
+    }
+  ];
 
   const formatMeta = (item: PlannerItem) => {
     if (item.category === "wishlist") {
@@ -203,7 +269,8 @@ export default function Home() {
             </p>
             <h2 className="mt-1 text-2xl font-bold text-slate-800">{activeMonthLabel}</h2>
           </div>
-          <div className="flex items-center gap-3 rounded-full bg-white/90 px-3 py-2 text-xs font-medium text-slate-700 shadow">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 rounded-full bg-white/90 px-3 py-2 text-xs font-medium text-slate-700 shadow">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-pink-100">
               <svg
                 aria-hidden="true"
@@ -218,15 +285,10 @@ export default function Home() {
               <p className="text-[11px] text-slate-500">Weather</p>
               <p className="text-xs font-semibold">Sunny 26°C</p>
             </div>
+            </div>
           </div>
         </header>
 
-        <Calendar
-          month={new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1)}
-          items={items}
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-        />
         <div className="flex items-center justify-between rounded-2xl bg-white/80 px-4 py-3 text-sm font-semibold text-slate-700 shadow">
           <button
             type="button"
@@ -238,20 +300,17 @@ export default function Home() {
             <span>←</span>
             Prev
           </button>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                const today = new Date();
-                setSelectedDate(today);
-                setActiveMonth(new Date(today.getFullYear(), today.getMonth(), 1));
-              }}
-              className="rounded-full border border-pink-100 px-3 py-1 text-xs font-semibold text-pink-500 transition hover:bg-pink-50"
-            >
-              Today
-            </button>
-            <span className="text-xs uppercase tracking-[0.2em] text-pink-400">Swipe vibes</span>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const today = new Date();
+              setSelectedDate(today);
+              setActiveMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+            }}
+            className="rounded-full border border-pink-100 px-3 py-1 text-xs font-semibold text-pink-500 transition hover:bg-pink-50"
+          >
+            Today
+          </button>
           <button
             type="button"
             onClick={() =>
@@ -263,6 +322,13 @@ export default function Home() {
             <span>→</span>
           </button>
         </div>
+
+        <Calendar
+          month={new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1)}
+          items={items}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+        />
 
         <section className="rounded-3xl bg-white/80 p-6 shadow-soft">
           <h3 className="text-lg font-semibold text-slate-800">
@@ -356,48 +422,17 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="rounded-3xl bg-white/80 p-6 shadow-soft">
-          <h3 className="text-lg font-semibold text-slate-800">Past activities</h3>
-          <div className="mt-4 space-y-3">
-            {pastItems.length === 0 ? (
-              <p className="text-sm text-slate-500">No past memories yet.</p>
-            ) : (
-              pastItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    setEditingId(item.id);
-                    setNewItem({
-                      title: item.title,
-                      category: item.category,
-                      date: item.date,
-                      endDate: item.endDate ?? "",
-                      startTime: item.startTime ?? "",
-                      endTime: item.endTime ?? "",
-                      details: item.details
-                    });
-                    setIsModalOpen(true);
-                  }}
-                  className="w-full rounded-2xl border border-pink-100 bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 hover:border-pink-200 hover:bg-pink-50/50"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-slate-800">
-                      {item.title}
-                    </p>
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${categoryStyles[item.category].color}`}
-                    >
-                      {categoryStyles[item.category].label}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-slate-500">{formatMeta(item)}</p>
-                  <p className="mt-2 text-sm text-slate-600">{item.details}</p>
-                </button>
-              ))
-            )}
-          </div>
-        </section>
+        <div className="pb-2">
+          <button
+            type="button"
+            onClick={() => setIsLoggedIn(false)}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-pink-100 bg-white/80 px-4 py-3 text-sm font-semibold text-pink-600 shadow-soft transition hover:bg-pink-50"
+          >
+            <span className="text-lg">👋</span>
+            Logout
+          </button>
+        </div>
+
       </div>
 
       <button
@@ -531,6 +566,7 @@ export default function Home() {
                 </label>
 
                 <label className="block text-sm font-medium text-slate-700">
+                  Date
                   {newItem.category === "wishlist" ? (
                     <span className="mt-2 block w-full rounded-2xl border border-dashed border-pink-200 bg-pink-50/60 px-4 py-3 text-sm text-slate-500">
                       No date needed for wishlist dreams ✨
@@ -662,44 +698,96 @@ export default function Home() {
                 ✕
               </button>
             </div>
-            <p className="mt-6 text-xs uppercase tracking-[0.2em] text-pink-400">Navigate</p>
-            <div className="mt-4 grid gap-3">
-              {[
-                { key: "trip", label: "Trips", color: "text-indigo-500", icon: "🧳" },
-                { key: "event", label: "Events", color: "text-emerald-500", icon: "🎉" },
-                { key: "todo", label: "Todos", color: "text-sky-500", icon: "📝" },
-                { key: "wishlist", label: "Wishlist", color: "text-amber-500", icon: "🌟" },
-                { key: "past", label: "Past plans", color: "text-rose-500", icon: "⏳" }
-              ].map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => {
-                    setActiveCategory(item.key as PlannerItem["category"] | "past");
-                    setIsNavOpen(false);
-                  }}
-                  className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
-                    activeCategory === item.key
-                      ? "border-pink-200 bg-pink-50 text-slate-800"
-                      : "border-transparent bg-white text-slate-600 hover:border-pink-100 hover:bg-pink-50"
-                  }`}
-                >
-                  <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white text-lg ${item.color}`}>
-                    {item.icon}
-                  </span>
-                  {item.label}
-                </button>
-              ))}
-            </div>
-            <div className="mt-auto pt-6">
-              <button
-                type="button"
-                onClick={() => setIsLoggedIn(false)}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-pink-100 bg-pink-50 px-4 py-3 text-sm font-semibold text-pink-600 transition hover:bg-pink-100"
-              >
-                <span className="text-lg">👋</span>
-                Logout
-              </button>
+            <div className="mt-6 flex-1 overflow-y-auto pr-1">
+              <p className="text-xs uppercase tracking-[0.2em] text-pink-400">Navigate</p>
+              <div className="mt-4 grid gap-3">
+                {navGroups.map((group) => {
+                  const isExpanded = expandedGroups[group.key];
+                  return (
+                    <div key={group.key} className="rounded-2xl border border-pink-100 bg-white/80 p-2">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setActiveCategory(group.key)}
+                          className={`flex flex-1 items-center gap-3 rounded-xl px-2 py-2 text-left text-sm font-semibold transition ${
+                            activeCategory === group.key
+                              ? "bg-pink-50 text-slate-800"
+                              : "text-slate-600 hover:bg-pink-50"
+                          }`}
+                        >
+                          <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white text-lg ${group.color}`}>
+                            {group.icon}
+                          </span>
+                          <span className="flex-1">{group.label}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedGroups((prev) => ({ ...prev, [group.key]: !prev[group.key] }))
+                          }
+                          className="rounded-xl p-2 text-slate-500 transition hover:bg-pink-50 hover:text-pink-500"
+                          aria-label={`Toggle ${group.label}`}
+                        >
+                          <svg
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            className={`h-4 w-4 transition ${isExpanded ? "rotate-180" : "rotate-0"}`}
+                            aria-hidden
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {isExpanded ? (
+                        <div className="mt-2 space-y-2 border-l border-pink-100 pl-3">
+                          {group.entries.length === 0 ? (
+                            <p className="rounded-xl bg-pink-50 px-3 py-2 text-xs text-slate-500">
+                              No items yet.
+                            </p>
+                          ) : (
+                            group.entries.map((item) => (
+                              <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => {
+                                  setEditingId(item.id);
+                                  setNewItem({
+                                    title: item.title,
+                                    category: item.category,
+                                    date: item.date,
+                                    endDate: item.endDate ?? "",
+                                    startTime: item.startTime ?? "",
+                                    endTime: item.endTime ?? "",
+                                    details: item.details
+                                  });
+                                  setIsModalOpen(true);
+                                  setIsNavOpen(false);
+                                }}
+                                className="w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-left transition hover:border-pink-200 hover:bg-pink-50"
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <p className="text-xs font-semibold text-slate-800">{item.title}</p>
+                                  <span
+                                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${categoryStyles[item.category].color}`}
+                                  >
+                                    {categoryStyles[item.category].label}
+                                  </span>
+                                </div>
+                                <p className="mt-1 text-[11px] text-slate-500">{formatMeta(item)}</p>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
           <button
