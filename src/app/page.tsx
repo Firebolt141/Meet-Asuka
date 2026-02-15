@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, PlannerItem } from "@/components/Calendar";
+import { Calendar, PlannerItem, type TripTodoEntry } from "@/components/Calendar";
 import {
   addPlannerItem,
   configuredProjectId,
@@ -27,6 +27,13 @@ const categoryStyles: Record<PlannerItem["category"], { label: string; color: st
 
 const LOCAL_ITEMS_KEY = "meet-asuka:planner-items";
 
+const createEmptyTripTodo = (): TripTodoEntry => ({
+  title: "",
+  date: formatDate(new Date()),
+  details: "",
+  participants: ""
+});
+
 type PlannerFormState = {
   title: string;
   category: PlannerItem["category"];
@@ -37,6 +44,8 @@ type PlannerFormState = {
   location: string;
   recurring: PlannerItem["recurring"];
   tripTodos: string;
+  tripTodoItems: TripTodoEntry[];
+  participants: string;
   details: string;
 };
 
@@ -62,6 +71,8 @@ export default function Home() {
     location: "",
     recurring: "none",
     tripTodos: "",
+    tripTodoItems: [createEmptyTripTodo()],
+    participants: "",
     details: ""
   });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -156,7 +167,10 @@ export default function Home() {
       const dateLabel = item.endDate && item.endDate !== item.date
         ? `Dates: ${item.date} → ${item.endDate}`
         : `Date: ${item.date}`;
-      return item.tripTodos ? `${dateLabel} • Trip todos ready` : dateLabel;
+      const tripTodoCount = item.tripTodoItems?.length ?? (item.tripTodos ? 1 : 0);
+      const todoLabel = tripTodoCount > 0 ? ` • ${tripTodoCount} trip todo${tripTodoCount > 1 ? "s" : ""}` : "";
+      const participantsLabel = item.participants ? ` • With: ${item.participants}` : "";
+      return `${dateLabel}${todoLabel}${participantsLabel}`;
     }
     if (item.category === "event") {
       const time = item.startTime
@@ -169,9 +183,10 @@ export default function Home() {
           ? ` • Repeats ${item.recurring}`
           : "";
       const locationLabel = item.location ? ` • ${item.location}` : "";
-      return `When: ${item.date} • ${time}${locationLabel}${recurringLabel}`;
+      const participantsLabel = item.participants ? ` • With: ${item.participants}` : "";
+      return `When: ${item.date} • ${time}${locationLabel}${participantsLabel}${recurringLabel}`;
     }
-    return `Due: ${item.date}`;
+    return `Due: ${item.date}${item.participants ? ` • With: ${item.participants}` : ""}`;
   };
 
   useEffect(() => {
@@ -423,6 +438,13 @@ export default function Home() {
                         location: item.location ?? "",
                         recurring: item.recurring ?? "none",
                         tripTodos: item.tripTodos ?? "",
+                        tripTodoItems:
+                          item.tripTodoItems && item.tripTodoItems.length > 0
+                            ? item.tripTodoItems
+                            : item.tripTodos
+                              ? [{ title: "Trip todo", date: item.date, details: item.tripTodos, participants: "" }]
+                              : [createEmptyTripTodo()],
+                        participants: item.participants ?? "",
                         details: item.details
                       });
                       setIsModalOpen(true);
@@ -443,7 +465,21 @@ export default function Home() {
                       {formatMeta(item)}
                     </p>
                     <p className="mt-2 text-sm text-slate-600">{item.details}</p>
-                    {item.category === "trip" && item.tripTodos ? (
+                    {item.participants ? (
+                      <p className="mt-1 text-xs text-slate-500">👥 {item.participants}</p>
+                    ) : null}
+                    {item.category === "trip" && item.tripTodoItems && item.tripTodoItems.length > 0 ? (
+                      <div className="mt-2 space-y-1">
+                        {item.tripTodoItems.slice(0, 2).map((todo, index) => (
+                          <p key={`${item.id}-trip-todo-${index}`} className="text-xs text-indigo-500">
+                            📝 {todo.title || "Trip todo"}{todo.date ? ` • ${todo.date}` : ""}
+                          </p>
+                        ))}
+                        {item.tripTodoItems.length > 2 ? (
+                          <p className="text-xs text-indigo-400">+{item.tripTodoItems.length - 2} more</p>
+                        ) : null}
+                      </div>
+                    ) : item.category === "trip" && item.tripTodos ? (
                       <p className="mt-1 text-xs text-indigo-500">📝 Trip todos: {item.tripTodos}</p>
                     ) : null}
                   </button>
@@ -522,6 +558,18 @@ export default function Home() {
                       ? (newItem.recurring as PlannerItem["recurring"])
                       : undefined,
                   tripTodos: newItem.category === "trip" ? newItem.tripTodos.trim() : undefined,
+                  tripTodoItems:
+                    newItem.category === "trip"
+                      ? newItem.tripTodoItems
+                          .map((todo) => ({
+                            title: todo.title.trim(),
+                            date: todo.date,
+                            details: todo.details.trim(),
+                            participants: todo.participants?.trim() || undefined
+                          }))
+                          .filter((todo) => todo.title || todo.details || todo.date)
+                      : undefined,
+                  participants: newItem.participants.trim() || undefined,
                   details: newItem.details.trim() || "A dreamy new memory."
                 };
                 if (editingId) {
@@ -566,6 +614,8 @@ export default function Home() {
                   location: "",
                   recurring: "none",
                   tripTodos: "",
+                  tripTodoItems: [createEmptyTripTodo()],
+                  participants: "",
                   details: ""
                 });
                 setEditingId(null);
@@ -591,7 +641,13 @@ export default function Home() {
                           endTime: category === "event" ? prev.endTime : "",
                           location: category === "event" ? prev.location : "",
                           recurring: category === "event" ? prev.recurring : "none",
-                          tripTodos: category === "trip" ? prev.tripTodos : ""
+                          tripTodos: category === "trip" ? prev.tripTodos : "",
+                          tripTodoItems:
+                            category === "trip"
+                              ? prev.tripTodoItems.length > 0
+                                ? prev.tripTodoItems
+                                : [createEmptyTripTodo()]
+                              : [createEmptyTripTodo()]
                         };
                       })
                     }
@@ -665,17 +721,107 @@ export default function Home() {
                       />
                     </label>
                   </div>
-                  <label className="block text-sm font-medium text-slate-700">
-                    Trip todos
-                    <textarea
-                      value={newItem.tripTodos}
-                      onChange={(event) =>
-                        setNewItem((prev) => ({ ...prev, tripTodos: event.target.value }))
-                      }
-                      className="mt-2 min-h-[72px] w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                      placeholder="Book train, pack charger, reserve dinner..."
-                    />
-                  </label>
+                  <div className="space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-indigo-700">Trip todos</p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setNewItem((prev) => ({
+                            ...prev,
+                            tripTodoItems: [...prev.tripTodoItems, createEmptyTripTodo()]
+                          }))
+                        }
+                        className="rounded-full border border-indigo-200 px-3 py-1 text-xs font-semibold text-indigo-600 hover:bg-indigo-100"
+                      >
+                        + Add todo
+                      </button>
+                    </div>
+                    {newItem.tripTodoItems.map((todo, todoIndex) => (
+                      <div key={`trip-todo-${todoIndex}`} className="space-y-2 rounded-xl border border-indigo-100 bg-white p-3">
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <label className="block text-xs font-medium text-slate-700">
+                            Todo title
+                            <input
+                              value={todo.title}
+                              onChange={(event) =>
+                                setNewItem((prev) => ({
+                                  ...prev,
+                                  tripTodoItems: prev.tripTodoItems.map((entry, index) =>
+                                    index === todoIndex ? { ...entry, title: event.target.value } : entry
+                                  )
+                                }))
+                              }
+                              className="mt-1 w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none"
+                              placeholder="Pack camera"
+                            />
+                          </label>
+                          <label className="block text-xs font-medium text-slate-700">
+                            Due date
+                            <input
+                              type="date"
+                              value={todo.date}
+                              onChange={(event) =>
+                                setNewItem((prev) => ({
+                                  ...prev,
+                                  tripTodoItems: prev.tripTodoItems.map((entry, index) =>
+                                    index === todoIndex ? { ...entry, date: event.target.value } : entry
+                                  )
+                                }))
+                              }
+                              className="mt-1 w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none"
+                            />
+                          </label>
+                        </div>
+                        <label className="block text-xs font-medium text-slate-700">
+                          Participants
+                          <input
+                            value={todo.participants ?? ""}
+                            onChange={(event) =>
+                              setNewItem((prev) => ({
+                                ...prev,
+                                tripTodoItems: prev.tripTodoItems.map((entry, index) =>
+                                  index === todoIndex ? { ...entry, participants: event.target.value } : entry
+                                )
+                              }))
+                            }
+                            className="mt-1 w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none"
+                            placeholder="Asuka"
+                          />
+                        </label>
+                        <label className="block text-xs font-medium text-slate-700">
+                          Details
+                          <textarea
+                            value={todo.details}
+                            onChange={(event) =>
+                              setNewItem((prev) => ({
+                                ...prev,
+                                tripTodoItems: prev.tripTodoItems.map((entry, index) =>
+                                  index === todoIndex ? { ...entry, details: event.target.value } : entry
+                                )
+                              }))
+                            }
+                            className="mt-1 min-h-[70px] w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none"
+                            placeholder="Charge battery and pack the strap."
+                          />
+                        </label>
+                        {newItem.tripTodoItems.length > 1 ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setNewItem((prev) => ({
+                                ...prev,
+                                tripTodoItems: prev.tripTodoItems.filter((_, index) => index !== todoIndex)
+                              }))
+                            }
+                            className="text-xs font-semibold text-rose-500 hover:text-rose-600"
+                          >
+                            Remove todo
+                          </button>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : null}
 
@@ -735,6 +881,18 @@ export default function Home() {
                   </div>
                 </div>
               ) : null}
+
+              <label className="block text-sm font-medium text-slate-700">
+                Participants
+                <input
+                  value={newItem.participants}
+                  onChange={(event) =>
+                    setNewItem((prev) => ({ ...prev, participants: event.target.value }))
+                  }
+                  className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  placeholder="Asuka, Yui, Rina"
+                />
+              </label>
 
               <label className="block text-sm font-medium text-slate-700">
                 Details
@@ -873,6 +1031,13 @@ export default function Home() {
                                     location: item.location ?? "",
                                     recurring: item.recurring ?? "none",
                                     tripTodos: item.tripTodos ?? "",
+                                    tripTodoItems:
+                                      item.tripTodoItems && item.tripTodoItems.length > 0
+                                        ? item.tripTodoItems
+                                        : item.tripTodos
+                                          ? [{ title: "Trip todo", date: item.date, details: item.tripTodos, participants: "" }]
+                                          : [createEmptyTripTodo()],
+                                    participants: item.participants ?? "",
                                     details: item.details
                                   });
                                   setIsModalOpen(true);

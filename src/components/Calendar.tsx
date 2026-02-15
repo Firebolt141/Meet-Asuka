@@ -2,6 +2,13 @@
 
 import { useMemo } from "react";
 
+export type TripTodoEntry = {
+  title: string;
+  date: string;
+  details: string;
+  participants?: string;
+};
+
 export type PlannerItem = {
   id: string;
   title: string;
@@ -12,7 +19,9 @@ export type PlannerItem = {
   endTime?: string;
   location?: string;
   recurring?: "none" | "daily" | "weekly" | "monthly";
+  participants?: string;
   tripTodos?: string;
+  tripTodoItems?: TripTodoEntry[];
   details: string;
 };
 
