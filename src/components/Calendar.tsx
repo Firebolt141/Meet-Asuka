@@ -18,6 +18,7 @@ export type PlannerItem = {
 
 type CalendarProps = {
   month: Date;
+  monthLabel: string;
   items: PlannerItem[];
   selectedDate: Date;
   onSelectDate: (date: Date) => void;
@@ -30,7 +31,7 @@ const pad = (value: number) => value.toString().padStart(2, "0");
 const formatDate = (date: Date) =>
   `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 
-export function Calendar({ month, items, selectedDate, onSelectDate }: CalendarProps) {
+export function Calendar({ month, monthLabel, items, selectedDate, onSelectDate }: CalendarProps) {
   const { days, leadingBlanks } = useMemo(() => {
     const year = month.getFullYear();
     const monthIndex = month.getMonth();
@@ -83,6 +84,9 @@ export function Calendar({ month, items, selectedDate, onSelectDate }: CalendarP
 
   return (
     <div className="rounded-3xl bg-white/80 p-6 shadow-soft">
+      <div className="mb-4 text-center">
+        <h3 className="text-xl font-bold text-slate-800">{monthLabel}</h3>
+      </div>
       <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase tracking-wide text-pink-500">
         {weekdayLabels.map((label) => (
           <div key={label}>{label}</div>

@@ -24,12 +24,6 @@ const categoryStyles: Record<PlannerItem["category"], { label: string; color: st
   wishlist: { label: "Wishlist", color: "bg-amber-100 text-amber-600" }
 };
 
-const categoryAccentStyles: Record<PlannerItem["category"], string> = {
-  trip: "bg-gradient-to-r from-indigo-500 to-blue-500 shadow-indigo-200 hover:from-indigo-400 hover:to-blue-400",
-  event: "bg-gradient-to-r from-emerald-500 to-teal-500 shadow-emerald-200 hover:from-emerald-400 hover:to-teal-400",
-  todo: "bg-gradient-to-r from-sky-500 to-cyan-500 shadow-sky-200 hover:from-sky-400 hover:to-cyan-400",
-  wishlist: "bg-gradient-to-r from-amber-500 to-orange-500 shadow-amber-200 hover:from-amber-400 hover:to-orange-400"
-};
 
 const LOCAL_ITEMS_KEY = "meet-asuka:planner-items";
 
@@ -78,6 +72,7 @@ export default function Home() {
     wishlist: false,
     past: true
   });
+  const [weatherLabel, setWeatherLabel] = useState("Loading...");
 
   const normalizedToday = useMemo(() => {
     const today = new Date();
@@ -85,10 +80,10 @@ export default function Home() {
     return today;
   }, []);
 
-  const todayKey = formatDate(normalizedToday);
-  const todaysItems = useMemo(
-    () => items.filter((item) => item.date && item.date === todayKey),
-    [items, todayKey]
+  const selectedKey = formatDate(selectedDate);
+  const selectedItems = useMemo(
+    () => items.filter((item) => item.date && item.date === selectedKey),
+    [items, selectedKey]
   );
 
   const activeMonthLabel = activeMonth.toLocaleDateString("en-US", {
@@ -231,6 +226,49 @@ export default function Home() {
     window.localStorage.setItem(LOCAL_ITEMS_KEY, JSON.stringify(items));
   }, [items]);
 
+  useEffect(() => {
+    const loadWeather = async () => {
+      try {
+        const response = await fetch(
+          "https://api.open-meteo.com/v1/forecast?latitude=35.7082&longitude=139.6984&current=temperature_2m,weather_code&timezone=Asia%2FTokyo"
+        );
+        if (!response.ok) {
+          throw new Error("Weather request failed");
+        }
+        const data = (await response.json()) as {
+          current?: { temperature_2m?: number; weather_code?: number };
+        };
+        const weatherCode = data.current?.weather_code;
+        const temp = data.current?.temperature_2m;
+        const weatherMap: Record<number, string> = {
+          0: "Clear",
+          1: "Mainly clear",
+          2: "Partly cloudy",
+          3: "Cloudy",
+          45: "Fog",
+          48: "Fog",
+          51: "Drizzle",
+          53: "Drizzle",
+          55: "Drizzle",
+          61: "Rain",
+          63: "Rain",
+          65: "Heavy rain",
+          71: "Snow",
+          80: "Rain showers",
+          95: "Thunderstorm"
+        };
+        const condition = weatherCode !== undefined ? weatherMap[weatherCode] ?? "Weather" : "Weather";
+        const temperature = temp !== undefined ? `${Math.round(temp)}°C` : "--°C";
+        setWeatherLabel(`${condition} ${temperature}`);
+      } catch (error) {
+        console.error("Failed to load weather", error);
+        setWeatherLabel("Weather unavailable");
+      }
+    };
+
+    void loadWeather();
+  }, []);
+
   const handleDeleteItem = async (id: string) => {
     setItems((prev) => prev.filter((item) => item.id !== id));
 
@@ -288,7 +326,6 @@ export default function Home() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-pink-400">
               Your sweet calendar
             </p>
-            <h2 className="mt-1 text-2xl font-bold text-slate-800">{activeMonthLabel}</h2>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-3 rounded-full bg-white/90 px-3 py-2 text-xs font-medium text-slate-700 shadow">
@@ -304,7 +341,7 @@ export default function Home() {
             </span>
             <div>
               <p className="text-[11px] text-slate-500">Weather</p>
-              <p className="text-xs font-semibold">Sunny 26°C</p>
+              <p className="text-xs font-semibold">{weatherLabel}</p>
             </div>
             </div>
           </div>
@@ -354,6 +391,7 @@ export default function Home() {
 
         <Calendar
           month={new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1)}
+          monthLabel={activeMonthLabel}
           items={items}
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
