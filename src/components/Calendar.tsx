@@ -48,6 +48,36 @@ export function Calendar({ month, items, selectedDate, onSelectDate }: CalendarP
     }, {});
   }, [items]);
 
+  const tripSpansByDate = useMemo(() => {
+    return items.reduce<Record<string, { isStart: boolean; isEnd: boolean }>>((acc, item) => {
+      if (item.category !== "trip" || !item.date) {
+        return acc;
+      }
+      const start = new Date(item.date);
+      const end = item.endDate ? new Date(item.endDate) : new Date(item.date);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(0, 0, 0, 0);
+      const rangeStart = start <= end ? start : end;
+      const rangeEnd = start <= end ? end : start;
+
+      for (
+        let current = new Date(rangeStart);
+        current <= rangeEnd;
+        current.setDate(current.getDate() + 1)
+      ) {
+        const key = formatDate(current);
+        const isStart = current.getTime() === rangeStart.getTime();
+        const isEnd = current.getTime() === rangeEnd.getTime();
+        acc[key] = {
+          isStart: (acc[key]?.isStart ?? false) || isStart,
+          isEnd: (acc[key]?.isEnd ?? false) || isEnd
+        };
+      }
+
+      return acc;
+    }, {});
+  }, [items]);
+
   return (
     <div className="rounded-3xl bg-white/80 p-6 shadow-soft">
       <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase tracking-wide text-pink-500">
@@ -55,7 +85,7 @@ export function Calendar({ month, items, selectedDate, onSelectDate }: CalendarP
           <div key={label}>{label}</div>
         ))}
       </div>
-      <div className="mt-4 grid grid-cols-7 gap-2">
+      <div className="mt-4 grid grid-cols-7 gap-x-0 gap-y-2">
         {Array.from({ length: leadingBlanks }).map((_, index) => (
           <div key={`blank-${index}`} className="h-12" />
         ))}
@@ -66,20 +96,36 @@ export function Calendar({ month, items, selectedDate, onSelectDate }: CalendarP
             date.getMonth() === selectedDate.getMonth() &&
             date.getDate() === selectedDate.getDate();
           const dayItems = itemsByDate[dateKey] ?? [];
+          const tripSpan = tripSpansByDate[dateKey];
+          const tripRangeClass = tripSpan
+            ? tripSpan.isStart && tripSpan.isEnd
+              ? "rounded-xl"
+              : tripSpan.isStart
+              ? "rounded-l-xl rounded-r-md"
+              : tripSpan.isEnd
+              ? "rounded-r-xl rounded-l-md"
+              : "rounded-md"
+            : "rounded-2xl";
 
           return (
             <button
               key={dateKey}
               type="button"
               onClick={() => onSelectDate(date)}
-              className={`group flex h-12 flex-col items-center justify-center rounded-2xl border border-transparent text-sm font-medium transition hover:border-pink-200 hover:bg-pink-50 focus:outline-none focus:ring-2 focus:ring-pink-300 ${
+              className={`group relative flex h-12 flex-col items-center justify-center border border-transparent text-sm font-medium transition hover:border-pink-200 hover:bg-pink-50 focus:outline-none focus:ring-2 focus:ring-pink-300 ${tripRangeClass} ${
                 isSelected
                   ? "bg-pink-500 text-white shadow"
                   : "bg-white text-slate-700"
               }`}
             >
-              <span>{date.getDate()}</span>
-              <span className="mt-1 flex gap-1">
+              {tripSpan ? (
+                <span
+                  className={`absolute inset-x-0 top-1/2 z-0 h-5 -translate-y-1/2 bg-indigo-100 ${tripRangeClass}`}
+                  aria-hidden
+                />
+              ) : null}
+              <span className="relative z-10">{date.getDate()}</span>
+              <span className="relative z-10 mt-1 flex gap-1">
                 {dayItems.slice(0, 3).map((item) => (
                   <span
                     key={item.id}

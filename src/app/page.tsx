@@ -269,7 +269,15 @@ export default function Home() {
             </p>
             <h2 className="mt-1 text-2xl font-bold text-slate-800">{activeMonthLabel}</h2>
           </div>
-          <div className="flex items-center gap-3 rounded-full bg-white/90 px-3 py-2 text-xs font-medium text-slate-700 shadow">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsLoggedIn(false)}
+              className="inline-flex h-12 items-center justify-center rounded-2xl bg-white px-4 text-xs font-semibold text-pink-500 shadow-lg shadow-pink-100 transition hover:-translate-y-0.5 hover:bg-pink-50"
+            >
+              Logout
+            </button>
+            <div className="flex items-center gap-3 rounded-full bg-white/90 px-3 py-2 text-xs font-medium text-slate-700 shadow">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-pink-100">
               <svg
                 aria-hidden="true"
@@ -284,15 +292,10 @@ export default function Home() {
               <p className="text-[11px] text-slate-500">Weather</p>
               <p className="text-xs font-semibold">Sunny 26°C</p>
             </div>
+            </div>
           </div>
         </header>
 
-        <Calendar
-          month={new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1)}
-          items={items}
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-        />
         <div className="flex items-center justify-between rounded-2xl bg-white/80 px-4 py-3 text-sm font-semibold text-slate-700 shadow">
           <button
             type="button"
@@ -304,20 +307,17 @@ export default function Home() {
             <span>←</span>
             Prev
           </button>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                const today = new Date();
-                setSelectedDate(today);
-                setActiveMonth(new Date(today.getFullYear(), today.getMonth(), 1));
-              }}
-              className="rounded-full border border-pink-100 px-3 py-1 text-xs font-semibold text-pink-500 transition hover:bg-pink-50"
-            >
-              Today
-            </button>
-            <span className="text-xs uppercase tracking-[0.2em] text-pink-400">Swipe vibes</span>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const today = new Date();
+              setSelectedDate(today);
+              setActiveMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+            }}
+            className="rounded-full border border-pink-100 px-3 py-1 text-xs font-semibold text-pink-500 transition hover:bg-pink-50"
+          >
+            Today
+          </button>
           <button
             type="button"
             onClick={() =>
@@ -329,6 +329,13 @@ export default function Home() {
             <span>→</span>
           </button>
         </div>
+
+        <Calendar
+          month={new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1)}
+          items={items}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+        />
 
         <section className="rounded-3xl bg-white/80 p-6 shadow-soft">
           <h3 className="text-lg font-semibold text-slate-800">
@@ -555,6 +562,7 @@ export default function Home() {
                 </label>
 
                 <label className="block text-sm font-medium text-slate-700">
+                  Date
                   {newItem.category === "wishlist" ? (
                     <span className="mt-2 block w-full rounded-2xl border border-dashed border-pink-200 bg-pink-50/60 px-4 py-3 text-sm text-slate-500">
                       No date needed for wishlist dreams ✨
@@ -707,9 +715,6 @@ export default function Home() {
                             {group.icon}
                           </span>
                           <span className="flex-1">{group.label}</span>
-                          <span className="rounded-full bg-pink-50 px-2 py-0.5 text-xs text-pink-500">
-                            {group.entries.length}
-                          </span>
                         </button>
                         <button
                           type="button"
@@ -779,16 +784,6 @@ export default function Home() {
                   );
                 })}
               </div>
-            </div>
-            <div className="pt-6">
-              <button
-                type="button"
-                onClick={() => setIsLoggedIn(false)}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-pink-100 bg-pink-50 px-4 py-3 text-sm font-semibold text-pink-600 transition hover:bg-pink-100"
-              >
-                <span className="text-lg">👋</span>
-                Logout
-              </button>
             </div>
           </div>
           <button
