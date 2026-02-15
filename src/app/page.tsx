@@ -335,10 +335,6 @@ export default function Home() {
         <div className="pointer-events-none absolute -left-16 top-10 h-44 w-44 rounded-full bg-pink-300/30 blur-3xl" />
         <div className="pointer-events-none absolute -right-12 bottom-8 h-52 w-52 rounded-full bg-rose-300/30 blur-3xl" />
         <div className="w-full max-w-xl rounded-[36px] border border-white/60 bg-white/85 p-10 text-center shadow-soft backdrop-blur">
-          <div className="mx-auto mb-4 flex w-fit items-center gap-2 rounded-full bg-pink-100/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-pink-500">
-            <span>✦</span>
-            Cozy Planner Login
-          </div>
           <h1 className="text-4xl font-bold text-slate-800">Hi Asuka 💖</h1>
           <p className="mx-auto mt-3 max-w-md text-base text-slate-600">
             Let&apos;s open your dreamy planner and map cute trips, events, and todo moments.
@@ -374,7 +370,7 @@ export default function Home() {
           </button>
           <div className="text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-pink-400">
-              Asuka's Cozy Plan Board
+              Your little planner ❄️
             </p>
           </div>
           <div className="flex items-center gap-2">
