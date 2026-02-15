@@ -424,15 +424,15 @@ export default function Home() {
 
         <section className="rounded-3xl bg-white/80 p-6 shadow-soft">
           <h3 className="text-lg font-semibold text-slate-800">
-            Plans for {selectedDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })}
+            Plans for today
           </h3>
           <div className="mt-4 space-y-3">
-            {selectedItems.length === 0 ? (
+            {todaysItems.length === 0 ? (
               <p className="text-sm text-slate-500">
                 No plans yet. Add something sweet with the plus button!
               </p>
             ) : (
-                selectedItems.map((item) => (
+                todaysItems.map((item) => (
                   <button
                     key={item.id}
                     type="button"
@@ -517,7 +517,7 @@ export default function Home() {
           setEditingId(null);
           setIsModalOpen(true);
         }}
-        className="fixed bottom-8 left-1/2 z-40 flex -translate-x-1/2 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-pink-400 to-rose-400 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-pink-200 transition hover:-translate-y-1 hover:from-pink-300 hover:to-rose-300"
+        className={`fixed bottom-8 left-1/2 z-40 flex -translate-x-1/2 items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-1 ${categoryAccentStyles[newItem.category]}`}
         aria-label="Add plan"
       >
         <span className="text-lg">✨</span>
