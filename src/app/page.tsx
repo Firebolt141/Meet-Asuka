@@ -24,7 +24,27 @@ const categoryStyles: Record<PlannerItem["category"], { label: string; color: st
   wishlist: { label: "Wishlist", color: "bg-amber-100 text-amber-600" }
 };
 
+const categoryAccentStyles: Record<PlannerItem["category"], string> = {
+  trip: "bg-gradient-to-r from-indigo-500 to-blue-500 shadow-indigo-200 hover:from-indigo-400 hover:to-blue-400",
+  event: "bg-gradient-to-r from-emerald-500 to-teal-500 shadow-emerald-200 hover:from-emerald-400 hover:to-teal-400",
+  todo: "bg-gradient-to-r from-sky-500 to-cyan-500 shadow-sky-200 hover:from-sky-400 hover:to-cyan-400",
+  wishlist: "bg-gradient-to-r from-amber-500 to-orange-500 shadow-amber-200 hover:from-amber-400 hover:to-orange-400"
+};
+
 const LOCAL_ITEMS_KEY = "meet-asuka:planner-items";
+
+type PlannerFormState = {
+  title: string;
+  category: PlannerItem["category"];
+  date: string;
+  endDate: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  recurring: PlannerItem["recurring"];
+  tripTodos: string;
+  details: string;
+};
 
 export default function Home() {
   type NavGroupKey = PlannerItem["category"] | "past";
@@ -38,13 +58,16 @@ export default function Home() {
     PlannerItem["category"] | "past"
   >("event");
   const [activeMonth, setActiveMonth] = useState(() => new Date());
-  const [newItem, setNewItem] = useState({
+  const [newItem, setNewItem] = useState<PlannerFormState>({
     title: "",
     category: "trip",
     date: formatDate(new Date()),
     endDate: "",
     startTime: "",
     endTime: "",
+    location: "",
+    recurring: "none",
+    tripTodos: "",
     details: ""
   });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -56,61 +79,22 @@ export default function Home() {
     past: true
   });
 
-  const selectedKey = formatDate(selectedDate);
   const normalizedToday = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return today;
   }, []);
 
-  const filteredItems = useMemo(() => {
-    if (activeCategory === "past") {
-      return items;
-    }
-    return items.filter((item) => item.category === activeCategory);
-  }, [activeCategory, items]);
-
-  const selectedItems = useMemo(
-    () => items.filter((item) => item.date && item.date === selectedKey),
-    [items, selectedKey]
+  const todayKey = formatDate(normalizedToday);
+  const todaysItems = useMemo(
+    () => items.filter((item) => item.date && item.date === todayKey),
+    [items, todayKey]
   );
 
   const activeMonthLabel = activeMonth.toLocaleDateString("en-US", {
     month: "long",
     year: "numeric"
   });
-
-  const upcomingItems = useMemo(
-    () =>
-      filteredItems.filter((item) => {
-        if (!item.date) {
-          return false;
-        }
-        const itemDate = new Date(item.date);
-        itemDate.setHours(0, 0, 0, 0);
-        if (activeCategory === "past") {
-          return false;
-        }
-        return itemDate >= normalizedToday;
-      }),
-    [activeCategory, filteredItems, normalizedToday]
-  );
-
-  const pastItems = useMemo(
-    () =>
-      filteredItems.filter((item) => {
-        if (!item.date) {
-          return false;
-        }
-        const itemDate = new Date(item.date);
-        itemDate.setHours(0, 0, 0, 0);
-        if (activeCategory === "past") {
-          return itemDate < normalizedToday;
-        }
-        return itemDate < normalizedToday;
-      }),
-    [activeCategory, filteredItems, normalizedToday]
-  );
 
   const allPastItems = useMemo(
     () =>
@@ -174,10 +158,10 @@ export default function Home() {
       return "No date set";
     }
     if (item.category === "trip") {
-      if (item.endDate && item.endDate !== item.date) {
-        return `Dates: ${item.date} → ${item.endDate}`;
-      }
-      return `Date: ${item.date}`;
+      const dateLabel = item.endDate && item.endDate !== item.date
+        ? `Dates: ${item.date} → ${item.endDate}`
+        : `Date: ${item.date}`;
+      return item.tripTodos ? `${dateLabel} • Trip todos ready` : dateLabel;
     }
     if (item.category === "event") {
       const time = item.startTime
@@ -185,7 +169,12 @@ export default function Home() {
           ? `${item.startTime} → ${item.endTime}`
           : `${item.startTime} → ?`
         : "Time TBD";
-      return `When: ${item.date} • ${time}`;
+      const recurringLabel =
+        item.recurring && item.recurring !== "none"
+          ? ` • Repeats ${item.recurring}`
+          : "";
+      const locationLabel = item.location ? ` • ${item.location}` : "";
+      return `When: ${item.date} • ${time}${locationLabel}${recurringLabel}`;
     }
     return `Due: ${item.date}`;
   };
@@ -372,15 +361,15 @@ export default function Home() {
 
         <section className="rounded-3xl bg-white/80 p-6 shadow-soft">
           <h3 className="text-lg font-semibold text-slate-800">
-            Plans for {selectedDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })}
+            Plans for today
           </h3>
           <div className="mt-4 space-y-3">
-            {selectedItems.length === 0 ? (
+            {todaysItems.length === 0 ? (
               <p className="text-sm text-slate-500">
                 No plans yet. Add something sweet with the plus button!
               </p>
             ) : (
-                selectedItems.map((item) => (
+                todaysItems.map((item) => (
                   <button
                     key={item.id}
                     type="button"
@@ -393,6 +382,9 @@ export default function Home() {
                         endDate: item.endDate ?? "",
                         startTime: item.startTime ?? "",
                         endTime: item.endTime ?? "",
+                        location: item.location ?? "",
+                        recurring: item.recurring ?? "none",
+                        tripTodos: item.tripTodos ?? "",
                         details: item.details
                       });
                       setIsModalOpen(true);
@@ -413,52 +405,12 @@ export default function Home() {
                       {formatMeta(item)}
                     </p>
                     <p className="mt-2 text-sm text-slate-600">{item.details}</p>
+                    {item.category === "trip" && item.tripTodos ? (
+                      <p className="mt-1 text-xs text-indigo-500">📝 Trip todos: {item.tripTodos}</p>
+                    ) : null}
                   </button>
                 ))
               )}
-          </div>
-        </section>
-
-        <section className="rounded-3xl bg-white/80 p-6 shadow-soft">
-          <h3 className="text-lg font-semibold text-slate-800">Today & upcoming</h3>
-          <div className="mt-4 space-y-3">
-            {upcomingItems.length === 0 ? (
-              <p className="text-sm text-slate-500">No upcoming plans yet.</p>
-            ) : (
-              upcomingItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    setEditingId(item.id);
-                    setNewItem({
-                      title: item.title,
-                      category: item.category,
-                      date: item.date,
-                      endDate: item.endDate ?? "",
-                      startTime: item.startTime ?? "",
-                      endTime: item.endTime ?? "",
-                      details: item.details
-                    });
-                    setIsModalOpen(true);
-                  }}
-                  className="w-full rounded-2xl border border-pink-100 bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 hover:border-pink-200 hover:bg-pink-50/50"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-slate-800">
-                      {item.title}
-                    </p>
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${categoryStyles[item.category].color}`}
-                    >
-                      {categoryStyles[item.category].label}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-slate-500">{formatMeta(item)}</p>
-                  <p className="mt-2 text-sm text-slate-600">{item.details}</p>
-                </button>
-              ))
-            )}
           </div>
         </section>
 
@@ -481,7 +433,7 @@ export default function Home() {
           setEditingId(null);
           setIsModalOpen(true);
         }}
-        className="fixed bottom-8 left-1/2 z-40 flex -translate-x-1/2 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-pink-400 to-rose-400 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-pink-200 transition hover:-translate-y-1 hover:from-pink-300 hover:to-rose-300"
+        className={`fixed bottom-8 left-1/2 z-40 flex -translate-x-1/2 items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-1 ${categoryAccentStyles[newItem.category]}`}
         aria-label="Add plan"
       >
         <span className="text-lg">✨</span>
@@ -526,6 +478,12 @@ export default function Home() {
                       : undefined,
                   startTime: newItem.category === "event" ? newItem.startTime : undefined,
                   endTime: newItem.category === "event" ? newItem.endTime : undefined,
+                  location: newItem.category === "event" ? newItem.location.trim() : undefined,
+                  recurring:
+                    newItem.category === "event"
+                      ? (newItem.recurring as PlannerItem["recurring"])
+                      : undefined,
+                  tripTodos: newItem.category === "trip" ? newItem.tripTodos.trim() : undefined,
                   details: newItem.details.trim() || "A dreamy new memory."
                 };
                 if (editingId) {
@@ -567,6 +525,9 @@ export default function Home() {
                   endDate: "",
                   startTime: "",
                   endTime: "",
+                  location: "",
+                  recurring: "none",
+                  tripTodos: "",
                   details: ""
                 });
                 setEditingId(null);
@@ -589,7 +550,10 @@ export default function Home() {
                           date: category === "wishlist" ? "" : prev.date || formatDate(new Date()),
                           endDate: category === "trip" ? prev.endDate || prev.date : "",
                           startTime: category === "event" ? prev.startTime : "",
-                          endTime: category === "event" ? prev.endTime : ""
+                          endTime: category === "event" ? prev.endTime : "",
+                          location: category === "event" ? prev.location : "",
+                          recurring: category === "event" ? prev.recurring : "none",
+                          tripTodos: category === "trip" ? prev.tripTodos : ""
                         };
                       })
                     }
@@ -638,56 +602,99 @@ export default function Home() {
               </div>
 
               {newItem.category === "trip" ? (
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="block text-sm font-medium text-slate-700">
+                      From
+                      <input
+                        type="date"
+                        value={newItem.date}
+                        onChange={(event) =>
+                          setNewItem((prev) => ({ ...prev, date: event.target.value }))
+                        }
+                        className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium text-slate-700">
+                      To
+                      <input
+                        type="date"
+                        value={newItem.endDate}
+                        onChange={(event) =>
+                          setNewItem((prev) => ({ ...prev, endDate: event.target.value }))
+                        }
+                        className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      />
+                    </label>
+                  </div>
                   <label className="block text-sm font-medium text-slate-700">
-                    From
-                    <input
-                      type="date"
-                      value={newItem.date}
+                    Trip todos
+                    <textarea
+                      value={newItem.tripTodos}
                       onChange={(event) =>
-                        setNewItem((prev) => ({ ...prev, date: event.target.value }))
+                        setNewItem((prev) => ({ ...prev, tripTodos: event.target.value }))
                       }
-                      className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                    />
-                  </label>
-                  <label className="block text-sm font-medium text-slate-700">
-                    To
-                    <input
-                      type="date"
-                      value={newItem.endDate}
-                      onChange={(event) =>
-                        setNewItem((prev) => ({ ...prev, endDate: event.target.value }))
-                      }
-                      className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      className="mt-2 min-h-[72px] w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      placeholder="Book train, pack charger, reserve dinner..."
                     />
                   </label>
                 </div>
               ) : null}
 
               {newItem.category === "event" ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="block text-sm font-medium text-slate-700">
-                    From time
-                    <input
-                      type="time"
-                      value={newItem.startTime}
-                      onChange={(event) =>
-                        setNewItem((prev) => ({ ...prev, startTime: event.target.value }))
-                      }
-                      className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                    />
-                  </label>
-                  <label className="block text-sm font-medium text-slate-700">
-                    To time (optional)
-                    <input
-                      type="time"
-                      value={newItem.endTime}
-                      onChange={(event) =>
-                        setNewItem((prev) => ({ ...prev, endTime: event.target.value }))
-                      }
-                      className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                    />
-                  </label>
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="block text-sm font-medium text-slate-700">
+                      From time
+                      <input
+                        type="time"
+                        value={newItem.startTime}
+                        onChange={(event) =>
+                          setNewItem((prev) => ({ ...prev, startTime: event.target.value }))
+                        }
+                        className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium text-slate-700">
+                      To time (optional)
+                      <input
+                        type="time"
+                        value={newItem.endTime}
+                        onChange={(event) =>
+                          setNewItem((prev) => ({ ...prev, endTime: event.target.value }))
+                        }
+                        className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      />
+                    </label>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="block text-sm font-medium text-slate-700">
+                      Location
+                      <input
+                        value={newItem.location}
+                        onChange={(event) =>
+                          setNewItem((prev) => ({ ...prev, location: event.target.value }))
+                        }
+                        className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                        placeholder="Shibuya Sky"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium text-slate-700">
+                      Recurring
+                      <select
+                        value={newItem.recurring}
+                        onChange={(event) =>
+                          setNewItem((prev) => ({ ...prev, recurring: event.target.value as PlannerItem["recurring"] }))
+                        }
+                        className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      >
+                        <option value="none">Does not repeat</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                      </select>
+                    </label>
+                  </div>
                 </div>
               ) : null}
 
@@ -825,6 +832,9 @@ export default function Home() {
                                     endDate: item.endDate ?? "",
                                     startTime: item.startTime ?? "",
                                     endTime: item.endTime ?? "",
+                                    location: item.location ?? "",
+                                    recurring: item.recurring ?? "none",
+                                    tripTodos: item.tripTodos ?? "",
                                     details: item.details
                                   });
                                   setIsModalOpen(true);
