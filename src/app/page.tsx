@@ -270,13 +270,6 @@ export default function Home() {
             <h2 className="mt-1 text-2xl font-bold text-slate-800">{activeMonthLabel}</h2>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setIsLoggedIn(false)}
-              className="inline-flex h-12 items-center justify-center rounded-2xl bg-white px-4 text-xs font-semibold text-pink-500 shadow-lg shadow-pink-100 transition hover:-translate-y-0.5 hover:bg-pink-50"
-            >
-              Logout
-            </button>
             <div className="flex items-center gap-3 rounded-full bg-white/90 px-3 py-2 text-xs font-medium text-slate-700 shadow">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-pink-100">
               <svg
@@ -428,6 +421,17 @@ export default function Home() {
             )}
           </div>
         </section>
+
+        <div className="pb-2">
+          <button
+            type="button"
+            onClick={() => setIsLoggedIn(false)}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-pink-100 bg-white/80 px-4 py-3 text-sm font-semibold text-pink-600 shadow-soft transition hover:bg-pink-50"
+          >
+            <span className="text-lg">👋</span>
+            Logout
+          </button>
+        </div>
 
       </div>
 

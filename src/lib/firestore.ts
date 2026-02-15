@@ -1,12 +1,9 @@
 import { collection, doc, getDocs, setDoc, updateDoc } from "firebase/firestore";
 
-import { db } from "@/lib/firebase";
+import { db, hasFirebaseConfig } from "@/lib/firebase";
 import type { PlannerItem } from "@/components/Calendar";
 
-export const isFirebaseConfigured = Boolean(
-  process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
-);
+export const isFirebaseConfigured = hasFirebaseConfig;
 
 export const getPlannerItems = async (): Promise<PlannerItem[]> => {
   if (!db) {

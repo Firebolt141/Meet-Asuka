@@ -105,10 +105,10 @@ export function Calendar({ month, items, selectedDate, onSelectDate }: CalendarP
               key={dateKey}
               type="button"
               onClick={() => onSelectDate(date)}
-              className={`group relative flex h-12 flex-col items-center justify-center rounded-2xl border border-transparent text-sm font-medium transition hover:border-pink-200 hover:bg-pink-50 focus:outline-none focus:ring-2 focus:ring-pink-300 ${
+              className={`group relative flex h-12 flex-col items-center justify-center rounded-2xl border text-sm font-medium transition hover:border-pink-200 hover:bg-pink-50 focus:outline-none focus:ring-2 focus:ring-pink-300 ${
                 isSelected
-                  ? "bg-pink-500 text-white shadow"
-                  : "bg-white text-slate-700"
+                  ? "border-pink-300 bg-pink-100 text-pink-700 shadow"
+                  : "border-transparent bg-white text-slate-700"
               }`}
             >
               {tripSpan ? (
@@ -146,7 +146,7 @@ export function Calendar({ month, items, selectedDate, onSelectDate }: CalendarP
                         : item.category === "todo"
                         ? "bg-sky-400"
                         : "bg-amber-400"
-                    } ${isSelected ? "ring-2 ring-white/80" : ""}`}
+                    } ${isSelected ? "ring-1 ring-pink-200" : ""}`}
                   />
                 ))}
               </span>
