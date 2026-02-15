@@ -214,23 +214,48 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const localItems = window.localStorage.getItem(LOCAL_ITEMS_KEY);
-    if (!localItems) {
-      return;
-    }
-
-    try {
-      const parsedItems = JSON.parse(localItems) as PlannerItem[];
-      if (Array.isArray(parsedItems)) {
-        setItems(parsedItems);
+    const loadPlanner = async () => {
+      if (typeof window === "undefined") {
+        return;
       }
-    } catch {
-      window.localStorage.removeItem(LOCAL_ITEMS_KEY);
-    }
+
+      let localItems: PlannerItem[] = [];
+      const localRaw = window.localStorage.getItem(LOCAL_ITEMS_KEY);
+      if (localRaw) {
+        try {
+          const parsedItems = JSON.parse(localRaw) as PlannerItem[];
+          if (Array.isArray(parsedItems)) {
+            localItems = parsedItems;
+          }
+        } catch {
+          window.localStorage.removeItem(LOCAL_ITEMS_KEY);
+        }
+      }
+
+      if (localItems.length > 0) {
+        setItems(localItems);
+      }
+
+      if (!isFirebaseConfigured) {
+        return;
+      }
+
+      try {
+        const remoteItems = await getPlannerItems();
+        if (remoteItems.length > 0) {
+          setItems(remoteItems);
+          return;
+        }
+
+        if (localItems.length > 0) {
+          await Promise.all(localItems.map((item) => addPlannerItem(item)));
+        }
+      } catch (error) {
+        console.error("Failed to sync planner items with Firestore", error);
+      }
+    };
+
+    void loadPlanner();
   }, []);
 
   useEffect(() => {
@@ -239,21 +264,6 @@ export default function Home() {
     }
     window.localStorage.setItem(LOCAL_ITEMS_KEY, JSON.stringify(items));
   }, [items]);
-
-  useEffect(() => {
-    const loadPlanner = async () => {
-      if (!isFirebaseConfigured) {
-        return;
-      }
-      try {
-        const remoteItems = await getPlannerItems();
-        setItems(remoteItems);
-      } catch (error) {
-        console.error("Failed to load planner items from Firestore", error);
-      }
-    };
-    void loadPlanner();
-  }, []);
 
   if (!isLoggedIn) {
     return (
@@ -504,7 +514,7 @@ export default function Home() {
 
             <form
               className="mt-6 space-y-4"
-              onSubmit={(event) => {
+              onSubmit={async (event) => {
                 event.preventDefault();
                 const payload = {
                   title: newItem.title.trim() || "Untitled plan",
@@ -523,7 +533,11 @@ export default function Home() {
                     prev.map((item) => (item.id === editingId ? { ...item, ...payload } : item))
                   );
                   if (isFirebaseConfigured) {
-                    void updatePlannerItem(editingId, payload);
+                    try {
+                      await updatePlannerItem(editingId, payload);
+                    } catch (error) {
+                      console.error("Failed to update planner item in Firestore", error);
+                    }
                   }
                 } else {
                   const id = crypto.randomUUID();
@@ -535,10 +549,14 @@ export default function Home() {
                     }
                   ]);
                   if (isFirebaseConfigured) {
-                    void addPlannerItem({
-                      id,
-                      ...payload
-                    });
+                    try {
+                      await addPlannerItem({
+                        id,
+                        ...payload
+                      });
+                    } catch (error) {
+                      console.error("Failed to add planner item to Firestore", error);
+                    }
                   }
                 }
                 setIsModalOpen(false);
