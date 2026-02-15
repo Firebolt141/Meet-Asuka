@@ -30,6 +30,10 @@ const categoryAccentStyles: Record<PlannerItem["category"], string> = {
   wishlist: ""
 };
 
+// Backward-compatible fallbacks for stale merge references from old Firebase debug UI blocks.
+const configuredProjectId = "";
+const missingFirebaseConfigVars: string[] = [];
+
 const LOCAL_ITEMS_KEY = "meet-asuka:planner-items";
 
 const createEmptyTripTodo = (): TripTodoEntry => ({
@@ -120,9 +124,6 @@ export default function Home() {
       return selectedDateOnly >= rangeStart && selectedDateOnly <= rangeEnd;
     });
   }, [items, selectedDate, selectedKey]);
-
-  // Backward-compatible alias in case any stale references remain during merges/cherry-picks.
-  const todaysItems = selectedItems;
 
   const activeMonthLabel = activeMonth.toLocaleDateString("en-US", {
     month: "long",
