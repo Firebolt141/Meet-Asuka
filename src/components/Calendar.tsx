@@ -48,6 +48,36 @@ export function Calendar({ month, items, selectedDate, onSelectDate }: CalendarP
     }, {});
   }, [items]);
 
+  const tripSpansByDate = useMemo(() => {
+    return items.reduce<Record<string, { isStart: boolean; isEnd: boolean }>>((acc, item) => {
+      if (item.category !== "trip" || !item.date) {
+        return acc;
+      }
+      const start = new Date(item.date);
+      const end = item.endDate ? new Date(item.endDate) : new Date(item.date);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(0, 0, 0, 0);
+      const rangeStart = start <= end ? start : end;
+      const rangeEnd = start <= end ? end : start;
+
+      for (
+        let current = new Date(rangeStart);
+        current <= rangeEnd;
+        current.setDate(current.getDate() + 1)
+      ) {
+        const key = formatDate(current);
+        const isStart = current.getTime() === rangeStart.getTime();
+        const isEnd = current.getTime() === rangeEnd.getTime();
+        acc[key] = {
+          isStart: (acc[key]?.isStart ?? false) || isStart,
+          isEnd: (acc[key]?.isEnd ?? false) || isEnd
+        };
+      }
+
+      return acc;
+    }, {});
+  }, [items]);
+
   return (
     <div className="rounded-3xl bg-white/80 p-6 shadow-soft">
       <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase tracking-wide text-pink-500">
@@ -66,20 +96,45 @@ export function Calendar({ month, items, selectedDate, onSelectDate }: CalendarP
             date.getMonth() === selectedDate.getMonth() &&
             date.getDate() === selectedDate.getDate();
           const dayItems = itemsByDate[dateKey] ?? [];
+          const tripSpan = tripSpansByDate[dateKey];
+          const hasTripLeftConnector = Boolean(tripSpan && !tripSpan.isStart);
+          const hasTripRightConnector = Boolean(tripSpan && !tripSpan.isEnd);
 
           return (
             <button
               key={dateKey}
               type="button"
               onClick={() => onSelectDate(date)}
-              className={`group flex h-12 flex-col items-center justify-center rounded-2xl border border-transparent text-sm font-medium transition hover:border-pink-200 hover:bg-pink-50 focus:outline-none focus:ring-2 focus:ring-pink-300 ${
+              className={`group relative flex h-12 flex-col items-center justify-center rounded-2xl border border-transparent text-sm font-medium transition hover:border-pink-200 hover:bg-pink-50 focus:outline-none focus:ring-2 focus:ring-pink-300 ${
                 isSelected
                   ? "bg-pink-500 text-white shadow"
                   : "bg-white text-slate-700"
               }`}
             >
-              <span>{date.getDate()}</span>
-              <span className="mt-1 flex gap-1">
+              {tripSpan ? (
+                <>
+                  {hasTripLeftConnector ? (
+                    <span
+                      className="absolute left-0 top-1/2 z-0 h-2 w-2 -translate-x-2 -translate-y-1/2 bg-indigo-200"
+                      aria-hidden
+                    />
+                  ) : null}
+                  {hasTripRightConnector ? (
+                    <span
+                      className="absolute right-0 top-1/2 z-0 h-2 w-2 translate-x-2 -translate-y-1/2 bg-indigo-200"
+                      aria-hidden
+                    />
+                  ) : null}
+                  <span
+                    className="absolute inset-x-1 top-1/2 z-0 h-2 -translate-y-1/2 rounded-full bg-indigo-200"
+                    aria-hidden
+                  />
+                </>
+              ) : null}
+              <span className={`relative z-10 ${tripSpan && !isSelected ? "text-indigo-700" : ""}`}>
+                {date.getDate()}
+              </span>
+              <span className="relative z-10 mt-1 flex gap-1">
                 {dayItems.slice(0, 3).map((item) => (
                   <span
                     key={item.id}
