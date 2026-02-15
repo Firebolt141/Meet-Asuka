@@ -1,9 +1,11 @@
-import { collection, doc, getDocs, setDoc, updateDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs, setDoc, updateDoc } from "firebase/firestore";
 
-import { db, hasFirebaseConfig } from "@/lib/firebase";
+import { db, firebaseProjectId, hasFirebaseConfig, missingFirebaseEnvVars } from "@/lib/firebase";
 import type { PlannerItem } from "@/components/Calendar";
 
 export const isFirebaseConfigured = hasFirebaseConfig;
+export const configuredProjectId = firebaseProjectId;
+export const missingFirebaseConfigVars = missingFirebaseEnvVars;
 
 export const getPlannerItems = async (): Promise<PlannerItem[]> => {
   if (!db) {
@@ -34,4 +36,12 @@ export const updatePlannerItem = async (
   }
   const plannerCollection = collection(db, "plannerItems");
   await updateDoc(doc(plannerCollection, id), updates);
+};
+
+export const deletePlannerItem = async (id: string): Promise<void> => {
+  if (!db) {
+    return;
+  }
+  const plannerCollection = collection(db, "plannerItems");
+  await deleteDoc(doc(plannerCollection, id));
 };
