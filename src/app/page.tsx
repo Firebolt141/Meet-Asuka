@@ -2,38 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Calendar, PlannerItem } from "@/components/Calendar";
-import { addPlannerItem, getPlannerItems, isFirebaseConfigured, updatePlannerItem } from "@/lib/firestore";
-
-const starterItems: PlannerItem[] = [
-  {
-    id: "1",
-    title: "Kyoto Cozy Trip",
-    category: "trip",
-    date: "2024-11-05",
-    details: "Book the sweet ryokan and matcha cafe hop."
-  },
-  {
-    id: "2",
-    title: "Bestie Picnic",
-    category: "event",
-    date: "2024-11-12",
-    details: "Pack strawberry bento + pastel blanket."
-  },
-  {
-    id: "3",
-    title: "Todo: Pack Camera",
-    category: "todo",
-    date: "2024-11-12",
-    details: "Charge batteries + bring the pastel strap."
-  },
-  {
-    id: "4",
-    title: "Wish: Disney Date",
-    category: "wishlist",
-    date: "2024-11-20",
-    details: "Collect outfit ideas + snacks list."
-  }
-];
+import {
+  addPlannerItem,
+  configuredProjectId,
+  deletePlannerItem,
+  getPlannerItems,
+  isFirebaseConfigured,
+  missingFirebaseConfigVars,
+  updatePlannerItem
+} from "@/lib/firestore";
 
 const pad = (value: number) => value.toString().padStart(2, "0");
 
@@ -53,7 +30,7 @@ export default function Home() {
   type NavGroupKey = PlannerItem["category"] | "past";
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [items, setItems] = useState<PlannerItem[]>(starterItems);
+  const [items, setItems] = useState<PlannerItem[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(false);
@@ -265,6 +242,20 @@ export default function Home() {
     window.localStorage.setItem(LOCAL_ITEMS_KEY, JSON.stringify(items));
   }, [items]);
 
+  const handleDeleteItem = async (id: string) => {
+    setItems((prev) => prev.filter((item) => item.id !== id));
+
+    if (!isFirebaseConfigured) {
+      return;
+    }
+
+    try {
+      await deletePlannerItem(id);
+    } catch (error) {
+      console.error("Failed to delete planner item from Firestore", error);
+    }
+  };
+
   if (!isLoggedIn) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-pink-100 via-blush to-orange-100 p-6">
@@ -329,6 +320,14 @@ export default function Home() {
             </div>
           </div>
         </header>
+
+        <div style={{ fontSize: 10, opacity: 0.6 }} className="px-1 text-slate-600">
+          Firebase configured: {String(isFirebaseConfigured)}
+          {isFirebaseConfigured ? ` • project: ${configuredProjectId}` : ""}
+          {missingFirebaseConfigVars.length > 0
+            ? ` • missing env: ${missingFirebaseConfigVars.join(", ")}`
+            : ""}
+        </div>
 
         <div className="flex items-center justify-between rounded-2xl bg-white/80 px-4 py-3 text-sm font-semibold text-slate-700 shadow">
           <button
@@ -705,6 +704,19 @@ export default function Home() {
               </label>
 
               <div className="flex justify-end gap-3">
+                {editingId ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await handleDeleteItem(editingId);
+                      setIsModalOpen(false);
+                      setEditingId(null);
+                    }}
+                    className="rounded-full border border-rose-200 px-5 py-2 text-sm font-semibold text-rose-500 hover:bg-rose-50"
+                  >
+                    Delete
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => {

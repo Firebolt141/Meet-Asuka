@@ -16,10 +16,17 @@ export const hasFirebaseConfig = Boolean(
   firebaseConfig.apiKey &&
     firebaseConfig.authDomain &&
     firebaseConfig.projectId &&
-    firebaseConfig.storageBucket &&
-    firebaseConfig.messagingSenderId &&
     firebaseConfig.appId
 );
+
+export const firebaseProjectId = firebaseConfig.projectId ?? "";
+
+export const missingFirebaseEnvVars = [
+  !firebaseConfig.apiKey ? "NEXT_PUBLIC_FIREBASE_API_KEY" : null,
+  !firebaseConfig.authDomain ? "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN" : null,
+  !firebaseConfig.projectId ? "NEXT_PUBLIC_FIREBASE_PROJECT_ID" : null,
+  !firebaseConfig.appId ? "NEXT_PUBLIC_FIREBASE_APP_ID" : null
+].filter((value): value is string => value !== null);
 
 let db: Firestore | null = null;
 let app: FirebaseApp | null = null;
