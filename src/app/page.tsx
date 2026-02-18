@@ -362,6 +362,84 @@ export default function Home() {
     }
   };
 
+  useEffect(() => {
+    const loadWeather = async () => {
+      try {
+        const response = await fetch(
+          "https://api.open-meteo.com/v1/forecast?latitude=35.7082&longitude=139.6984&current=temperature_2m,weather_code&timezone=Asia%2FTokyo"
+        );
+        if (!response.ok) {
+          throw new Error("Weather request failed");
+        }
+        const data = (await response.json()) as {
+          current?: { temperature_2m?: number; weather_code?: number };
+        };
+        const weatherCode = data.current?.weather_code;
+        const temp = data.current?.temperature_2m;
+        const weatherMap: Record<number, string> = {
+          0: "Clear",
+          1: "Mainly clear",
+          2: "Partly cloudy",
+          3: "Cloudy",
+          45: "Fog",
+          48: "Fog",
+          51: "Drizzle",
+          53: "Drizzle",
+          55: "Drizzle",
+          61: "Rain",
+          63: "Rain",
+          65: "Heavy rain",
+          71: "Snow",
+          80: "Rain showers",
+          95: "Thunderstorm"
+        };
+        const condition = weatherCode !== undefined ? weatherMap[weatherCode] ?? "Weather" : "Weather";
+        const temperature = temp !== undefined ? `${Math.round(temp)}°C` : "--°C";
+        setWeatherLabel(`${condition} ${temperature}`);
+      } catch (error) {
+        console.error("Failed to load weather", error);
+        setWeatherLabel("Weather unavailable");
+      }
+    };
+
+    void loadWeather();
+  }, []);
+
+  const handleDeleteItem = async (id: string) => {
+    setItems((prev) => prev.filter((item) => item.id !== id));
+
+    if (!isFirebaseConfigured) {
+      return;
+    }
+
+    try {
+      await deletePlannerItem(id);
+    } catch (error) {
+      console.error("Failed to delete planner item from Firestore", error);
+    }
+  };
+
+  const toggleChecklistCompletion = async (item: PlannerItem) => {
+    const nextCompleted = !item.completed;
+
+    setItems((prev) =>
+      prev.map((existing) =>
+        existing.id === item.id ? { ...existing, completed: nextCompleted } : existing
+      )
+    );
+
+    if (!isFirebaseConfigured) {
+      return;
+    }
+
+    const { id, ...rest } = item;
+    try {
+      await updatePlannerItem(id, { ...rest, completed: nextCompleted });
+    } catch (error) {
+      console.error("Failed to toggle checklist completion in Firestore", error);
+    }
+  };
+
   if (!isLoggedIn) {
     return (
       <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-pink-100 via-blush to-orange-100 p-6">
@@ -424,6 +502,14 @@ export default function Home() {
           </div>
         </header>
 
+        <div style={{ fontSize: 10, opacity: 0.6 }} className="px-1 text-slate-600">
+          Firebase configured: {String(isFirebaseConfigured)}
+          {isFirebaseConfigured ? ` • project: ${configuredProjectId}` : ""}
+          {missingFirebaseConfigVars.length > 0
+            ? ` • missing env: ${missingFirebaseConfigVars.join(", ")}`
+            : ""}
+        </div>
+
         <div className="flex items-center justify-between rounded-2xl bg-white/80 px-4 py-3 text-sm font-semibold text-slate-700 shadow">
           <button
             type="button"
@@ -468,15 +554,15 @@ export default function Home() {
 
         <section className="rounded-3xl bg-white/80 p-6 shadow-soft">
           <h3 className="text-lg font-semibold text-slate-800">
-            Plans for {selectedDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })}
+            Plans for today
           </h3>
           <div className="mt-4 space-y-3">
-            {selectedItems.length === 0 ? (
+            {todaysItems.length === 0 ? (
               <p className="text-sm text-slate-500">
                 No plans yet. Add something sweet with the plus button!
               </p>
             ) : (
-                selectedItems.map((item) => (
+                todaysItems.map((item) => (
                   <button
                     key={item.id}
                     type="button"
