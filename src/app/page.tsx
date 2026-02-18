@@ -55,6 +55,8 @@ type PlannerFormState = {
   tripTodos: string;
   tripTodoItems: TripTodoEntry[];
   participants: string;
+  pic: string;
+  completed: boolean;
   details: string;
 };
 
@@ -82,6 +84,8 @@ export default function Home() {
     tripTodos: "",
     tripTodoItems: [createEmptyTripTodo()],
     participants: "",
+    pic: "",
+    completed: false,
     details: ""
   });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -217,6 +221,10 @@ export default function Home() {
       const participantsLabel = item.participants ? ` • With: ${item.participants}` : "";
       return `When: ${item.date} • ${time}${locationLabel}${participantsLabel}${recurringLabel}`;
     }
+    if (item.category === "todo") {
+      const picLabel = item.pic ? ` • PIC: ${item.pic}` : "";
+      return `Due: ${item.date}${picLabel}${item.completed ? " • Done" : ""}`;
+    }
     return `Due: ${item.date}${item.participants ? ` • With: ${item.participants}` : ""}`;
   };
 
@@ -326,6 +334,27 @@ export default function Home() {
       await deletePlannerItem(id);
     } catch (error) {
       console.error("Failed to delete planner item from Firestore", error);
+    }
+  };
+
+  const toggleTodoCompletion = async (item: PlannerItem) => {
+    const nextCompleted = !item.completed;
+
+    setItems((prev) =>
+      prev.map((existing) =>
+        existing.id === item.id ? { ...existing, completed: nextCompleted } : existing
+      )
+    );
+
+    if (!isFirebaseConfigured) {
+      return;
+    }
+
+    const { id, ...rest } = item;
+    try {
+      await updatePlannerItem(id, { ...rest, completed: nextCompleted });
+    } catch (error) {
+      console.error("Failed to toggle todo completion in Firestore", error);
     }
   };
 
@@ -456,6 +485,11 @@ export default function Home() {
                     key={item.id}
                     type="button"
                     onClick={() => {
+                      if (item.category === "todo") {
+                        void toggleTodoCompletion(item);
+                        return;
+                      }
+
                       setEditingId(item.id);
                       setNewItem({
                         title: item.title,
@@ -474,14 +508,16 @@ export default function Home() {
                               ? [{ title: "Trip todo", date: item.date, details: item.tripTodos, participants: "" }]
                               : [createEmptyTripTodo()],
                         participants: item.participants ?? "",
+                        pic: item.pic ?? "",
+                        completed: item.completed ?? false,
                         details: item.details
                       });
                       setIsModalOpen(true);
                     }}
-                    className="w-full rounded-2xl border border-pink-100 bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 hover:border-pink-200 hover:bg-pink-50/50"
+                    className={`w-full rounded-2xl border px-4 py-3 text-left transition hover:-translate-y-0.5 ${item.category === "todo" && item.completed ? "border-emerald-200 bg-emerald-50/70" : "border-pink-100 bg-white hover:border-pink-200 hover:bg-pink-50/50"}`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-slate-800">
+                      <p className={`text-sm font-semibold ${item.category === "todo" && item.completed ? "text-slate-400 line-through" : "text-slate-800"}`}>
                         {item.title}
                       </p>
                       <span
@@ -494,7 +530,9 @@ export default function Home() {
                       {formatMeta(item)}
                     </p>
                     <p className="mt-2 text-sm text-slate-600">{item.details}</p>
-                    {item.participants ? (
+                    {item.category === "todo" ? (
+                      item.pic ? <p className="mt-1 text-xs text-slate-500">👤 PIC: {item.pic}</p> : null
+                    ) : item.participants ? (
                       <p className="mt-1 text-xs text-slate-500">👥 {item.participants}</p>
                     ) : null}
                     {item.category === "trip" && item.tripTodoItems && item.tripTodoItems.length > 0 ? (
@@ -598,7 +636,10 @@ export default function Home() {
                           }))
                           .filter((todo) => todo.title || todo.details || todo.date)
                       : undefined,
-                  participants: newItem.participants.trim() || undefined,
+                  participants:
+                    newItem.category !== "todo" ? newItem.participants.trim() || undefined : undefined,
+                  pic: newItem.category === "todo" ? newItem.pic.trim() || undefined : undefined,
+                  completed: newItem.category === "todo" ? newItem.completed : undefined,
                   details: newItem.details.trim() || "A dreamy new memory."
                 };
                 if (editingId) {
@@ -645,6 +686,8 @@ export default function Home() {
                   tripTodos: "",
                   tripTodoItems: [createEmptyTripTodo()],
                   participants: "",
+                  pic: "",
+                  completed: false,
                   details: ""
                 });
                 setEditingId(null);
@@ -676,7 +719,10 @@ export default function Home() {
                               ? prev.tripTodoItems.length > 0
                                 ? prev.tripTodoItems
                                 : [createEmptyTripTodo()]
-                              : [createEmptyTripTodo()]
+                              : [createEmptyTripTodo()],
+                          participants: category === "todo" ? "" : prev.participants,
+                          pic: category === "todo" ? prev.pic : "",
+                          completed: category === "todo" ? prev.completed : false
                         };
                       })
                     }
@@ -912,16 +958,34 @@ export default function Home() {
               ) : null}
 
               <label className="block text-sm font-medium text-slate-700">
-                Participants
+                {newItem.category === "todo" ? "PIC" : "Participants"}
                 <input
-                  value={newItem.participants}
+                  value={newItem.category === "todo" ? newItem.pic : newItem.participants}
                   onChange={(event) =>
-                    setNewItem((prev) => ({ ...prev, participants: event.target.value }))
+                    setNewItem((prev) =>
+                      prev.category === "todo"
+                        ? { ...prev, pic: event.target.value }
+                        : { ...prev, participants: event.target.value }
+                    )
                   }
                   className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                  placeholder="Asuka, Yui, Rina"
+                  placeholder={newItem.category === "todo" ? "Person responsible" : "Asuka, Yui, Rina"}
                 />
               </label>
+
+              {newItem.category === "todo" ? (
+                <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={newItem.completed}
+                    onChange={(event) =>
+                      setNewItem((prev) => ({ ...prev, completed: event.target.checked }))
+                    }
+                    className="h-4 w-4 rounded border-pink-200 text-pink-500 focus:ring-pink-300"
+                  />
+                  Mark as done
+                </label>
+              ) : null}
 
               <label className="block text-sm font-medium text-slate-700">
                 Details
@@ -1067,6 +1131,8 @@ export default function Home() {
                                           ? [{ title: "Trip todo", date: item.date, details: item.tripTodos, participants: "" }]
                                           : [createEmptyTripTodo()],
                                     participants: item.participants ?? "",
+                                    pic: item.pic ?? "",
+                                    completed: item.completed ?? false,
                                     details: item.details
                                   });
                                   setIsModalOpen(true);

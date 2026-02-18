@@ -20,6 +20,8 @@ export type PlannerItem = {
   location?: string;
   recurring?: "none" | "daily" | "weekly" | "monthly";
   participants?: string;
+  pic?: string;
+  completed?: boolean;
   tripTodos?: string;
   tripTodoItems?: TripTodoEntry[];
   details: string;
@@ -130,14 +132,30 @@ export function Calendar({ month, monthLabel, items, selectedDate, onSelectDate 
               <span className={`relative z-10 ${tripSpan && !isSelected ? "text-indigo-700" : ""}`}>
                 {date.getDate()}
               </span>
+              <span className="pointer-events-none absolute bottom-4 z-10 flex gap-1">
+                {dayItems.slice(0, 3).map((item) => (
+                  <span
+                    key={item.id}
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      item.category === "trip"
+                        ? "bg-indigo-400"
+                        : item.category === "event"
+                        ? "bg-emerald-400"
+                        : item.category === "todo"
+                        ? "bg-sky-400"
+                        : "bg-amber-400"
+                    } ${isSelected ? "ring-1 ring-pink-200" : ""}`}
+                  />
+                ))}
+              </span>
               {tripSpan ? (
-                <span className="pointer-events-none absolute bottom-3 left-1 right-1 z-0 flex items-center">
+                <span className="pointer-events-none absolute bottom-2 left-1 right-1 z-0 flex items-center">
                   {hasTripLeftConnector ? <span className="h-1 w-2 rounded-l-full bg-indigo-200" /> : null}
                   <span className="h-1 flex-1 rounded-full bg-indigo-300/90" />
                   {hasTripRightConnector ? <span className="h-1 w-2 rounded-r-full bg-indigo-200" /> : null}
                 </span>
               ) : null}
-              <span className="relative z-10 mt-auto mb-1 flex gap-1">
+              <span className="relative z-10 mt-auto mb-1 flex gap-1 opacity-0">
                 {dayItems.slice(0, 3).map((item) => (
                   <span
                     key={item.id}
