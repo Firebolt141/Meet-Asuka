@@ -97,6 +97,7 @@ export default function Home() {
     past: true
   });
   const [weatherLabel, setWeatherLabel] = useState("Loading...");
+  const [hasHydratedPlanner, setHasHydratedPlanner] = useState(false);
 
   const normalizedToday = useMemo(() => {
     const today = new Date();
@@ -252,6 +253,7 @@ export default function Home() {
       }
 
       if (!isFirebaseConfigured) {
+        setHasHydratedPlanner(true);
         return;
       }
 
@@ -267,6 +269,8 @@ export default function Home() {
         }
       } catch (error) {
         console.error("Failed to sync planner items with Firestore", error);
+      } finally {
+        setHasHydratedPlanner(true);
       }
     };
 
@@ -274,11 +278,89 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
+    if (typeof window === "undefined" || !hasHydratedPlanner) {
       return;
     }
     window.localStorage.setItem(LOCAL_ITEMS_KEY, JSON.stringify(items));
-  }, [items]);
+  }, [hasHydratedPlanner, items]);
+
+  useEffect(() => {
+    const loadWeather = async () => {
+      try {
+        const response = await fetch(
+          "https://api.open-meteo.com/v1/forecast?latitude=35.7082&longitude=139.6984&current=temperature_2m,weather_code&timezone=Asia%2FTokyo"
+        );
+        if (!response.ok) {
+          throw new Error("Weather request failed");
+        }
+        const data = (await response.json()) as {
+          current?: { temperature_2m?: number; weather_code?: number };
+        };
+        const weatherCode = data.current?.weather_code;
+        const temp = data.current?.temperature_2m;
+        const weatherMap: Record<number, string> = {
+          0: "Clear",
+          1: "Mainly clear",
+          2: "Partly cloudy",
+          3: "Cloudy",
+          45: "Fog",
+          48: "Fog",
+          51: "Drizzle",
+          53: "Drizzle",
+          55: "Drizzle",
+          61: "Rain",
+          63: "Rain",
+          65: "Heavy rain",
+          71: "Snow",
+          80: "Rain showers",
+          95: "Thunderstorm"
+        };
+        const condition = weatherCode !== undefined ? weatherMap[weatherCode] ?? "Weather" : "Weather";
+        const temperature = temp !== undefined ? `${Math.round(temp)}°C` : "--°C";
+        setWeatherLabel(`${condition} ${temperature}`);
+      } catch (error) {
+        console.error("Failed to load weather", error);
+        setWeatherLabel("Weather unavailable");
+      }
+    };
+
+    void loadWeather();
+  }, []);
+
+  const handleDeleteItem = async (id: string) => {
+    setItems((prev) => prev.filter((item) => item.id !== id));
+
+    if (!isFirebaseConfigured) {
+      return;
+    }
+
+    try {
+      await deletePlannerItem(id);
+    } catch (error) {
+      console.error("Failed to delete planner item from Firestore", error);
+    }
+  };
+
+  const toggleChecklistCompletion = async (item: PlannerItem) => {
+    const nextCompleted = !item.completed;
+
+    setItems((prev) =>
+      prev.map((existing) =>
+        existing.id === item.id ? { ...existing, completed: nextCompleted } : existing
+      )
+    );
+
+    if (!isFirebaseConfigured) {
+      return;
+    }
+
+    const { id, ...rest } = item;
+    try {
+      await updatePlannerItem(id, { ...rest, completed: nextCompleted });
+    } catch (error) {
+      console.error("Failed to toggle checklist completion in Firestore", error);
+    }
+  };
 
   useEffect(() => {
     const loadWeather = async () => {
