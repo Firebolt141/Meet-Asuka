@@ -248,27 +248,32 @@ export default function Home() {
         }
       }
 
-      if (localItems.length > 0) {
-        setItems(localItems);
-      }
-
       if (!isFirebaseConfigured) {
+        setItems(localItems);
         setHasHydratedPlanner(true);
         return;
       }
 
       try {
         const remoteItems = await getPlannerItems();
-        if (remoteItems.length > 0) {
-          setItems(remoteItems);
-          return;
-        }
+        const remoteById = new Map(remoteItems.map((item) => [item.id, item]));
+        const mergedById = new Map(remoteById);
 
-        if (localItems.length > 0) {
-          await Promise.all(localItems.map((item) => addPlannerItem(item)));
+        // Prefer local versions so unsynced edits are not lost on refresh.
+        localItems.forEach((item) => {
+          mergedById.set(item.id, item);
+        });
+
+        const mergedItems = Array.from(mergedById.values());
+        setItems(mergedItems);
+
+        const localOnlyItems = localItems.filter((item) => !remoteById.has(item.id));
+        if (localOnlyItems.length > 0) {
+          await Promise.all(localOnlyItems.map((item) => addPlannerItem(item)));
         }
       } catch (error) {
         console.error("Failed to sync planner items with Firestore", error);
+        setItems(localItems);
       } finally {
         setHasHydratedPlanner(true);
       }
