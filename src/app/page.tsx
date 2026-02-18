@@ -17,9 +17,9 @@ const formatDate = (date: Date) =>
 
 const categoryStyles: Record<PlannerItem["category"], { label: string; color: string }> = {
   trip: { label: "Trip", color: "bg-indigo-100 text-indigo-600" },
-  event: { label: "Event", color: "bg-emerald-100 text-emerald-600" },
-  todo: { label: "Todo", color: "bg-sky-100 text-sky-600" },
-  wishlist: { label: "Wishlist", color: "bg-amber-100 text-amber-600" }
+  event: { label: "Event", color: "bg-cyan-100 text-cyan-700" },
+  todo: { label: "Todo", color: "bg-rose-100 text-rose-600" },
+  wishlist: { label: "Wishlist", color: "bg-violet-100 text-violet-600" }
 };
 
 // Backward-compatible fallback for stale branch merges that still reference this symbol.
@@ -196,7 +196,7 @@ export default function Home() {
 
   const formatMeta = (item: PlannerItem) => {
     if (item.category === "wishlist") {
-      return "No date set";
+      return item.completed ? "No date set • Done" : "No date set";
     }
     if (item.category === "trip") {
       const dateLabel = item.endDate && item.endDate !== item.date
@@ -337,7 +337,7 @@ export default function Home() {
     }
   };
 
-  const toggleTodoCompletion = async (item: PlannerItem) => {
+  const toggleChecklistCompletion = async (item: PlannerItem) => {
     const nextCompleted = !item.completed;
 
     setItems((prev) =>
@@ -354,7 +354,7 @@ export default function Home() {
     try {
       await updatePlannerItem(id, { ...rest, completed: nextCompleted });
     } catch (error) {
-      console.error("Failed to toggle todo completion in Firestore", error);
+      console.error("Failed to toggle checklist completion in Firestore", error);
     }
   };
 
@@ -485,8 +485,8 @@ export default function Home() {
                     key={item.id}
                     type="button"
                     onClick={() => {
-                      if (item.category === "todo") {
-                        void toggleTodoCompletion(item);
+                      if (item.category === "todo" || item.category === "wishlist") {
+                        void toggleChecklistCompletion(item);
                         return;
                       }
 
@@ -514,10 +514,10 @@ export default function Home() {
                       });
                       setIsModalOpen(true);
                     }}
-                    className={`w-full rounded-2xl border px-4 py-3 text-left transition hover:-translate-y-0.5 ${item.category === "todo" && item.completed ? "border-emerald-200 bg-emerald-50/70" : "border-pink-100 bg-white hover:border-pink-200 hover:bg-pink-50/50"}`}
+                    className={`w-full rounded-2xl border px-4 py-3 text-left transition hover:-translate-y-0.5 ${(item.category === "todo" || item.category === "wishlist") && item.completed ? "border-emerald-200 bg-emerald-50/70" : "border-pink-100 bg-white hover:border-pink-200 hover:bg-pink-50/50"}`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className={`text-sm font-semibold ${item.category === "todo" && item.completed ? "text-slate-400 line-through" : "text-slate-800"}`}>
+                      <p className={`text-sm font-semibold ${(item.category === "todo" || item.category === "wishlist") && item.completed ? "text-slate-400 line-through" : "text-slate-800"}`}>
                         {item.title}
                       </p>
                       <span
@@ -639,7 +639,10 @@ export default function Home() {
                   participants:
                     newItem.category !== "todo" ? newItem.participants.trim() || undefined : undefined,
                   pic: newItem.category === "todo" ? newItem.pic.trim() || undefined : undefined,
-                  completed: newItem.category === "todo" ? newItem.completed : undefined,
+                  completed:
+                    newItem.category === "todo" || newItem.category === "wishlist"
+                      ? newItem.completed
+                      : undefined,
                   details: newItem.details.trim() || "A dreamy new memory."
                 };
                 if (editingId) {
@@ -722,7 +725,7 @@ export default function Home() {
                               : [createEmptyTripTodo()],
                           participants: category === "todo" ? "" : prev.participants,
                           pic: category === "todo" ? prev.pic : "",
-                          completed: category === "todo" ? prev.completed : false
+                          completed: category === "todo" || category === "wishlist" ? prev.completed : false
                         };
                       })
                     }
@@ -849,7 +852,7 @@ export default function Home() {
                           </label>
                         </div>
                         <label className="block text-xs font-medium text-slate-700">
-                          Participants
+                          PIC
                           <input
                             value={todo.participants ?? ""}
                             onChange={(event) =>
@@ -861,7 +864,7 @@ export default function Home() {
                               }))
                             }
                             className="mt-1 w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none"
-                            placeholder="Asuka"
+                            placeholder="Person responsible"
                           />
                         </label>
                         <label className="block text-xs font-medium text-slate-700">
@@ -973,7 +976,7 @@ export default function Home() {
                 />
               </label>
 
-              {newItem.category === "todo" ? (
+              {newItem.category === "todo" || newItem.category === "wishlist" ? (
                 <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
                   <input
                     type="checkbox"
@@ -983,7 +986,7 @@ export default function Home() {
                     }
                     className="h-4 w-4 rounded border-pink-200 text-pink-500 focus:ring-pink-300"
                   />
-                  Mark as done
+                  {newItem.category === "todo" ? "Mark TODO as done" : "Mark wishlist as done"}
                 </label>
               ) : null}
 

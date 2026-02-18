@@ -140,10 +140,14 @@ export function Calendar({ month, monthLabel, items, selectedDate, onSelectDate 
                       item.category === "trip"
                         ? "bg-indigo-400"
                         : item.category === "event"
-                        ? "bg-emerald-400"
+                        ? "bg-cyan-500"
                         : item.category === "todo"
-                        ? "bg-sky-400"
-                        : "bg-amber-400"
+                        ? item.completed
+                          ? "bg-emerald-500"
+                          : "bg-rose-500"
+                        : item.completed
+                        ? "bg-emerald-500"
+                        : "bg-violet-500"
                     } ${isSelected ? "ring-1 ring-pink-200" : ""}`}
                   />
                 ))}
@@ -163,10 +167,14 @@ export function Calendar({ month, monthLabel, items, selectedDate, onSelectDate 
                       item.category === "trip"
                         ? "bg-indigo-400"
                         : item.category === "event"
-                        ? "bg-emerald-400"
+                        ? "bg-cyan-500"
                         : item.category === "todo"
-                        ? "bg-sky-400"
-                        : "bg-amber-400"
+                        ? item.completed
+                          ? "bg-emerald-500"
+                          : "bg-rose-500"
+                        : item.completed
+                        ? "bg-emerald-500"
+                        : "bg-violet-500"
                     } ${isSelected ? "ring-1 ring-pink-200" : ""}`}
                   />
                 ))}
