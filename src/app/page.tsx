@@ -22,19 +22,85 @@ const categoryStyles: Record<PlannerItem["category"], { label: string; color: st
   wishlist: { label: "Wishlist", color: "bg-violet-100 text-violet-600" }
 };
 
-// Backward-compatible fallback for stale branch merges that still reference this symbol.
-const categoryAccentStyles: Record<PlannerItem["category"], string> = {
-  trip: "",
-  event: "",
-  todo: "",
-  wishlist: ""
-};
-
-// Backward-compatible fallbacks for stale merge references from old Firebase debug UI blocks.
-const configuredProjectId = "";
-const missingFirebaseConfigVars: string[] = [];
 
 const LOCAL_ITEMS_KEY = "meet-asuka:planner-items";
+
+const validCategories: PlannerItem["category"][] = ["trip", "event", "todo", "wishlist"];
+const validRecurring: NonNullable<PlannerItem["recurring"]>[] = ["none", "daily", "weekly", "monthly"];
+
+const normalizeTripTodoItems = (tripTodoItems: unknown): TripTodoEntry[] | undefined => {
+  if (!Array.isArray(tripTodoItems)) {
+    return undefined;
+  }
+
+  const normalized = tripTodoItems
+    .map((entry): TripTodoEntry | null => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+      const raw = entry as Record<string, unknown>;
+      return {
+        title: typeof raw.title === "string" ? raw.title : "",
+        date: typeof raw.date === "string" ? raw.date : "",
+        details: typeof raw.details === "string" ? raw.details : "",
+        ...(typeof raw.participants === "string" ? { participants: raw.participants } : {})
+      };
+    })
+    .filter((entry): entry is TripTodoEntry => entry !== null)
+    .filter((entry) => entry.title || entry.date || entry.details || entry.participants);
+
+  return normalized.length > 0 ? normalized : undefined;
+};
+
+const normalizePlannerItem = (item: unknown): PlannerItem | null => {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+
+  const raw = item as Record<string, unknown>;
+  if (typeof raw.id !== "string" || raw.id.trim() === "") {
+    return null;
+  }
+
+  const normalizedCategory =
+    typeof raw.category === "string" && validCategories.includes(raw.category as PlannerItem["category"])
+      ? (raw.category as PlannerItem["category"])
+      : "event";
+
+  const normalizedDate = typeof raw.date === "string" ? raw.date : "";
+  const normalizedRecurring =
+    typeof raw.recurring === "string" && validRecurring.includes(raw.recurring as NonNullable<PlannerItem["recurring"]>)
+      ? (raw.recurring as NonNullable<PlannerItem["recurring"]>)
+      : undefined;
+
+  return {
+    id: raw.id,
+    title: typeof raw.title === "string" && raw.title.trim() ? raw.title : "Untitled plan",
+    category: normalizedCategory,
+    date: normalizedDate,
+    endDate: typeof raw.endDate === "string" ? raw.endDate : undefined,
+    startTime: typeof raw.startTime === "string" ? raw.startTime : undefined,
+    endTime: typeof raw.endTime === "string" ? raw.endTime : undefined,
+    location: typeof raw.location === "string" ? raw.location : undefined,
+    recurring: normalizedRecurring,
+    tripTodos: typeof raw.tripTodos === "string" ? raw.tripTodos : undefined,
+    tripTodoItems: normalizeTripTodoItems(raw.tripTodoItems),
+    participants: typeof raw.participants === "string" ? raw.participants : undefined,
+    pic: typeof raw.pic === "string" ? raw.pic : undefined,
+    completed: typeof raw.completed === "boolean" ? raw.completed : undefined,
+    details: typeof raw.details === "string" && raw.details.trim() ? raw.details : "A dreamy new memory."
+  };
+};
+
+const normalizePlannerItems = (items: unknown): PlannerItem[] => {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .map((item) => normalizePlannerItem(item))
+    .filter((item): item is PlannerItem => item !== null);
+};
 
 const createEmptyTripTodo = (): TripTodoEntry => ({
   title: "",
@@ -130,8 +196,6 @@ export default function Home() {
     });
   }, [items, selectedDate, selectedKey]);
 
-  // Backward-compatible alias for stale merge paths still referencing this symbol.
-  const todaysItems = selectedItems;
 
   const activeMonthLabel = activeMonth.toLocaleDateString("en-US", {
     month: "long",
@@ -239,10 +303,8 @@ export default function Home() {
       const localRaw = window.localStorage.getItem(LOCAL_ITEMS_KEY);
       if (localRaw) {
         try {
-          const parsedItems = JSON.parse(localRaw) as PlannerItem[];
-          if (Array.isArray(parsedItems)) {
-            localItems = parsedItems;
-          }
+          const parsedItems = JSON.parse(localRaw) as unknown;
+          localItems = normalizePlannerItems(parsedItems);
         } catch {
           window.localStorage.removeItem(LOCAL_ITEMS_KEY);
         }
@@ -255,7 +317,7 @@ export default function Home() {
       }
 
       try {
-        const remoteItems = await getPlannerItems();
+        const remoteItems = normalizePlannerItems(await getPlannerItems());
         const remoteById = new Map(remoteItems.map((item) => [item.id, item]));
         const mergedById = new Map(remoteById);
 
@@ -332,8 +394,7 @@ export default function Home() {
     void loadWeather();
   }, []);
 
-  // Use `var` for merge-resilience: stale duplicated blocks in main won't hard-fail parsing.
-  var handleDeleteItem = async (id: string) => {
+  const handleDeleteItem = async (id: string) => {
     setItems((prev) => prev.filter((item) => item.id !== id));
 
     if (!isFirebaseConfigured) {
@@ -347,8 +408,7 @@ export default function Home() {
     }
   };
 
-  // Same merge-resilience approach as above for checklist toggling.
-  var toggleChecklistCompletion = async (item: PlannerItem) => {
+  const toggleChecklistCompletion = async (item: PlannerItem) => {
     const nextCompleted = !item.completed;
 
     setItems((prev) =>
