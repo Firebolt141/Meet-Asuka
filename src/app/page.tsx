@@ -844,7 +844,7 @@ export default function Home() {
                           </label>
                         </div>
                         <label className="block text-xs font-medium text-slate-700">
-                          Participants
+                          PIC
                           <input
                             value={todo.participants ?? ""}
                             onChange={(event) =>
@@ -856,7 +856,7 @@ export default function Home() {
                               }))
                             }
                             className="mt-1 w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none"
-                            placeholder="Asuka"
+                            placeholder="Person responsible"
                           />
                         </label>
                         <label className="block text-xs font-medium text-slate-700">
