@@ -4,9 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Calendar, PlannerItem, type TripTodoEntry } from "@/components/Calendar";
 import {
   addPlannerItem,
+  configuredProjectId,
   deletePlannerItem,
   getPlannerItems,
   isFirebaseConfigured,
+  missingFirebaseConfigVars,
   updatePlannerItem
 } from "@/lib/firestore";
 
@@ -196,6 +198,28 @@ export default function Home() {
     });
   }, [items, selectedDate, selectedKey]);
 
+  const todaysItems = useMemo(
+    () =>
+      items.filter((item) => {
+        if (!item.date) {
+          return false;
+        }
+        if (item.category !== "trip") {
+          return item.date === formatDate(normalizedToday);
+        }
+
+        const start = new Date(item.date);
+        const end = item.endDate ? new Date(item.endDate) : new Date(item.date);
+        start.setHours(0, 0, 0, 0);
+        end.setHours(0, 0, 0, 0);
+
+        const rangeStart = start <= end ? start : end;
+        const rangeEnd = start <= end ? end : start;
+
+        return normalizedToday >= rangeStart && normalizedToday <= rangeEnd;
+      }),
+    [items, normalizedToday]
+  );
 
   const activeMonthLabel = activeMonth.toLocaleDateString("en-US", {
     month: "long",
