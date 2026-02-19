@@ -198,29 +198,6 @@ export default function Home() {
     });
   }, [items, selectedDate, selectedKey]);
 
-  const todaysItems = useMemo(
-    () =>
-      items.filter((item) => {
-        if (!item.date) {
-          return false;
-        }
-        if (item.category !== "trip") {
-          return item.date === formatDate(normalizedToday);
-        }
-
-        const start = new Date(item.date);
-        const end = item.endDate ? new Date(item.endDate) : new Date(item.date);
-        start.setHours(0, 0, 0, 0);
-        end.setHours(0, 0, 0, 0);
-
-        const rangeStart = start <= end ? start : end;
-        const rangeEnd = start <= end ? end : start;
-
-        return normalizedToday >= rangeStart && normalizedToday <= rangeEnd;
-      }),
-    [items, normalizedToday]
-  );
-
   const activeMonthLabel = activeMonth.toLocaleDateString("en-US", {
     month: "long",
     year: "numeric"
@@ -567,15 +544,15 @@ export default function Home() {
 
         <section className="rounded-3xl bg-white/80 p-6 shadow-soft">
           <h3 className="text-lg font-semibold text-slate-800">
-            Plans for today
+            Plans for selected day
           </h3>
           <div className="mt-4 space-y-3">
-            {todaysItems.length === 0 ? (
+            {selectedItems.length === 0 ? (
               <p className="text-sm text-slate-500">
                 No plans yet. Add something sweet with the plus button!
               </p>
             ) : (
-                todaysItems.map((item) => (
+                selectedItems.map((item) => (
                   <button
                     key={item.id}
                     type="button"
