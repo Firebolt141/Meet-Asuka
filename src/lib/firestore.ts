@@ -7,7 +7,6 @@ export const isFirebaseConfigured = hasFirebaseConfig;
 export const configuredProjectId = firebaseProjectId;
 export const missingFirebaseConfigVars = missingFirebaseEnvVars;
 
-
 const stripUndefinedDeep = <T>(value: T): T => {
   if (Array.isArray(value)) {
     return value.map((entry) => stripUndefinedDeep(entry)) as T;
@@ -30,9 +29,6 @@ const stripUndefinedDeep = <T>(value: T): T => {
 
   return value;
 };
-
-export const configuredProjectId = firebaseProjectId;
-export const missingFirebaseConfigVars = missingFirebaseEnvVars;
 
 export const getPlannerItems = async (): Promise<PlannerItem[]> => {
   if (!db) {
@@ -63,14 +59,6 @@ export const updatePlannerItem = async (
   }
   const plannerCollection = collection(db, "plannerItems");
   await updateDoc(doc(plannerCollection, id), stripUndefinedDeep(updates));
-};
-
-export const deletePlannerItem = async (id: string): Promise<void> => {
-  if (!db) {
-    return;
-  }
-  const plannerCollection = collection(db, "plannerItems");
-  await deleteDoc(doc(plannerCollection, id));
 };
 
 export const deletePlannerItem = async (id: string): Promise<void> => {
