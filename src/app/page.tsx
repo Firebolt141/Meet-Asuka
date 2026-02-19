@@ -4,9 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Calendar, PlannerItem, type TripTodoEntry } from "@/components/Calendar";
 import {
   addPlannerItem,
+  configuredProjectId,
   deletePlannerItem,
   getPlannerItems,
   isFirebaseConfigured,
+  missingFirebaseConfigVars,
   updatePlannerItem
 } from "@/lib/firestore";
 
@@ -195,7 +197,6 @@ export default function Home() {
       return selectedDateOnly >= rangeStart && selectedDateOnly <= rangeEnd;
     });
   }, [items, selectedDate, selectedKey]);
-
 
   const activeMonthLabel = activeMonth.toLocaleDateString("en-US", {
     month: "long",
@@ -543,15 +544,15 @@ export default function Home() {
 
         <section className="rounded-3xl bg-white/80 p-6 shadow-soft">
           <h3 className="text-lg font-semibold text-slate-800">
-            Plans for today
+            Plans for selected day
           </h3>
           <div className="mt-4 space-y-3">
-            {todaysItems.length === 0 ? (
+            {selectedItems.length === 0 ? (
               <p className="text-sm text-slate-500">
                 No plans yet. Add something sweet with the plus button!
               </p>
             ) : (
-                todaysItems.map((item) => (
+                selectedItems.map((item) => (
                   <button
                     key={item.id}
                     type="button"
