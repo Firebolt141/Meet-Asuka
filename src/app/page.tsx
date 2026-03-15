@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Calendar, PlannerItem, type TripTodoEntry } from "@/components/Calendar";
 import {
   addPlannerItem,
@@ -23,6 +23,71 @@ const categoryStyles: Record<PlannerItem["category"], { label: string; color: st
   todo: { label: "Todo", color: "bg-rose-100 text-rose-600" },
   wishlist: { label: "Wishlist", color: "bg-violet-100 text-violet-600" }
 };
+
+const LOCAL_THEME_KEY = "meet-asuka:theme";
+const LOCAL_LANGUAGE_KEY = "meet-asuka:language";
+const LOGIN_PIN = "0000";
+
+const translations = {
+  en: {
+    welcomeBack: "Welcome back",
+    loginSubtitle: "Events • Trips • TODOs • Wishlist",
+    pinLabel: "Enter 4-digit PIN",
+    pinPlaceholder: "0000",
+    loginButton: "Let's go!",
+    pinError: "Invalid PIN. Please try 0000.",
+    plannerTagline: "Your little planner",
+    logout: "Logout",
+    openNavigation: "Open navigation",
+    darkMode: "Dark mode",
+    lightMode: "Light mode",
+    switchLanguage: "Switch language",
+    prev: "Prev",
+    next: "Next",
+    today: "Today",
+    plansForSelectedDay: "Plans for selected day",
+    noPlans: "No plans yet. Add something sweet with the plus button!",
+    trips: "Trips",
+    events: "Events",
+    todos: "Todos",
+    wishlist: "Wishlist",
+    pastPlans: "Past plans",
+    navigate: "Navigate",
+    weeklyWeather: "7-Day weather",
+    weatherUnavailable: "Weather unavailable",
+    weatherLoading: "Loading...",
+    weekdays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  },
+  ja: {
+    welcomeBack: "おかえりなさい",
+    loginSubtitle: "イベント • 旅行 • TODO • ウィッシュリスト",
+    pinLabel: "4桁のPINを入力",
+    pinPlaceholder: "0000",
+    loginButton: "ログイン",
+    pinError: "PINが正しくありません。0000を入力してください。",
+    plannerTagline: "あなたの小さなプランナー",
+    logout: "ログアウト",
+    openNavigation: "ナビゲーションを開く",
+    darkMode: "ダークモード",
+    lightMode: "ライトモード",
+    switchLanguage: "言語を切り替え",
+    prev: "前へ",
+    next: "次へ",
+    today: "今日",
+    plansForSelectedDay: "選択日の予定",
+    noPlans: "予定がありません。プラスボタンで追加しましょう！",
+    trips: "旅行",
+    events: "イベント",
+    todos: "TODO",
+    wishlist: "ウィッシュ",
+    pastPlans: "過去の予定",
+    navigate: "ナビゲート",
+    weeklyWeather: "7日間の天気",
+    weatherUnavailable: "天気情報を取得できません",
+    weatherLoading: "読み込み中...",
+    weekdays: ["日", "月", "火", "水", "木", "金", "土"]
+  }
+} as const;
 
 
 const LOCAL_ITEMS_KEY = "meet-asuka:planner-items";
@@ -130,8 +195,16 @@ type PlannerFormState = {
 
 export default function Home() {
   type NavGroupKey = PlannerItem["category"] | "past";
+  type Language = keyof typeof translations;
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [language, setLanguage] = useState<Language>("en");
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState("");
+  const [isWeatherCardOpen, setIsWeatherCardOpen] = useState(false);
+  const [weeklyWeather, setWeeklyWeather] = useState<Array<{ date: string; min: number; max: number; code: number }>>([]);
+  const pinInputRef = useRef<HTMLInputElement | null>(null);
   const [items, setItems] = useState<PlannerItem[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -164,8 +237,9 @@ export default function Home() {
     wishlist: false,
     past: true
   });
-  const [weatherLabel, setWeatherLabel] = useState("Loading...");
+  const [weatherLabel, setWeatherLabel] = useState<string>(translations.en.weatherLoading);
   const [hasHydratedPlanner, setHasHydratedPlanner] = useState(false);
+  const t = translations[language];
 
   const normalizedToday = useMemo(() => {
     const today = new Date();
@@ -198,7 +272,7 @@ export default function Home() {
     });
   }, [items, selectedDate, selectedKey]);
 
-  const activeMonthLabel = activeMonth.toLocaleDateString("en-US", {
+  const activeMonthLabel = activeMonth.toLocaleDateString(language === "ja" ? "ja-JP" : "en-US", {
     month: "long",
     year: "numeric"
   });
@@ -225,35 +299,35 @@ export default function Home() {
   }[] = [
     {
       key: "trip",
-      label: "Trips",
+      label: t.trips,
       color: "text-indigo-500",
       icon: "🧳",
       entries: items.filter((item) => item.category === "trip")
     },
     {
       key: "event",
-      label: "Events",
+      label: t.events,
       color: "text-emerald-500",
       icon: "🎉",
       entries: items.filter((item) => item.category === "event")
     },
     {
       key: "todo",
-      label: "Todos",
+      label: t.todos,
       color: "text-sky-500",
       icon: "📝",
       entries: items.filter((item) => item.category === "todo")
     },
     {
       key: "wishlist",
-      label: "Wishlist",
+      label: t.wishlist,
       color: "text-amber-500",
       icon: "🌟",
       entries: items.filter((item) => item.category === "wishlist")
     },
     {
       key: "past",
-      label: "Past plans",
+      label: t.pastPlans,
       color: "text-rose-500",
       icon: "⏳",
       entries: allPastItems
@@ -293,6 +367,45 @@ export default function Home() {
     }
     return `Due: ${item.date}${item.participants ? ` • With: ${item.participants}` : ""}`;
   };
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const storedTheme = window.localStorage.getItem(LOCAL_THEME_KEY);
+    if (storedTheme === "dark") {
+      setIsDarkMode(true);
+    }
+
+    const storedLanguage = window.localStorage.getItem(LOCAL_LANGUAGE_KEY);
+    if (storedLanguage === "ja" || storedLanguage === "en") {
+      setLanguage(storedLanguage);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(LOCAL_THEME_KEY, isDarkMode ? "dark" : "light");
+  }, [isDarkMode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(LOCAL_LANGUAGE_KEY, language);
+  }, [language]);
+
+  useEffect(() => {
+    setWeatherLabel((previous) => {
+      if (previous === "Loading..." || previous === "読み込み中...") {
+        return t.weatherLoading;
+      }
+      return previous;
+    });
+  }, [t.weatherLoading]);
 
   useEffect(() => {
     const loadPlanner = async () => {
@@ -356,13 +469,19 @@ export default function Home() {
     const loadWeather = async () => {
       try {
         const response = await fetch(
-          "https://api.open-meteo.com/v1/forecast?latitude=35.7082&longitude=139.6984&current=temperature_2m,weather_code&timezone=Asia%2FTokyo"
+          "https://api.open-meteo.com/v1/forecast?latitude=35.7082&longitude=139.6984&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo"
         );
         if (!response.ok) {
           throw new Error("Weather request failed");
         }
         const data = (await response.json()) as {
           current?: { temperature_2m?: number; weather_code?: number };
+          daily?: {
+            time?: string[];
+            weather_code?: number[];
+            temperature_2m_max?: number[];
+            temperature_2m_min?: number[];
+          };
         };
         const weatherCode = data.current?.weather_code;
         const temp = data.current?.temperature_2m;
@@ -386,14 +505,33 @@ export default function Home() {
         const condition = weatherCode !== undefined ? weatherMap[weatherCode] ?? "Weather" : "Weather";
         const temperature = temp !== undefined ? `${Math.round(temp)}°C` : "--°C";
         setWeatherLabel(`${condition} ${temperature}`);
+
+        const days = data.daily?.time ?? [];
+        const codes = data.daily?.weather_code ?? [];
+        const minTemps = data.daily?.temperature_2m_min ?? [];
+        const maxTemps = data.daily?.temperature_2m_max ?? [];
+        const nextWeek = days.slice(0, 7).map((date, index) => ({
+          date,
+          code: codes[index] ?? -1,
+          min: Math.round(minTemps[index] ?? 0),
+          max: Math.round(maxTemps[index] ?? 0)
+        }));
+        setWeeklyWeather(nextWeek);
       } catch (error) {
         console.error("Failed to load weather", error);
-        setWeatherLabel("Weather unavailable");
+        setWeatherLabel(t.weatherUnavailable);
+        setWeeklyWeather([]);
       }
     };
 
     void loadWeather();
-  }, []);
+  }, [t.weatherUnavailable]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      pinInputRef.current?.focus();
+    }
+  }, [isLoggedIn]);
 
   const handleDeleteItem = async (id: string) => {
     setItems((prev) => prev.filter((item) => item.id !== id));
@@ -430,24 +568,90 @@ export default function Home() {
     }
   };
 
+  const getWeatherIcon = (code: number) => {
+    if (code === 0) return "☀️";
+    if (code <= 3) return "⛅";
+    if (code === 45 || code === 48) return "🌫️";
+    if (code >= 51 && code <= 67) return "🌧️";
+    if (code >= 71 && code <= 77) return "❄️";
+    if (code >= 80 && code <= 82) return "🌦️";
+    if (code >= 95) return "⛈️";
+    return "🌤️";
+  };
+
+  const formatWeatherDay = (date: string) =>
+    new Date(date).toLocaleDateString(language === "ja" ? "ja-JP" : "en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric"
+    });
+
+  const handleLogin = () => {
+    if (pinInput === LOGIN_PIN) {
+      setIsLoggedIn(true);
+      setPinError("");
+      return;
+    }
+
+    setPinError(t.pinError);
+  };
+
   if (!isLoggedIn) {
     return (
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-pink-100 via-blush to-orange-100 p-6">
+      <main className={`relative flex min-h-screen items-center justify-center overflow-hidden p-6 ${isDarkMode ? "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" : "bg-gradient-to-br from-pink-100 via-blush to-orange-100"}`}>
         <div className="pointer-events-none absolute -left-16 top-10 h-44 w-44 rounded-full bg-pink-300/30 blur-3xl" />
         <div className="pointer-events-none absolute -right-12 bottom-8 h-52 w-52 rounded-full bg-rose-300/30 blur-3xl" />
-        <div className="w-full max-w-xl rounded-[36px] border border-white/60 bg-white/85 p-10 text-center shadow-soft backdrop-blur">
-          <p className="text-left text-sm font-medium text-slate-500">Welcome back</p>
-          <h1 className="mt-1 text-left text-5xl font-bold text-slate-800">Asuka ✨</h1>
-          <p className="mt-2 text-left text-base text-slate-600">Events • Trips • TODOs • Wishlist</p>
+        <div className={`w-full max-w-xl rounded-[36px] border p-10 text-center shadow-soft backdrop-blur ${isDarkMode ? "border-slate-700 bg-slate-800/90" : "border-white/60 bg-white/85"}`}>
+          <p className={`text-left text-sm font-medium ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>{t.welcomeBack}</p>
+          <h1 className={`mt-1 text-left text-5xl font-bold ${isDarkMode ? "text-white" : "text-slate-800"}`}>Asuka ✨</h1>
+          <p className={`mt-2 text-left text-base ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}>{t.loginSubtitle}</p>
           <div className="mt-7 flex justify-center">
             <img src="https://raw.githubusercontent.com/chux0519/runcat-tray/master/runcat.gif" alt="RunCat loading" className="h-16 w-auto" />
           </div>
+          <div className="mt-6 text-center">
+            <p className={`text-sm font-semibold ${isDarkMode ? "text-slate-200" : "text-slate-600"}`}>{t.pinLabel}</p>
+            <button
+              type="button"
+              onClick={() => pinInputRef.current?.focus()}
+              className="mx-auto mt-3 grid grid-cols-4 gap-3"
+              aria-label={t.pinLabel}
+            >
+              {Array.from({ length: 4 }).map((_, index) => (
+                <span
+                  key={`pin-box-${index}`}
+                  className={`flex h-14 w-12 items-center justify-center rounded-2xl border text-xl font-bold ${
+                    pinInput[index]
+                      ? isDarkMode ? "border-pink-400 bg-slate-700 text-pink-200" : "border-pink-300 bg-pink-50 text-pink-600"
+                      : isDarkMode ? "border-slate-600 bg-slate-800 text-slate-500" : "border-pink-100 bg-white text-slate-300"
+                  }`}
+                >
+                  {pinInput[index] ? "•" : ""}
+                </span>
+              ))}
+            </button>
+            <input
+              ref={pinInputRef}
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              value={pinInput}
+              onChange={(event) => {
+                setPinInput(event.target.value.replace(/\D/g, "").slice(0, 4));
+                if (pinError) {
+                  setPinError("");
+                }
+              }}
+              className="sr-only"
+              placeholder={t.pinPlaceholder}
+            />
+          </div>
+          {pinError ? <p className="mt-2 text-left text-sm text-rose-400">{pinError}</p> : null}
           <button
             type="button"
-            onClick={() => setIsLoggedIn(true)}
-            className="mt-8 inline-flex items-center justify-center rounded-full bg-pink-500 px-9 py-3 text-base font-semibold text-white shadow-lg shadow-pink-200 transition hover:-translate-y-0.5 hover:bg-pink-400"
+            onClick={handleLogin}
+            className={`mt-8 inline-flex items-center justify-center rounded-full px-9 py-3 text-base font-semibold text-white shadow-lg transition hover:-translate-y-0.5 ${isDarkMode ? "bg-fuchsia-600 shadow-fuchsia-900/50 hover:bg-fuchsia-500" : "bg-pink-500 shadow-pink-200 hover:bg-pink-400"}`}
           >
-            Let's go!
+            {t.loginButton}
           </button>
         </div>
       </main>
@@ -455,44 +659,99 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-pink-50 via-blush to-orange-100 px-5 pb-24 pt-6">
+    <main className={`min-h-screen px-5 pb-24 pt-6 ${isDarkMode ? "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" : "bg-gradient-to-br from-pink-50 via-blush to-orange-100"}`}>
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-        <header className="sticky top-4 z-20 flex items-center justify-between rounded-3xl bg-white/70 px-3 py-2 shadow-soft backdrop-blur">
-          <button
-            type="button"
-            onClick={() => setIsNavOpen(true)}
-            className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-pink-500 shadow-lg shadow-pink-100 transition hover:-translate-y-0.5 hover:bg-pink-50"
-            aria-label="Open navigation"
-          >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
-              <path d="M4 6h16a1 1 0 1 0 0-2H4a1 1 0 1 0 0 2zm16 5H4a1 1 0 1 0 0 2h16a1 1 0 1 0 0-2zm0 7H4a1 1 0 1 0 0 2h16a1 1 0 1 0 0-2z" />
-            </svg>
-          </button>
-          <div className="text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-pink-400">
-              Your little planner ❄️
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-3 rounded-full bg-white/90 px-3 py-2 text-xs font-medium text-slate-700 shadow">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-pink-100">
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                className="h-5 w-5 text-pink-500"
-                fill="currentColor"
-              >
-                <path d="M6.4 13a4.6 4.6 0 1 1 8.9-1.8A3.8 3.8 0 1 1 16 18H7.5a3.5 3.5 0 0 1-1.1-5z" />
+        <header className={`relative z-20 rounded-3xl px-3 py-2 shadow-soft backdrop-blur ${isDarkMode ? "bg-slate-900/85 border border-slate-700" : "bg-white/70"}`}>
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setIsNavOpen(true)}
+              className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl transition hover:-translate-y-0.5 ${isDarkMode ? "bg-slate-800 text-pink-300 shadow-lg shadow-black/20 hover:bg-slate-700" : "bg-white text-pink-500 shadow-lg shadow-pink-100 hover:bg-pink-50"}`}
+              aria-label={t.openNavigation}
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+                <path d="M4 6h16a1 1 0 1 0 0-2H4a1 1 0 1 0 0 2zm16 5H4a1 1 0 1 0 0 2h16a1 1 0 1 0 0-2zm0 7H4a1 1 0 1 0 0 2h16a1 1 0 1 0 0-2z" />
               </svg>
-            </span>
-            <div>
-              <p className="text-xs font-semibold">{weatherLabel}</p>
+            </button>
+            <div className="text-center">
+              <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${isDarkMode ? "text-pink-300" : "text-pink-400"}`}>
+                {t.plannerTagline}
+              </p>
             </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setLanguage((prev) => (prev === "en" ? "ja" : "en"))}
+                className={`inline-flex h-11 w-11 items-center justify-center rounded-full border shadow-sm ${isDarkMode ? "border-slate-500 bg-slate-700 text-slate-100" : "border-slate-300 bg-slate-100 text-slate-700"}`}
+                aria-label={t.switchLanguage}
+                title={t.switchLanguage}
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 5h7m-3.5 0v1.5M6 8h5m-2.5 0c0 2.7-1.7 4.7-4 6m6-2c-1.3-1-2.4-2.3-3.1-4" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14 8h6m-3 0v11m-4-3h8" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsDarkMode((prev) => !prev)}
+                className={`inline-flex h-11 w-11 items-center justify-center rounded-full border shadow-sm ${isDarkMode ? "border-slate-500 bg-slate-700 text-slate-100" : "border-slate-300 bg-slate-100 text-slate-700"}`}
+                aria-label={isDarkMode ? t.lightMode : t.darkMode}
+                title={isDarkMode ? t.lightMode : t.darkMode}
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                  <circle cx="12" cy="12" r="3.2" />
+                  <path strokeLinecap="round" d="M12 2.5v2.2M12 19.3v2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" />
+                </svg>
+              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsWeatherCardOpen((prev) => !prev)}
+                  className={`flex items-center gap-2 rounded-full px-3 py-2 text-xs font-medium shadow ${isDarkMode ? "bg-slate-800 text-slate-100" : "bg-white/90 text-slate-700"}`}
+                  aria-label={t.weeklyWeather}
+                  title={weatherLabel}
+                >
+                  <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${isDarkMode ? "bg-slate-700" : "bg-pink-100"}`}>
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className={`h-5 w-5 ${isDarkMode ? "text-pink-300" : "text-pink-500"}`}
+                      fill="currentColor"
+                    >
+                      <path d="M6.4 13a4.6 4.6 0 1 1 8.9-1.8A3.8 3.8 0 1 1 16 18H7.5a3.5 3.5 0 0 1-1.1-5z" />
+                    </svg>
+                  </span>
+                  <span className="hidden sm:inline">{t.weeklyWeather}</span>
+                </button>
+                {isWeatherCardOpen ? (
+                  <div className={`absolute right-0 mt-2 w-80 rounded-2xl border p-3 shadow-xl ${isDarkMode ? "border-slate-700 bg-slate-900 text-slate-100" : "border-pink-100 bg-white text-slate-700"}`}>
+                    <p className={`text-sm font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-700"}`}>{t.weeklyWeather}</p>
+                    {weeklyWeather.length === 0 ? (
+                      <p className={`mt-2 text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>{t.weatherLoading}</p>
+                    ) : (
+                      <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
+                        {weeklyWeather.map((day) => (
+                          <div
+                            key={day.date}
+                            className={`rounded-xl border px-3 py-2 ${isDarkMode ? "border-slate-700 bg-slate-800 text-slate-100" : "border-pink-100 bg-pink-50/60 text-slate-700"}`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs font-semibold">{formatWeatherDay(day.date)}</p>
+                              <p className="text-lg">{getWeatherIcon(day.code)}</p>
+                            </div>
+                            <p className="mt-1 text-xs font-medium">{day.max}° / {day.min}°</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         </header>
 
-        <div style={{ fontSize: 10, opacity: 0.6 }} className="px-1 text-slate-600">
+        <div style={{ fontSize: 10, opacity: 0.75 }} className={`px-1 ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}>
           Firebase configured: {String(isFirebaseConfigured)}
           {isFirebaseConfigured ? ` • project: ${configuredProjectId}` : ""}
           {missingFirebaseConfigVars.length > 0
@@ -500,16 +759,16 @@ export default function Home() {
             : ""}
         </div>
 
-        <div className="flex items-center justify-between rounded-2xl bg-white/80 px-4 py-3 text-sm font-semibold text-slate-700 shadow">
+        <div className={`flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-semibold shadow ${isDarkMode ? "bg-slate-900/80 text-slate-100" : "bg-white/80 text-slate-700"}`}>
           <button
             type="button"
             onClick={() =>
               setActiveMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
             }
-            className="flex items-center gap-2 rounded-full bg-pink-50 px-4 py-2 text-pink-500 transition hover:bg-pink-100"
+            className={`flex items-center gap-2 rounded-full px-4 py-2 transition ${isDarkMode ? "bg-slate-700 text-pink-200 hover:bg-slate-600" : "bg-pink-50 text-pink-500 hover:bg-pink-100"}`}
           >
             <span>←</span>
-            Prev
+            {t.prev}
           </button>
           <button
             type="button"
@@ -518,18 +777,18 @@ export default function Home() {
               setSelectedDate(today);
               setActiveMonth(new Date(today.getFullYear(), today.getMonth(), 1));
             }}
-            className="rounded-full border border-pink-100 px-3 py-1 text-xs font-semibold text-pink-500 transition hover:bg-pink-50"
+            className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${isDarkMode ? "border-slate-600 text-pink-200 hover:bg-slate-700" : "border-pink-100 text-pink-500 hover:bg-pink-50"}`}
           >
-            Today
+            {t.today}
           </button>
           <button
             type="button"
             onClick={() =>
               setActiveMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
             }
-            className="flex items-center gap-2 rounded-full bg-pink-50 px-4 py-2 text-pink-500 transition hover:bg-pink-100"
+            className={`flex items-center gap-2 rounded-full px-4 py-2 transition ${isDarkMode ? "bg-slate-700 text-pink-200 hover:bg-slate-600" : "bg-pink-50 text-pink-500 hover:bg-pink-100"}`}
           >
-            Next
+            {t.next}
             <span>→</span>
           </button>
         </div>
@@ -537,19 +796,21 @@ export default function Home() {
         <Calendar
           month={new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1)}
           monthLabel={activeMonthLabel}
+          weekdayLabels={t.weekdays}
+          isDarkMode={isDarkMode}
           items={items}
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
         />
 
-        <section className="rounded-3xl bg-white/80 p-6 shadow-soft">
-          <h3 className="text-lg font-semibold text-slate-800">
-            Plans for selected day
+        <section className={`rounded-3xl p-6 shadow-soft ${isDarkMode ? "bg-slate-900/80" : "bg-white/80"}`}>
+          <h3 className={`text-lg font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>
+            {t.plansForSelectedDay}
           </h3>
           <div className="mt-4 space-y-3">
             {selectedItems.length === 0 ? (
-              <p className="text-sm text-slate-500">
-                No plans yet. Add something sweet with the plus button!
+              <p className={`text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>
+                {t.noPlans}
               </p>
             ) : (
                 selectedItems.map((item) => (
@@ -631,10 +892,10 @@ export default function Home() {
           <button
             type="button"
             onClick={() => setIsLoggedIn(false)}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-pink-100 bg-white/80 px-4 py-3 text-sm font-semibold text-pink-600 shadow-soft transition hover:bg-pink-50"
+            className={`flex w-full items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold shadow-soft transition ${isDarkMode ? "border-slate-700 bg-slate-900/80 text-pink-300 hover:bg-slate-800" : "border-pink-100 bg-white/80 text-pink-600 hover:bg-pink-50"}` }
           >
             <span className="text-lg">👋</span>
-            Logout
+            {t.logout}
           </button>
         </div>
 
@@ -646,7 +907,7 @@ export default function Home() {
           setEditingId(null);
           setIsModalOpen(true);
         }}
-        className="fixed bottom-8 left-1/2 z-40 flex -translate-x-1/2 items-center justify-center gap-2 rounded-full bg-pink-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-pink-300 transition hover:-translate-y-1 hover:bg-pink-400"
+        className={`fixed bottom-8 left-1/2 z-40 flex -translate-x-1/2 items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-1 ${isDarkMode ? "bg-fuchsia-600 shadow-fuchsia-900/60 hover:bg-fuchsia-500" : "bg-pink-500 shadow-pink-300 hover:bg-pink-400"}`}
         aria-label="Add plan"
       >
         <span className="text-lg">✨</span>
@@ -655,13 +916,13 @@ export default function Home() {
 
       {isModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 sm:p-6">
-          <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 shadow-soft">
+          <div className={`max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-3xl p-6 shadow-soft ${isDarkMode ? "bg-slate-900 text-slate-100" : "bg-white"}`}>
             <div className="flex items-start justify-between">
               <div>
                 <h4 className="text-xl font-semibold text-slate-800">
                   {editingId ? "Edit plan" : "Add a sweet plan"}
                 </h4>
-                <p className="text-sm text-slate-500">
+                <p className={`text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>
                   Trips, events, todos, or wishlist ideas.
                 </p>
               </div>
@@ -1132,7 +1393,7 @@ export default function Home() {
               </button>
             </div>
             <div className="mt-6 flex-1 overflow-y-auto pr-1">
-              <p className="text-xs uppercase tracking-[0.2em] text-pink-400">Navigate</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-pink-400">{t.navigate}</p>
               <div className="mt-4 grid gap-3">
                 {navGroups.map((group) => {
                   const isExpanded = expandedGroups[group.key];
