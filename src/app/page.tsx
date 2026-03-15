@@ -24,6 +24,69 @@ const categoryStyles: Record<PlannerItem["category"], { label: string; color: st
   wishlist: { label: "Wishlist", color: "bg-violet-100 text-violet-600" }
 };
 
+const LOCAL_THEME_KEY = "meet-asuka:theme";
+const LOCAL_LANGUAGE_KEY = "meet-asuka:language";
+const LOGIN_PIN = "0000";
+
+const translations = {
+  en: {
+    welcomeBack: "Welcome back",
+    loginSubtitle: "Events • Trips • TODOs • Wishlist",
+    pinLabel: "Enter 4-digit PIN",
+    pinPlaceholder: "0000",
+    loginButton: "Let's go!",
+    pinError: "Invalid PIN. Please try 0000.",
+    plannerTagline: "Your little planner ❄️",
+    logout: "Logout",
+    openNavigation: "Open navigation",
+    darkMode: "Dark",
+    lightMode: "Light",
+    switchToJapanese: "日本語",
+    switchToEnglish: "English",
+    prev: "Prev",
+    next: "Next",
+    today: "Today",
+    plansForSelectedDay: "Plans for selected day",
+    noPlans: "No plans yet. Add something sweet with the plus button!",
+    trips: "Trips",
+    events: "Events",
+    todos: "Todos",
+    wishlist: "Wishlist",
+    pastPlans: "Past plans",
+    navigate: "Navigate",
+    weatherLoading: "Loading...",
+    weekdays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  },
+  ja: {
+    welcomeBack: "おかえりなさい",
+    loginSubtitle: "イベント • 旅行 • TODO • ウィッシュリスト",
+    pinLabel: "4桁のPINを入力",
+    pinPlaceholder: "0000",
+    loginButton: "ログイン",
+    pinError: "PINが正しくありません。0000を入力してください。",
+    plannerTagline: "あなたの小さなプランナー ❄️",
+    logout: "ログアウト",
+    openNavigation: "ナビゲーションを開く",
+    darkMode: "ダーク",
+    lightMode: "ライト",
+    switchToJapanese: "日本語",
+    switchToEnglish: "English",
+    prev: "前へ",
+    next: "次へ",
+    today: "今日",
+    plansForSelectedDay: "選択日の予定",
+    noPlans: "予定がありません。プラスボタンで追加しましょう！",
+    trips: "旅行",
+    events: "イベント",
+    todos: "TODO",
+    wishlist: "ウィッシュ",
+    pastPlans: "過去の予定",
+    navigate: "ナビゲート",
+    weatherLoading: "読み込み中...",
+    weekdays: ["日", "月", "火", "水", "木", "金", "土"]
+  }
+} as const;
+
 
 const LOCAL_ITEMS_KEY = "meet-asuka:planner-items";
 
@@ -130,8 +193,13 @@ type PlannerFormState = {
 
 export default function Home() {
   type NavGroupKey = PlannerItem["category"] | "past";
+  type Language = keyof typeof translations;
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [language, setLanguage] = useState<Language>("en");
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState("");
   const [items, setItems] = useState<PlannerItem[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -164,8 +232,9 @@ export default function Home() {
     wishlist: false,
     past: true
   });
-  const [weatherLabel, setWeatherLabel] = useState("Loading...");
+  const [weatherLabel, setWeatherLabel] = useState<string>(translations.en.weatherLoading);
   const [hasHydratedPlanner, setHasHydratedPlanner] = useState(false);
+  const t = translations[language];
 
   const normalizedToday = useMemo(() => {
     const today = new Date();
@@ -198,7 +267,7 @@ export default function Home() {
     });
   }, [items, selectedDate, selectedKey]);
 
-  const activeMonthLabel = activeMonth.toLocaleDateString("en-US", {
+  const activeMonthLabel = activeMonth.toLocaleDateString(language === "ja" ? "ja-JP" : "en-US", {
     month: "long",
     year: "numeric"
   });
@@ -225,35 +294,35 @@ export default function Home() {
   }[] = [
     {
       key: "trip",
-      label: "Trips",
+      label: t.trips,
       color: "text-indigo-500",
       icon: "🧳",
       entries: items.filter((item) => item.category === "trip")
     },
     {
       key: "event",
-      label: "Events",
+      label: t.events,
       color: "text-emerald-500",
       icon: "🎉",
       entries: items.filter((item) => item.category === "event")
     },
     {
       key: "todo",
-      label: "Todos",
+      label: t.todos,
       color: "text-sky-500",
       icon: "📝",
       entries: items.filter((item) => item.category === "todo")
     },
     {
       key: "wishlist",
-      label: "Wishlist",
+      label: t.wishlist,
       color: "text-amber-500",
       icon: "🌟",
       entries: items.filter((item) => item.category === "wishlist")
     },
     {
       key: "past",
-      label: "Past plans",
+      label: t.pastPlans,
       color: "text-rose-500",
       icon: "⏳",
       entries: allPastItems
@@ -293,6 +362,45 @@ export default function Home() {
     }
     return `Due: ${item.date}${item.participants ? ` • With: ${item.participants}` : ""}`;
   };
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const storedTheme = window.localStorage.getItem(LOCAL_THEME_KEY);
+    if (storedTheme === "dark") {
+      setIsDarkMode(true);
+    }
+
+    const storedLanguage = window.localStorage.getItem(LOCAL_LANGUAGE_KEY);
+    if (storedLanguage === "ja" || storedLanguage === "en") {
+      setLanguage(storedLanguage);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(LOCAL_THEME_KEY, isDarkMode ? "dark" : "light");
+  }, [isDarkMode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(LOCAL_LANGUAGE_KEY, language);
+  }, [language]);
+
+  useEffect(() => {
+    setWeatherLabel((previous) => {
+      if (previous === "Loading..." || previous === "読み込み中...") {
+        return t.weatherLoading;
+      }
+      return previous;
+    });
+  }, [t.weatherLoading]);
 
   useEffect(() => {
     const loadPlanner = async () => {
@@ -430,24 +538,52 @@ export default function Home() {
     }
   };
 
+  const handleLogin = () => {
+    if (pinInput === LOGIN_PIN) {
+      setIsLoggedIn(true);
+      setPinError("");
+      return;
+    }
+
+    setPinError(t.pinError);
+  };
+
   if (!isLoggedIn) {
     return (
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-pink-100 via-blush to-orange-100 p-6">
+      <main className={`relative flex min-h-screen items-center justify-center overflow-hidden p-6 ${isDarkMode ? "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" : "bg-gradient-to-br from-pink-100 via-blush to-orange-100"}`}>
         <div className="pointer-events-none absolute -left-16 top-10 h-44 w-44 rounded-full bg-pink-300/30 blur-3xl" />
         <div className="pointer-events-none absolute -right-12 bottom-8 h-52 w-52 rounded-full bg-rose-300/30 blur-3xl" />
-        <div className="w-full max-w-xl rounded-[36px] border border-white/60 bg-white/85 p-10 text-center shadow-soft backdrop-blur">
-          <p className="text-left text-sm font-medium text-slate-500">Welcome back</p>
+        <div className={`w-full max-w-xl rounded-[36px] border p-10 text-center shadow-soft backdrop-blur ${isDarkMode ? "border-slate-700 bg-slate-800/90" : "border-white/60 bg-white/85"}`}>
+          <p className="text-left text-sm font-medium text-slate-500">{t.welcomeBack}</p>
           <h1 className="mt-1 text-left text-5xl font-bold text-slate-800">Asuka ✨</h1>
-          <p className="mt-2 text-left text-base text-slate-600">Events • Trips • TODOs • Wishlist</p>
+          <p className="mt-2 text-left text-base text-slate-600">{t.loginSubtitle}</p>
           <div className="mt-7 flex justify-center">
             <img src="https://raw.githubusercontent.com/chux0519/runcat-tray/master/runcat.gif" alt="RunCat loading" className="h-16 w-auto" />
           </div>
+          <label className="mt-6 block text-left text-sm font-semibold text-slate-600">
+            {t.pinLabel}
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              value={pinInput}
+              onChange={(event) => {
+                setPinInput(event.target.value.replace(/\D/g, "").slice(0, 4));
+                if (pinError) {
+                  setPinError("");
+                }
+              }}
+              className="mt-2 w-full rounded-2xl border border-pink-100 bg-white/90 px-4 py-3 text-lg tracking-[0.35em] text-slate-700 focus:border-pink-300 focus:outline-none"
+              placeholder={t.pinPlaceholder}
+            />
+          </label>
+          {pinError ? <p className="mt-2 text-left text-sm text-rose-500">{pinError}</p> : null}
           <button
             type="button"
-            onClick={() => setIsLoggedIn(true)}
+            onClick={handleLogin}
             className="mt-8 inline-flex items-center justify-center rounded-full bg-pink-500 px-9 py-3 text-base font-semibold text-white shadow-lg shadow-pink-200 transition hover:-translate-y-0.5 hover:bg-pink-400"
           >
-            Let's go!
+            {t.loginButton}
           </button>
         </div>
       </main>
@@ -455,14 +591,14 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-pink-50 via-blush to-orange-100 px-5 pb-24 pt-6">
+    <main className={`min-h-screen px-5 pb-24 pt-6 ${isDarkMode ? "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" : "bg-gradient-to-br from-pink-50 via-blush to-orange-100"}`}>
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
         <header className="sticky top-4 z-20 flex items-center justify-between rounded-3xl bg-white/70 px-3 py-2 shadow-soft backdrop-blur">
           <button
             type="button"
             onClick={() => setIsNavOpen(true)}
             className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-pink-500 shadow-lg shadow-pink-100 transition hover:-translate-y-0.5 hover:bg-pink-50"
-            aria-label="Open navigation"
+            aria-label={t.openNavigation}
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
               <path d="M4 6h16a1 1 0 1 0 0-2H4a1 1 0 1 0 0 2zm16 5H4a1 1 0 1 0 0 2h16a1 1 0 1 0 0-2zm0 7H4a1 1 0 1 0 0 2h16a1 1 0 1 0 0-2z" />
@@ -470,10 +606,24 @@ export default function Home() {
           </button>
           <div className="text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-pink-400">
-              Your little planner ❄️
+              {t.plannerTagline}
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsDarkMode((prev) => !prev)}
+              className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow"
+            >
+              {isDarkMode ? t.lightMode : t.darkMode}
+            </button>
+            <button
+              type="button"
+              onClick={() => setLanguage((prev) => (prev === "en" ? "ja" : "en"))}
+              className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow"
+            >
+              {language === "en" ? t.switchToJapanese : t.switchToEnglish}
+            </button>
             <div className="flex items-center gap-3 rounded-full bg-white/90 px-3 py-2 text-xs font-medium text-slate-700 shadow">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-pink-100">
               <svg
@@ -509,7 +659,7 @@ export default function Home() {
             className="flex items-center gap-2 rounded-full bg-pink-50 px-4 py-2 text-pink-500 transition hover:bg-pink-100"
           >
             <span>←</span>
-            Prev
+            {t.prev}
           </button>
           <button
             type="button"
@@ -520,7 +670,7 @@ export default function Home() {
             }}
             className="rounded-full border border-pink-100 px-3 py-1 text-xs font-semibold text-pink-500 transition hover:bg-pink-50"
           >
-            Today
+            {t.today}
           </button>
           <button
             type="button"
@@ -529,7 +679,7 @@ export default function Home() {
             }
             className="flex items-center gap-2 rounded-full bg-pink-50 px-4 py-2 text-pink-500 transition hover:bg-pink-100"
           >
-            Next
+            {t.next}
             <span>→</span>
           </button>
         </div>
@@ -537,6 +687,8 @@ export default function Home() {
         <Calendar
           month={new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1)}
           monthLabel={activeMonthLabel}
+          weekdayLabels={t.weekdays}
+          isDarkMode={isDarkMode}
           items={items}
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
@@ -544,12 +696,12 @@ export default function Home() {
 
         <section className="rounded-3xl bg-white/80 p-6 shadow-soft">
           <h3 className="text-lg font-semibold text-slate-800">
-            Plans for selected day
+            {t.plansForSelectedDay}
           </h3>
           <div className="mt-4 space-y-3">
             {selectedItems.length === 0 ? (
               <p className="text-sm text-slate-500">
-                No plans yet. Add something sweet with the plus button!
+                {t.noPlans}
               </p>
             ) : (
                 selectedItems.map((item) => (
@@ -634,7 +786,7 @@ export default function Home() {
             className="flex w-full items-center justify-center gap-2 rounded-2xl border border-pink-100 bg-white/80 px-4 py-3 text-sm font-semibold text-pink-600 shadow-soft transition hover:bg-pink-50"
           >
             <span className="text-lg">👋</span>
-            Logout
+            {t.logout}
           </button>
         </div>
 
@@ -1132,7 +1284,7 @@ export default function Home() {
               </button>
             </div>
             <div className="mt-6 flex-1 overflow-y-auto pr-1">
-              <p className="text-xs uppercase tracking-[0.2em] text-pink-400">Navigate</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-pink-400">{t.navigate}</p>
               <div className="mt-4 grid gap-3">
                 {navGroups.map((group) => {
                   const isExpanded = expandedGroups[group.key];

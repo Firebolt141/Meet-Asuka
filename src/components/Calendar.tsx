@@ -33,16 +33,24 @@ type CalendarProps = {
   items: PlannerItem[];
   selectedDate: Date;
   onSelectDate: (date: Date) => void;
+  weekdayLabels: readonly string[];
+  isDarkMode: boolean;
 };
-
-const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const pad = (value: number) => value.toString().padStart(2, "0");
 
 const formatDate = (date: Date) =>
   `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 
-export function Calendar({ month, monthLabel, items, selectedDate, onSelectDate }: CalendarProps) {
+export function Calendar({
+  month,
+  monthLabel,
+  items,
+  selectedDate,
+  onSelectDate,
+  weekdayLabels,
+  isDarkMode
+}: CalendarProps) {
   const { days, leadingBlanks } = useMemo(() => {
     const year = month.getFullYear();
     const monthIndex = month.getMonth();
@@ -94,11 +102,11 @@ export function Calendar({ month, monthLabel, items, selectedDate, onSelectDate 
   }, [items]);
 
   return (
-    <div className="rounded-3xl bg-white/80 p-6 shadow-soft">
+    <div className={`rounded-3xl p-6 shadow-soft ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"}`}>
       <div className="mb-4 text-center">
-        <h3 className="text-xl font-bold text-slate-800">{monthLabel}</h3>
+        <h3 className={`text-xl font-bold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>{monthLabel}</h3>
       </div>
-      <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase tracking-wide text-pink-500">
+      <div className={`grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase tracking-wide ${isDarkMode ? "text-pink-300" : "text-pink-500"}`}>
         {weekdayLabels.map((label) => (
           <div key={label}>{label}</div>
         ))}
@@ -123,10 +131,12 @@ export function Calendar({ month, monthLabel, items, selectedDate, onSelectDate 
               key={dateKey}
               type="button"
               onClick={() => onSelectDate(date)}
-              className={`group relative flex h-14 flex-col items-center justify-start rounded-2xl border px-1 pt-1 text-sm font-medium transition hover:border-pink-200 hover:bg-pink-50 focus:outline-none focus:ring-2 focus:ring-pink-300 ${
+              className={`group relative flex h-14 flex-col items-center justify-start rounded-2xl border px-1 pt-1 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-pink-300 ${
                 isSelected
                   ? "border-pink-300 bg-pink-100 text-pink-700 shadow"
-                  : "border-transparent bg-white text-slate-700"
+                  : isDarkMode
+                    ? "border-transparent bg-slate-700 text-slate-200 hover:border-pink-300 hover:bg-slate-600"
+                    : "border-transparent bg-white text-slate-700 hover:border-pink-200 hover:bg-pink-50"
               }`}
             >
               <span className={`relative z-10 ${tripSpan && !isSelected ? "text-indigo-700" : ""}`}>
