@@ -133,13 +133,15 @@ export function Calendar({
               onClick={() => onSelectDate(date)}
               className={`group relative flex h-14 flex-col items-center justify-start rounded-2xl border px-1 pt-1 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-pink-300 ${
                 isSelected
-                  ? "border-pink-300 bg-pink-100 text-pink-700 shadow"
+                  ? isDarkMode
+                    ? "border-fuchsia-400 bg-fuchsia-900/40 text-pink-100 shadow"
+                    : "border-pink-300 bg-pink-100 text-pink-700 shadow"
                   : isDarkMode
                     ? "border-transparent bg-slate-700 text-slate-200 hover:border-pink-300 hover:bg-slate-600"
                     : "border-transparent bg-white text-slate-700 hover:border-pink-200 hover:bg-pink-50"
               }`}
             >
-              <span className={`relative z-10 ${tripSpan && !isSelected ? "text-indigo-700" : ""}`}>
+              <span className={`relative z-10 ${tripSpan && !isSelected ? isDarkMode ? "text-indigo-300" : "text-indigo-700" : ""}`}>
                 {date.getDate()}
               </span>
               <span className="pointer-events-none absolute bottom-4 z-10 flex gap-1">
