@@ -709,6 +709,7 @@ export default function Home() {
                   onClick={() => setIsWeatherCardOpen((prev) => !prev)}
                   className={`flex items-center gap-2 rounded-full px-3 py-2 text-xs font-medium shadow ${isDarkMode ? "bg-slate-800 text-slate-100" : "bg-white/90 text-slate-700"}`}
                   aria-label={t.weeklyWeather}
+                  title={weatherLabel}
                 >
                   <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${isDarkMode ? "bg-slate-700" : "bg-pink-100"}`}>
                     <svg
@@ -720,23 +721,25 @@ export default function Home() {
                       <path d="M6.4 13a4.6 4.6 0 1 1 8.9-1.8A3.8 3.8 0 1 1 16 18H7.5a3.5 3.5 0 0 1-1.1-5z" />
                     </svg>
                   </span>
-                  <span className="hidden sm:inline">{weatherLabel}</span>
+                  <span className="hidden sm:inline">{t.weeklyWeather}</span>
                 </button>
                 {isWeatherCardOpen ? (
-                  <div className={`absolute right-0 mt-2 w-72 rounded-2xl border p-3 shadow-xl ${isDarkMode ? "border-slate-700 bg-slate-900 text-slate-100" : "border-pink-100 bg-white text-slate-700"}`}>
+                  <div className={`absolute right-0 mt-2 w-80 rounded-2xl border p-3 shadow-xl ${isDarkMode ? "border-slate-700 bg-slate-900 text-slate-100" : "border-pink-100 bg-white text-slate-700"}`}>
                     <p className={`text-sm font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-700"}`}>{t.weeklyWeather}</p>
                     {weeklyWeather.length === 0 ? (
                       <p className={`mt-2 text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>{t.weatherLoading}</p>
                     ) : (
-                      <div className="mt-3 space-y-2">
+                      <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
                         {weeklyWeather.map((day) => (
                           <div
                             key={day.date}
-                            className={`flex items-center justify-between rounded-xl border px-3 py-2 ${isDarkMode ? "border-slate-700 bg-slate-800 text-slate-100" : "border-pink-100 bg-pink-50/60 text-slate-700"}`}
+                            className={`rounded-xl border px-3 py-2 ${isDarkMode ? "border-slate-700 bg-slate-800 text-slate-100" : "border-pink-100 bg-pink-50/60 text-slate-700"}`}
                           >
-                            <p className="text-xs font-semibold">{formatWeatherDay(day.date)}</p>
-                            <p className="text-lg">{getWeatherIcon(day.code)}</p>
-                            <p className="text-xs font-medium">{day.max}° / {day.min}°</p>
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs font-semibold">{formatWeatherDay(day.date)}</p>
+                              <p className="text-lg">{getWeatherIcon(day.code)}</p>
+                            </div>
+                            <p className="mt-1 text-xs font-medium">{day.max}° / {day.min}°</p>
                           </div>
                         ))}
                       </div>
