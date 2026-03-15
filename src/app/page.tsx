@@ -228,6 +228,7 @@ export default function Home() {
   const [items, setItems] = useState<PlannerItem[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isChoosingCategory, setIsChoosingCategory] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<
     PlannerItem["category"] | "past" | "doneTodo"
@@ -261,6 +262,12 @@ export default function Home() {
   const [weatherLabel, setWeatherLabel] = useState<string>(translations.en.weatherLoading);
   const [hasHydratedPlanner, setHasHydratedPlanner] = useState(false);
   const t = translations[language];
+  const addPlanCategoryOptions: Array<{ category: PlannerItem["category"]; title: string; subtitle: string; icon: string }> = [
+    { category: "event", title: "Event", subtitle: "meetups", icon: "✈️" },
+    { category: "trip", title: "Trip", subtitle: "travel", icon: "🧳" },
+    { category: "todo", title: "TODO", subtitle: "deadline", icon: "✅" },
+    { category: "wishlist", title: "Wishlist", subtitle: "someday", icon: "♡" }
+  ];
   const todaysWeatherSummary = useMemo(() => {
     if (weeklyWeather.length === 0) {
       return t.weatherLoading;
@@ -951,6 +958,7 @@ export default function Home() {
         type="button"
         onClick={() => {
           setEditingId(null);
+          setIsChoosingCategory(true);
           setIsModalOpen(true);
         }}
         className={`fixed bottom-8 left-1/2 z-40 flex -translate-x-1/2 items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-1 ${isDarkMode ? "bg-fuchsia-600 shadow-fuchsia-900/60 hover:bg-fuchsia-500" : "bg-pink-500 shadow-pink-300 hover:bg-pink-400"}`}
@@ -966,7 +974,7 @@ export default function Home() {
             <div className="flex items-start justify-between">
               <div>
                 <h4 className="text-xl font-semibold text-slate-800">
-                  {editingId ? "Edit plan" : "Add a sweet plan"}
+                  {editingId ? "Edit plan" : isChoosingCategory ? "Add something ✨" : "Add a sweet plan"}
                 </h4>
                 <p className={`text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>
                   Trips, events, todos, or wishlist ideas.
@@ -978,12 +986,34 @@ export default function Home() {
                 onClick={() => {
                   setIsModalOpen(false);
                   setEditingId(null);
+                  setIsChoosingCategory(false);
                 }}
               >
                 ✕
               </button>
             </div>
 
+            {!editingId && isChoosingCategory ? (
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                {addPlanCategoryOptions.map((option) => (
+                  <button
+                    key={option.category}
+                    type="button"
+                    onClick={() => {
+                      setNewItem((prev) => ({ ...prev, category: option.category }));
+                      setIsChoosingCategory(false);
+                    }}
+                    className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${isDarkMode ? "border-slate-600 bg-slate-800 hover:bg-slate-700" : "border-pink-100 bg-pink-50/70 hover:bg-pink-100"}`}
+                  >
+                    <span className={`inline-flex h-10 w-10 items-center justify-center rounded-xl text-lg ${isDarkMode ? "bg-slate-700" : "bg-white"}`}>{option.icon}</span>
+                    <span>
+                      <span className={`block text-base font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>{option.title}</span>
+                      <span className={`block text-xs ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>{option.subtitle}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
             <form
               className="mt-6 space-y-4"
               onSubmit={async (event) => {
@@ -1004,7 +1034,7 @@ export default function Home() {
                   title: newItem.title.trim() || "Untitled plan",
                   category: newItem.category as PlannerItem["category"],
                   date: newItem.category === "wishlist" ? "" : newItem.date,
-                  endDate: newItem.category === "trip" ? newItem.date : undefined,
+                  endDate: newItem.category === "trip" ? newItem.endDate || newItem.date : undefined,
                   startTime: newItem.category === "event" ? newItem.startTime : undefined,
                   endTime: newItem.category === "event" ? newItem.endTime : undefined,
                   location: newItem.category === "event" ? newItem.location.trim() : undefined,
@@ -1079,6 +1109,7 @@ export default function Home() {
                   }
                 }
                 setIsModalOpen(false);
+                setIsChoosingCategory(false);
                 setNewItem({
                   title: "",
                   category: "trip",
@@ -1344,7 +1375,7 @@ export default function Home() {
                 />
               </label>
 
-              {newItem.category === "todo" || newItem.category === "wishlist" ? (
+              {newItem.category === "wishlist" ? (
                 <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
                   <input
                     type="checkbox"
@@ -1354,7 +1385,7 @@ export default function Home() {
                     }
                     className="h-4 w-4 rounded border-pink-200 text-pink-500 focus:ring-pink-300"
                   />
-                  {newItem.category === "todo" ? "Mark TODO as done" : "Mark wishlist as done"}
+                  Mark wishlist as done
                 </label>
               ) : null}
 
@@ -1377,6 +1408,7 @@ export default function Home() {
                       await handleDeleteItem(editingId);
                       setIsModalOpen(false);
                       setEditingId(null);
+                      setIsChoosingCategory(false);
                     }}
                     className="rounded-full border border-rose-200 px-5 py-2 text-sm font-semibold text-rose-500 hover:bg-rose-50"
                   >
@@ -1388,6 +1420,7 @@ export default function Home() {
                   onClick={() => {
                     setIsModalOpen(false);
                     setEditingId(null);
+                    setIsChoosingCategory(false);
                   }}
                   className="rounded-full border border-pink-100 px-5 py-2 text-sm font-semibold text-slate-600 hover:border-pink-200 hover:bg-pink-50"
                 >
@@ -1401,6 +1434,7 @@ export default function Home() {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       ) : null}
@@ -1483,7 +1517,14 @@ export default function Home() {
                                 key={item.id}
                                 type="button"
                                 onClick={() => {
+                                  if (group.key === "todo" && item.category === "todo") {
+                                    void toggleChecklistCompletion(item);
+                                    setIsNavOpen(false);
+                                    return;
+                                  }
+
                                   setEditingId(item.id);
+                                  setIsChoosingCategory(false);
                                   setNewItem({
                                     title: item.title,
                                     category: item.category,
