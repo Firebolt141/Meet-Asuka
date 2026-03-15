@@ -584,10 +584,34 @@ export default function Home() {
   }, [t.weatherUnavailable]);
 
   useEffect(() => {
-    if (!isLoggedIn) {
-      pinInputRef.current?.focus();
+    const cutoff = new Date(normalizedToday);
+    cutoff.setDate(cutoff.getDate() - 14);
+
+    const staleDoneTodoIds = items
+      .filter((item) => {
+        if (item.category !== "todo" || !item.completed || !item.date) {
+          return false;
+        }
+        const itemDate = new Date(item.date);
+        itemDate.setHours(0, 0, 0, 0);
+        return itemDate < cutoff;
+      })
+      .map((item) => item.id);
+
+    if (staleDoneTodoIds.length === 0) {
+      return;
     }
-  }, [isLoggedIn]);
+
+    setItems((prev) => prev.filter((item) => !staleDoneTodoIds.includes(item.id)));
+
+    if (!isFirebaseConfigured) {
+      return;
+    }
+
+    void Promise.all(staleDoneTodoIds.map((id) => deletePlannerItem(id))).catch((error) => {
+      console.error("Failed to delete stale done TODOs from Firestore", error);
+    });
+  }, [items, normalizedToday]);
 
   const handleDeleteItem = async (id: string) => {
     const target = items.find((item) => item.id === id);
@@ -1182,13 +1206,9 @@ export default function Home() {
                   />
                 </label>
 
-                <label className="block text-sm font-medium text-slate-700">
-                  Date
-                  {newItem.category === "wishlist" ? (
-                    <span className="mt-2 block w-full rounded-2xl border border-dashed border-pink-200 bg-pink-50/60 px-4 py-3 text-sm text-slate-500">
-                      No date needed for wishlist dreams ✨
-                    </span>
-                  ) : (
+                {newItem.category === "event" || newItem.category === "todo" ? (
+                  <label className="block text-sm font-medium text-slate-700">
+                    Date
                     <input
                       type="date"
                       value={newItem.date}
@@ -1197,8 +1217,8 @@ export default function Home() {
                       }
                       className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
                     />
-                  )}
-                </label>
+                  </label>
+                ) : null}
               </div>
 
               {newItem.category === "trip" ? (
@@ -1519,7 +1539,6 @@ export default function Home() {
                                 onClick={() => {
                                   if (group.key === "todo" && item.category === "todo") {
                                     void toggleChecklistCompletion(item);
-                                    setIsNavOpen(false);
                                     return;
                                   }
 
@@ -1560,6 +1579,43 @@ export default function Home() {
                                   </span>
                                 </div>
                                 <p className={`mt-1 text-[11px] ${group.key === "doneTodo" ? "text-slate-400" : "text-slate-500"}`}>{formatMeta(item)}</p>
+                                {group.key === "todo" && item.category === "todo" ? (
+                                  <div className="mt-2 flex justify-end">
+                                    <button
+                                      type="button"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        setEditingId(item.id);
+                                        setIsChoosingCategory(false);
+                                        setNewItem({
+                                          title: item.title,
+                                          category: item.category,
+                                          date: item.date,
+                                          endDate: item.endDate ?? "",
+                                          startTime: item.startTime ?? "",
+                                          endTime: item.endTime ?? "",
+                                          location: item.location ?? "",
+                                          recurring: item.recurring ?? "none",
+                                          tripTodos: item.tripTodos ?? "",
+                                          tripTodoItems:
+                                            item.tripTodoItems && item.tripTodoItems.length > 0
+                                              ? item.tripTodoItems
+                                              : item.tripTodos
+                                                ? [{ title: "Trip todo", date: item.date, details: item.tripTodos, participants: "" }]
+                                                : [createEmptyTripTodo()],
+                                          participants: item.participants ?? "",
+                                          pic: item.pic ?? "",
+                                          completed: item.completed ?? false,
+                                          details: item.details
+                                        });
+                                        setIsModalOpen(true);
+                                      }}
+                                      className="rounded-full border border-pink-200 px-2.5 py-0.5 text-[11px] font-semibold text-pink-500 hover:bg-pink-100"
+                                    >
+                                      Edit
+                                    </button>
+                                  </div>
+                                ) : null}
                                 {item.category === "trip" && item.tripTodoItems && item.tripTodoItems.length > 0 ? (
                                   <div className="mt-1 space-y-1">
                                     {item.tripTodoItems.slice(0, 2).map((todo, index) => (
