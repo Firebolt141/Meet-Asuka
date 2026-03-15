@@ -48,6 +48,7 @@ const translations = {
     trips: "Trips",
     events: "Events",
     todos: "Todos",
+    doneTodos: "Done TODO",
     wishlist: "Wishlist",
     pastPlans: "Past plans",
     navigate: "Navigate",
@@ -77,6 +78,7 @@ const translations = {
     trips: "旅行",
     events: "イベント",
     todos: "TODO",
+    doneTodos: "完了TODO",
     wishlist: "ウィッシュ",
     pastPlans: "過去の予定",
     navigate: "ナビゲート",
@@ -153,7 +155,8 @@ const normalizePlannerItem = (item: unknown): PlannerItem | null => {
     participants: typeof raw.participants === "string" ? raw.participants : undefined,
     pic: typeof raw.pic === "string" ? raw.pic : undefined,
     completed: typeof raw.completed === "boolean" ? raw.completed : undefined,
-    details: typeof raw.details === "string" && raw.details.trim() ? raw.details : "A dreamy new memory."
+    parentTripId: typeof raw.parentTripId === "string" ? raw.parentTripId : undefined,
+    details: typeof raw.details === "string" ? raw.details : ""
   };
 };
 
@@ -174,6 +177,25 @@ const createEmptyTripTodo = (): TripTodoEntry => ({
   participants: ""
 });
 
+const buildTripTodoPlannerItems = (tripId: string, tripTitle: string, tripDate: string, tripTodos: TripTodoEntry[]): PlannerItem[] => {
+  return tripTodos.map((todo, index) => {
+    const trimmedTitle = todo.title.trim();
+    const trimmedDetails = todo.details.trim();
+    const trimmedPic = todo.participants?.trim() ?? "";
+
+    return {
+      id: crypto.randomUUID(),
+      title: trimmedTitle || `${tripTitle} • Todo ${index + 1}`,
+      category: "todo",
+      date: todo.date || tripDate,
+      pic: trimmedPic || undefined,
+      completed: false,
+      parentTripId: tripId,
+      details: trimmedDetails
+    };
+  });
+};
+
 type PlannerFormState = {
   title: string;
   category: PlannerItem["category"];
@@ -192,7 +214,7 @@ type PlannerFormState = {
 };
 
 export default function Home() {
-  type NavGroupKey = PlannerItem["category"] | "past";
+  type NavGroupKey = PlannerItem["category"] | "past" | "doneTodo";
   type Language = keyof typeof translations;
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -206,9 +228,10 @@ export default function Home() {
   const [items, setItems] = useState<PlannerItem[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isChoosingCategory, setIsChoosingCategory] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<
-    PlannerItem["category"] | "past"
+    PlannerItem["category"] | "past" | "doneTodo"
   >("event");
   const [activeMonth, setActiveMonth] = useState(() => new Date());
   const [newItem, setNewItem] = useState<PlannerFormState>({
@@ -233,11 +256,26 @@ export default function Home() {
     event: false,
     todo: false,
     wishlist: false,
-    past: true
+    past: true,
+    doneTodo: true
   });
   const [weatherLabel, setWeatherLabel] = useState<string>(translations.en.weatherLoading);
   const [hasHydratedPlanner, setHasHydratedPlanner] = useState(false);
   const t = translations[language];
+  const addPlanCategoryOptions: Array<{ category: PlannerItem["category"]; title: string; subtitle: string; icon: string }> = [
+    { category: "event", title: "Event", subtitle: "meetups", icon: "✈️" },
+    { category: "trip", title: "Trip", subtitle: "travel", icon: "🧳" },
+    { category: "todo", title: "TODO", subtitle: "deadline", icon: "✅" },
+    { category: "wishlist", title: "Wishlist", subtitle: "someday", icon: "♡" }
+  ];
+  const todaysWeatherSummary = useMemo(() => {
+    if (weeklyWeather.length === 0) {
+      return t.weatherLoading;
+    }
+
+    const todayEntry = weeklyWeather.find((day) => day.date === formatDate(new Date())) ?? weeklyWeather[0];
+    return `${t.today}: ${todayEntry.max}° / ${todayEntry.min}°`;
+  }, [t.today, t.weatherLoading, weeklyWeather]);
 
   const normalizedToday = useMemo(() => {
     const today = new Date();
@@ -275,9 +313,22 @@ export default function Home() {
     year: "numeric"
   });
 
+  const doneTodoItems = useMemo(
+    () => items.filter((item) => item.category === "todo" && item.completed),
+    [items]
+  );
+
+  const todoItems = useMemo(
+    () => items.filter((item) => item.category === "todo" && !item.completed),
+    [items]
+  );
+
   const allPastItems = useMemo(
     () =>
       items.filter((item) => {
+        if (item.category !== "trip" && item.category !== "event") {
+          return false;
+        }
         if (!item.date) {
           return false;
         }
@@ -314,7 +365,7 @@ export default function Home() {
       label: t.todos,
       color: "text-sky-500",
       icon: "📝",
-      entries: items.filter((item) => item.category === "todo")
+      entries: todoItems
     },
     {
       key: "wishlist",
@@ -329,6 +380,13 @@ export default function Home() {
       color: "text-rose-500",
       icon: "⏳",
       entries: allPastItems
+    },
+    {
+      key: "doneTodo",
+      label: t.doneTodos,
+      color: "text-slate-400",
+      icon: "✅",
+      entries: doneTodoItems
     }
   ];
 
@@ -532,7 +590,13 @@ export default function Home() {
   }, [isLoggedIn]);
 
   const handleDeleteItem = async (id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
+    const target = items.find((item) => item.id === id);
+    const linkedTodoIds =
+      target?.category === "trip"
+        ? items.filter((item) => item.parentTripId === id).map((item) => item.id)
+        : [];
+
+    setItems((prev) => prev.filter((item) => item.id !== id && item.parentTripId !== id));
 
     if (!isFirebaseConfigured) {
       return;
@@ -540,6 +604,7 @@ export default function Home() {
 
     try {
       await deletePlannerItem(id);
+      await Promise.all(linkedTodoIds.map((todoId) => deletePlannerItem(todoId)));
     } catch (error) {
       console.error("Failed to delete planner item from Firestore", error);
     }
@@ -577,12 +642,13 @@ export default function Home() {
     return "🌤️";
   };
 
-  const formatWeatherDay = (date: string) =>
-    new Date(date).toLocaleDateString(language === "ja" ? "ja-JP" : "en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric"
+  const formatWeatherDayCompact = (date: string) => {
+    const parsed = new Date(date);
+    const weekday = parsed.toLocaleDateString(language === "ja" ? "ja-JP" : "en-US", {
+      weekday: "short"
     });
+    return `${weekday} ${parsed.getDate()}`;
+  };
 
   const handleLogin = () => {
     if (pinInput === LOGIN_PIN) {
@@ -718,52 +784,29 @@ export default function Home() {
                     <path d="M6.4 13a4.6 4.6 0 1 1 8.9-1.8A3.8 3.8 0 1 1 16 18H7.5a3.5 3.5 0 0 1-1.1-5z" />
                   </svg>
                 </span>
-                <span className="hidden sm:inline">{t.weeklyWeather}</span>
+                <span className="max-w-[8.5rem] truncate">{todaysWeatherSummary}</span>
               </button>
             </div>
           </div>
-          {isWeatherCardOpen ? (
-            <div className={`mt-3 rounded-2xl border p-4 ${isDarkMode ? "border-slate-700 bg-slate-800/95" : "border-pink-100 bg-white/95"}`}>
-              <p className={`text-sm font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-700"}`}>{t.weeklyWeather}</p>
-              {weeklyWeather.length === 0 ? (
-                <p className={`mt-2 text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>{t.weatherLoading}</p>
-              ) : (
-                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {weeklyWeather.map((day) => (
-                    <div
-                      key={day.date}
-                      className={`rounded-xl border px-3 py-2 ${isDarkMode ? "border-slate-700 bg-slate-900 text-slate-100" : "border-pink-100 bg-pink-50/60 text-slate-700"}`}
-                    >
-                      <p className="text-xs font-semibold">{formatWeatherDay(day.date)}</p>
-                      <p className="mt-1 text-lg">{getWeatherIcon(day.code)}</p>
-                      <p className="text-xs font-medium">{day.max}° / {day.min}°</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : null}
         </header>
 
         {isWeatherCardOpen ? (
-          <section className={`rounded-3xl border p-5 shadow-soft ${isDarkMode ? "border-slate-700 bg-slate-900/80" : "border-pink-100 bg-white/85"}`}>
-            <h3 className={`text-2xl font-bold ${isDarkMode ? "text-slate-100" : "text-slate-700"}`}>{t.weeklyWeather}</h3>
+          <section className={`rounded-3xl border p-4 shadow-soft ${isDarkMode ? "border-slate-700 bg-slate-900/80" : "border-pink-100 bg-white/85"}`}>
+            <h3 className={`text-xl font-bold ${isDarkMode ? "text-slate-100" : "text-slate-700"}`}>{t.weeklyWeather}</h3>
             {weeklyWeather.length === 0 ? (
               <p className={`mt-3 text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>{t.weatherLoading}</p>
             ) : (
-              <div className="mt-4 overflow-x-auto pb-2">
-                <div className="flex min-w-max gap-3">
-                  {weeklyWeather.map((day) => (
-                    <article
-                      key={day.date}
-                      className={`w-40 rounded-2xl border px-4 py-3 ${isDarkMode ? "border-slate-700 bg-slate-800 text-slate-100" : "border-pink-100 bg-pink-50/70 text-slate-700"}`}
-                    >
-                      <p className="text-sm font-semibold">{formatWeatherDay(day.date)}</p>
-                      <p className="mt-2 text-2xl">{getWeatherIcon(day.code)}</p>
-                      <p className="mt-2 text-base font-medium">{day.max}° / {day.min}°</p>
-                    </article>
-                  ))}
-                </div>
+              <div className="mt-3 grid grid-cols-7 gap-1">
+                {weeklyWeather.map((day) => (
+                  <article
+                    key={day.date}
+                    className={`w-full rounded-lg border px-1 py-1.5 text-center ${isDarkMode ? "border-slate-700 bg-slate-800 text-slate-100" : "border-pink-100 bg-pink-50/70 text-slate-700"}`}
+                  >
+                    <p className="text-[10px] font-semibold leading-tight">{formatWeatherDayCompact(day.date)}</p>
+                    <p className="mt-1 text-sm leading-none">{getWeatherIcon(day.code)}</p>
+                    <p className="mt-1 text-[10px] font-medium leading-tight">{day.max}°/{day.min}°</p>
+                  </article>
+                ))}
               </div>
             )}
           </section>
@@ -915,6 +958,7 @@ export default function Home() {
         type="button"
         onClick={() => {
           setEditingId(null);
+          setIsChoosingCategory(true);
           setIsModalOpen(true);
         }}
         className={`fixed bottom-8 left-1/2 z-40 flex -translate-x-1/2 items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-1 ${isDarkMode ? "bg-fuchsia-600 shadow-fuchsia-900/60 hover:bg-fuchsia-500" : "bg-pink-500 shadow-pink-300 hover:bg-pink-400"}`}
@@ -930,7 +974,7 @@ export default function Home() {
             <div className="flex items-start justify-between">
               <div>
                 <h4 className="text-xl font-semibold text-slate-800">
-                  {editingId ? "Edit plan" : "Add a sweet plan"}
+                  {editingId ? "Edit plan" : isChoosingCategory ? "Add something ✨" : "Add a sweet plan"}
                 </h4>
                 <p className={`text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>
                   Trips, events, todos, or wishlist ideas.
@@ -942,24 +986,55 @@ export default function Home() {
                 onClick={() => {
                   setIsModalOpen(false);
                   setEditingId(null);
+                  setIsChoosingCategory(false);
                 }}
               >
                 ✕
               </button>
             </div>
 
+            {!editingId && isChoosingCategory ? (
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                {addPlanCategoryOptions.map((option) => (
+                  <button
+                    key={option.category}
+                    type="button"
+                    onClick={() => {
+                      setNewItem((prev) => ({ ...prev, category: option.category }));
+                      setIsChoosingCategory(false);
+                    }}
+                    className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${isDarkMode ? "border-slate-600 bg-slate-800 hover:bg-slate-700" : "border-pink-100 bg-pink-50/70 hover:bg-pink-100"}`}
+                  >
+                    <span className={`inline-flex h-10 w-10 items-center justify-center rounded-xl text-lg ${isDarkMode ? "bg-slate-700" : "bg-white"}`}>{option.icon}</span>
+                    <span>
+                      <span className={`block text-base font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>{option.title}</span>
+                      <span className={`block text-xs ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>{option.subtitle}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
             <form
               className="mt-6 space-y-4"
               onSubmit={async (event) => {
                 event.preventDefault();
+                const normalizedTripTodos =
+                  newItem.category === "trip"
+                    ? newItem.tripTodoItems
+                        .map((todo) => ({
+                          title: todo.title.trim(),
+                          date: todo.date,
+                          details: todo.details.trim(),
+                          participants: todo.participants?.trim() || undefined
+                        }))
+                        .filter((todo) => todo.title || todo.details || todo.participants)
+                    : undefined;
+
                 const payload = {
                   title: newItem.title.trim() || "Untitled plan",
                   category: newItem.category as PlannerItem["category"],
                   date: newItem.category === "wishlist" ? "" : newItem.date,
-                  endDate:
-                    newItem.category === "trip"
-                      ? newItem.endDate || newItem.date
-                      : undefined,
+                  endDate: newItem.category === "trip" ? newItem.endDate || newItem.date : undefined,
                   startTime: newItem.category === "event" ? newItem.startTime : undefined,
                   endTime: newItem.category === "event" ? newItem.endTime : undefined,
                   location: newItem.category === "event" ? newItem.location.trim() : undefined,
@@ -968,17 +1043,7 @@ export default function Home() {
                       ? (newItem.recurring as PlannerItem["recurring"])
                       : undefined,
                   tripTodos: newItem.category === "trip" ? newItem.tripTodos.trim() : undefined,
-                  tripTodoItems:
-                    newItem.category === "trip"
-                      ? newItem.tripTodoItems
-                          .map((todo) => ({
-                            title: todo.title.trim(),
-                            date: todo.date,
-                            details: todo.details.trim(),
-                            participants: todo.participants?.trim() || undefined
-                          }))
-                          .filter((todo) => todo.title || todo.details || todo.date)
-                      : undefined,
+                  tripTodoItems: normalizedTripTodos,
                   participants:
                     newItem.category !== "todo" ? newItem.participants.trim() || undefined : undefined,
                   pic: newItem.category === "todo" ? newItem.pic.trim() || undefined : undefined,
@@ -986,40 +1051,65 @@ export default function Home() {
                     newItem.category === "todo" || newItem.category === "wishlist"
                       ? newItem.completed
                       : undefined,
-                  details: newItem.details.trim() || "A dreamy new memory."
+                  details: newItem.details.trim()
                 };
+
                 if (editingId) {
-                  setItems((prev) =>
-                    prev.map((item) => (item.id === editingId ? { ...item, ...payload } : item))
-                  );
+                  const generatedTripTodos =
+                    payload.category === "trip" && normalizedTripTodos
+                      ? buildTripTodoPlannerItems(editingId, payload.title, payload.date, normalizedTripTodos)
+                      : [];
+
+                  setItems((prev) => {
+                    const withoutLinkedTodos = prev.filter((item) => item.parentTripId !== editingId);
+                    return withoutLinkedTodos.map((item) =>
+                      item.id === editingId ? { ...item, ...payload } : item
+                    ).concat(generatedTripTodos);
+                  });
+
                   if (isFirebaseConfigured) {
                     try {
+                      const linkedTodoIds = items
+                        .filter((item) => item.parentTripId === editingId)
+                        .map((item) => item.id);
+
                       await updatePlannerItem(editingId, payload);
+                      await Promise.all(linkedTodoIds.map((todoId) => deletePlannerItem(todoId)));
+                      await Promise.all(generatedTripTodos.map((todo) => addPlannerItem(todo)));
                     } catch (error) {
                       console.error("Failed to update planner item in Firestore", error);
                     }
                   }
                 } else {
                   const id = crypto.randomUUID();
+                  const generatedTripTodos =
+                    payload.category === "trip" && normalizedTripTodos
+                      ? buildTripTodoPlannerItems(id, payload.title, payload.date, normalizedTripTodos)
+                      : [];
+
                   setItems((prev) => [
                     ...prev,
                     {
                       id,
                       ...payload
-                    }
+                    },
+                    ...generatedTripTodos
                   ]);
+
                   if (isFirebaseConfigured) {
                     try {
                       await addPlannerItem({
                         id,
                         ...payload
                       });
+                      await Promise.all(generatedTripTodos.map((todo) => addPlannerItem(todo)));
                     } catch (error) {
                       console.error("Failed to add planner item to Firestore", error);
                     }
                   }
                 }
                 setIsModalOpen(false);
+                setIsChoosingCategory(false);
                 setNewItem({
                   title: "",
                   category: "trip",
@@ -1089,7 +1179,6 @@ export default function Home() {
                       setNewItem((prev) => ({ ...prev, title: event.target.value }))
                     }
                     className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                    placeholder="Cherry blossom day trip"
                   />
                 </label>
 
@@ -1098,10 +1187,6 @@ export default function Home() {
                   {newItem.category === "wishlist" ? (
                     <span className="mt-2 block w-full rounded-2xl border border-dashed border-pink-200 bg-pink-50/60 px-4 py-3 text-sm text-slate-500">
                       No date needed for wishlist dreams ✨
-                    </span>
-                  ) : newItem.category === "trip" ? (
-                    <span className="mt-2 block w-full rounded-2xl border border-dashed border-pink-200 bg-pink-50/60 px-4 py-3 text-sm text-slate-500">
-                      Pick your trip range below.
                     </span>
                   ) : (
                     <input
@@ -1174,7 +1259,6 @@ export default function Home() {
                                 }))
                               }
                               className="mt-1 w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none"
-                              placeholder="Pack camera"
                             />
                           </label>
                           <label className="block text-xs font-medium text-slate-700">
@@ -1207,7 +1291,6 @@ export default function Home() {
                               }))
                             }
                             className="mt-1 w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none"
-                            placeholder="Person responsible"
                           />
                         </label>
                         <label className="block text-xs font-medium text-slate-700">
@@ -1223,7 +1306,6 @@ export default function Home() {
                               }))
                             }
                             className="mt-1 min-h-[70px] w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none"
-                            placeholder="Charge battery and pack the strap."
                           />
                         </label>
                         {newItem.tripTodoItems.length > 1 ? (
@@ -1281,7 +1363,6 @@ export default function Home() {
                           setNewItem((prev) => ({ ...prev, location: event.target.value }))
                         }
                         className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                        placeholder="Shibuya Sky"
                       />
                     </label>
                     <label className="block text-sm font-medium text-slate-700">
@@ -1315,11 +1396,10 @@ export default function Home() {
                     )
                   }
                   className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                  placeholder={newItem.category === "todo" ? "Person responsible" : "Asuka, Yui, Rina"}
                 />
               </label>
 
-              {newItem.category === "todo" || newItem.category === "wishlist" ? (
+              {newItem.category === "wishlist" ? (
                 <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
                   <input
                     type="checkbox"
@@ -1329,7 +1409,7 @@ export default function Home() {
                     }
                     className="h-4 w-4 rounded border-pink-200 text-pink-500 focus:ring-pink-300"
                   />
-                  {newItem.category === "todo" ? "Mark TODO as done" : "Mark wishlist as done"}
+                  Mark wishlist as done
                 </label>
               ) : null}
 
@@ -1341,7 +1421,6 @@ export default function Home() {
                     setNewItem((prev) => ({ ...prev, details: event.target.value }))
                   }
                   className="mt-2 min-h-[110px] w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                  placeholder="Matcha cafe, pastel photos, cozy playlist."
                 />
               </label>
 
@@ -1353,6 +1432,7 @@ export default function Home() {
                       await handleDeleteItem(editingId);
                       setIsModalOpen(false);
                       setEditingId(null);
+                      setIsChoosingCategory(false);
                     }}
                     className="rounded-full border border-rose-200 px-5 py-2 text-sm font-semibold text-rose-500 hover:bg-rose-50"
                   >
@@ -1364,6 +1444,7 @@ export default function Home() {
                   onClick={() => {
                     setIsModalOpen(false);
                     setEditingId(null);
+                    setIsChoosingCategory(false);
                   }}
                   className="rounded-full border border-pink-100 px-5 py-2 text-sm font-semibold text-slate-600 hover:border-pink-200 hover:bg-pink-50"
                 >
@@ -1377,6 +1458,7 @@ export default function Home() {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       ) : null}
@@ -1459,7 +1541,14 @@ export default function Home() {
                                 key={item.id}
                                 type="button"
                                 onClick={() => {
+                                  if (group.key === "todo" && item.category === "todo") {
+                                    void toggleChecklistCompletion(item);
+                                    setIsNavOpen(false);
+                                    return;
+                                  }
+
                                   setEditingId(item.id);
+                                  setIsChoosingCategory(false);
                                   setNewItem({
                                     title: item.title,
                                     category: item.category,
@@ -1484,17 +1573,31 @@ export default function Home() {
                                   setIsModalOpen(true);
                                   setIsNavOpen(false);
                                 }}
-                                className="w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-left transition hover:border-pink-200 hover:bg-pink-50"
+                                className={`w-full rounded-xl border border-pink-100 px-3 py-2 text-left transition hover:border-pink-200 ${group.key === "doneTodo" ? "bg-slate-100/80 hover:bg-slate-100" : "bg-pink-50/60 hover:bg-pink-50"}`}
                               >
                                 <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <p className="text-xs font-semibold text-slate-800">{item.title}</p>
+                                  <p className={`text-xs font-semibold ${group.key === "doneTodo" ? "text-slate-500 line-through" : "text-slate-800"}`}>{item.title}</p>
                                   <span
                                     className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${categoryStyles[item.category].color}`}
                                   >
                                     {categoryStyles[item.category].label}
                                   </span>
                                 </div>
-                                <p className="mt-1 text-[11px] text-slate-500">{formatMeta(item)}</p>
+                                <p className={`mt-1 text-[11px] ${group.key === "doneTodo" ? "text-slate-400" : "text-slate-500"}`}>{formatMeta(item)}</p>
+                                {item.category === "trip" && item.tripTodoItems && item.tripTodoItems.length > 0 ? (
+                                  <div className="mt-1 space-y-1">
+                                    {item.tripTodoItems.slice(0, 2).map((todo, index) => (
+                                      <p key={`${item.id}-nav-trip-todo-${index}`} className="text-[11px] text-indigo-500">
+                                        📝 {todo.title || todo.details || "Trip todo"}
+                                      </p>
+                                    ))}
+                                    {item.tripTodoItems.length > 2 ? (
+                                      <p className="text-[11px] text-indigo-400">+{item.tripTodoItems.length - 2} more</p>
+                                    ) : null}
+                                  </div>
+                                ) : item.category === "trip" && item.tripTodos ? (
+                                  <p className="mt-1 text-[11px] text-indigo-500">📝 {item.tripTodos}</p>
+                                ) : null}
                               </button>
                             ))
                           )}
