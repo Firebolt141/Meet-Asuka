@@ -746,6 +746,27 @@ export default function Home() {
               </div>
             </div>
           </div>
+          {isWeatherCardOpen ? (
+            <div className={`mt-3 rounded-2xl border p-4 ${isDarkMode ? "border-slate-700 bg-slate-800/95" : "border-pink-100 bg-white/95"}`}>
+              <p className={`text-sm font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-700"}`}>{t.weeklyWeather}</p>
+              {weeklyWeather.length === 0 ? (
+                <p className={`mt-2 text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>{t.weatherLoading}</p>
+              ) : (
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {weeklyWeather.map((day) => (
+                    <div
+                      key={day.date}
+                      className={`rounded-xl border px-3 py-2 ${isDarkMode ? "border-slate-700 bg-slate-900 text-slate-100" : "border-pink-100 bg-pink-50/60 text-slate-700"}`}
+                    >
+                      <p className="text-xs font-semibold">{formatWeatherDay(day.date)}</p>
+                      <p className="mt-1 text-lg">{getWeatherIcon(day.code)}</p>
+                      <p className="text-xs font-medium">{day.max}° / {day.min}°</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
         </header>
 
         <div style={{ fontSize: 10, opacity: 0.75 }} className={`px-1 ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}>
