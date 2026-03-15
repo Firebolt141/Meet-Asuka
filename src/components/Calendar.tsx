@@ -24,6 +24,7 @@ export type PlannerItem = {
   completed?: boolean;
   tripTodos?: string;
   tripTodoItems?: TripTodoEntry[];
+  parentTripId?: string;
   details: string;
 };
 
