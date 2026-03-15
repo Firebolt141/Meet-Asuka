@@ -33,7 +33,7 @@ const translations = {
     pinLabel: "Enter 4-digit PIN",
     pinPlaceholder: "0000",
     loginButton: "Let's go!",
-    pinError: "Invalid PIN. Please try 4869.",
+    pinError: "Invalid PIN. Please try again.",
     plannerTagline: "Your little planner",
     logout: "Logout",
     openNavigation: "Open navigation",
@@ -63,7 +63,7 @@ const translations = {
     pinLabel: "4桁のPINを入力",
     pinPlaceholder: "0000",
     loginButton: "ログイン",
-    pinError: "PINが正しくありません。4869を入力してください。",
+    pinError: "PINが正しくありません。もう一度お試しください。",
     plannerTagline: "あなたの小さなプランナー",
     logout: "ログアウト",
     openNavigation: "ナビゲーションを開く",
@@ -1578,7 +1578,7 @@ export default function Home() {
                                 key={item.id}
                                 type="button"
                                 onClick={() => {
-                                  if (group.key === "todo" && item.category === "todo") {
+                                  if ((group.key === "todo" || group.key === "doneTodo") && item.category === "todo") {
                                     void toggleChecklistCompletion(item);
                                     return;
                                   }
@@ -1611,10 +1611,10 @@ export default function Home() {
                                 }}
                                 className={`w-full rounded-xl border border-pink-100 px-3 py-2 text-left transition hover:border-pink-200 ${group.key === "doneTodo" ? "bg-slate-100/80 hover:bg-slate-100" : "bg-pink-50/60 hover:bg-pink-50"}`}
                               >
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <p className={`text-xs font-semibold ${group.key === "doneTodo" ? "text-slate-500 line-through" : "text-slate-800"}`}>{item.title}</p>
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className={`min-w-0 flex-1 text-xs font-semibold break-words ${group.key === "doneTodo" ? "text-slate-500 line-through" : "text-slate-800"}`}>{item.title}</p>
                                   <span
-                                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${categoryStyles[item.category].color}`}
+                                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${categoryStyles[item.category].color}`}
                                   >
                                     {categoryStyles[item.category].label}
                                   </span>
@@ -1654,6 +1654,20 @@ export default function Home() {
                                       className="rounded-full border border-pink-200 px-2.5 py-0.5 text-[11px] font-semibold text-pink-500 hover:bg-pink-100"
                                     >
                                       Edit
+                                    </button>
+                                  </div>
+                                ) : null}
+                                {group.key === "doneTodo" && item.category === "todo" ? (
+                                  <div className="mt-2 flex justify-end">
+                                    <button
+                                      type="button"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        void handleDeleteItem(item.id);
+                                      }}
+                                      className="rounded-full border border-rose-200 px-2.5 py-0.5 text-[11px] font-semibold text-rose-500 hover:bg-rose-100"
+                                    >
+                                      Delete
                                     </button>
                                   </div>
                                 ) : null}
