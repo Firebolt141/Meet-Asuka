@@ -24,7 +24,7 @@ const categoryStyles: Record<PlannerItem["category"], { label: string; color: st
 
 const LOCAL_THEME_KEY = "meet-asuka:theme";
 const LOCAL_LANGUAGE_KEY = "meet-asuka:language";
-const LOGIN_PIN = "0000";
+const LOGIN_PIN = "4869";
 
 const translations = {
   en: {
@@ -33,7 +33,7 @@ const translations = {
     pinLabel: "Enter 4-digit PIN",
     pinPlaceholder: "0000",
     loginButton: "Let's go!",
-    pinError: "Invalid PIN. Please try 0000.",
+    pinError: "Invalid PIN. Please try 4869.",
     plannerTagline: "Your little planner",
     logout: "Logout",
     openNavigation: "Open navigation",
@@ -63,7 +63,7 @@ const translations = {
     pinLabel: "4桁のPINを入力",
     pinPlaceholder: "0000",
     loginButton: "ログイン",
-    pinError: "PINが正しくありません。0000を入力してください。",
+    pinError: "PINが正しくありません。4869を入力してください。",
     plannerTagline: "あなたの小さなプランナー",
     logout: "ログアウト",
     openNavigation: "ナビゲーションを開く",
@@ -109,7 +109,7 @@ const normalizeTripTodoItems = (tripTodoItems: unknown): TripTodoEntry[] | undef
       return {
         title: typeof raw.title === "string" ? raw.title : "",
         date: typeof raw.date === "string" ? raw.date : "",
-        details: typeof raw.details === "string" ? raw.details : "",
+        details: typeof raw.details === "string" && raw.details !== "A dreamy new memory." ? raw.details : "",
         ...(typeof raw.participants === "string" ? { participants: raw.participants } : {})
       };
     })
@@ -156,7 +156,7 @@ const normalizePlannerItem = (item: unknown): PlannerItem | null => {
     pic: typeof raw.pic === "string" ? raw.pic : undefined,
     completed: typeof raw.completed === "boolean" ? raw.completed : undefined,
     parentTripId: typeof raw.parentTripId === "string" ? raw.parentTripId : undefined,
-    details: typeof raw.details === "string" ? raw.details : ""
+    details: typeof raw.details === "string" && raw.details !== "A dreamy new memory." ? raw.details : ""
   };
 };
 
@@ -920,14 +920,14 @@ export default function Home() {
                         participants: item.participants ?? "",
                         pic: item.pic ?? "",
                         completed: item.completed ?? false,
-                        details: item.details
+                        details: item.details === "A dreamy new memory." ? "" : item.details
                       });
                       setIsModalOpen(true);
                     }}
-                    className={`w-full rounded-2xl border px-4 py-3 text-left transition hover:-translate-y-0.5 ${(item.category === "todo" || item.category === "wishlist") && item.completed ? "border-emerald-200 bg-emerald-50/70" : "border-pink-100 bg-white hover:border-pink-200 hover:bg-pink-50/50"}`}
+                    className={`w-full rounded-2xl border px-4 py-3 text-left transition hover:-translate-y-0.5 ${(item.category === "todo" || item.category === "wishlist") && item.completed ? (isDarkMode ? "border-emerald-700 bg-emerald-900/20" : "border-emerald-200 bg-emerald-50/70") : (isDarkMode ? "border-slate-700 bg-slate-800 hover:border-slate-600 hover:bg-slate-700" : "border-pink-100 bg-white hover:border-pink-200 hover:bg-pink-50/50")}`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className={`text-sm font-semibold ${(item.category === "todo" || item.category === "wishlist") && item.completed ? "text-slate-400 line-through" : "text-slate-800"}`}>
+                      <p className={`text-sm font-semibold ${(item.category === "todo" || item.category === "wishlist") && item.completed ? "text-slate-400 line-through" : (isDarkMode ? "text-slate-100" : "text-slate-800")}`}>
                         {item.title}
                       </p>
                       <span
@@ -936,14 +936,14 @@ export default function Home() {
                         {categoryStyles[item.category].label}
                       </span>
                     </div>
-                    <p className="mt-2 text-xs font-semibold text-pink-400">
+                    <p className={`mt-2 text-xs font-semibold ${isDarkMode ? "text-pink-300" : "text-pink-400"}`}>
                       {formatMeta(item)}
                     </p>
-                    <p className="mt-2 text-sm text-slate-600">{item.details}</p>
+                    <p className={`mt-2 text-sm ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}>{item.details}</p>
                     {item.category === "todo" ? (
-                      item.pic ? <p className="mt-1 text-xs text-slate-500">👤 PIC: {item.pic}</p> : null
+                      item.pic ? <p className={`mt-1 text-xs ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>👤 PIC: {item.pic}</p> : null
                     ) : item.participants ? (
-                      <p className="mt-1 text-xs text-slate-500">👥 {item.participants}</p>
+                      <p className={`mt-1 text-xs ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>👥 {item.participants}</p>
                     ) : null}
                     {item.category === "trip" && item.tripTodoItems && item.tripTodoItems.length > 0 ? (
                       <div className="mt-2 space-y-1">
@@ -981,8 +981,15 @@ export default function Home() {
       <button
         type="button"
         onClick={() => {
+          const defaultStartDate = formatDate(selectedDate);
           setEditingId(null);
           setIsChoosingCategory(true);
+          setNewItem((prev) => ({
+            ...prev,
+            date: defaultStartDate,
+            endDate: defaultStartDate,
+            tripTodoItems: prev.tripTodoItems.map((todo) => ({ ...todo, date: todo.date || defaultStartDate }))
+          }));
           setIsModalOpen(true);
         }}
         className={`fixed bottom-8 left-1/2 z-40 flex -translate-x-1/2 items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-1 ${isDarkMode ? "bg-fuchsia-600 shadow-fuchsia-900/60 hover:bg-fuchsia-500" : "bg-pink-500 shadow-pink-300 hover:bg-pink-400"}`}
@@ -1006,7 +1013,7 @@ export default function Home() {
               </div>
               <button
                 type="button"
-                className="text-slate-400 hover:text-slate-600"
+                className={`text-slate-400 ${isDarkMode ? "hover:text-slate-200" : "hover:text-slate-600"}`}
                 onClick={() => {
                   setIsModalOpen(false);
                   setEditingId(null);
@@ -1024,7 +1031,13 @@ export default function Home() {
                     key={option.category}
                     type="button"
                     onClick={() => {
-                      setNewItem((prev) => ({ ...prev, category: option.category }));
+                      const defaultStartDate = formatDate(selectedDate);
+                      setNewItem((prev) => ({
+                        ...prev,
+                        category: option.category,
+                        date: option.category === "wishlist" ? "" : defaultStartDate,
+                        endDate: option.category === "trip" ? (prev.endDate || defaultStartDate) : ""
+                      }));
                       setIsChoosingCategory(false);
                     }}
                     className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${isDarkMode ? "border-slate-600 bg-slate-800 hover:bg-slate-700" : "border-pink-100 bg-pink-50/70 hover:bg-pink-100"}`}
@@ -1395,20 +1408,6 @@ export default function Home() {
                 />
               </label>
 
-              {newItem.category === "wishlist" ? (
-                <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={newItem.completed}
-                    onChange={(event) =>
-                      setNewItem((prev) => ({ ...prev, completed: event.target.checked }))
-                    }
-                    className="h-4 w-4 rounded border-pink-200 text-pink-500 focus:ring-pink-300"
-                  />
-                  Mark wishlist as done
-                </label>
-              ) : null}
-
               <label className="block text-sm font-medium text-slate-700">
                 Details
                 <textarea
@@ -1461,43 +1460,43 @@ export default function Home() {
 
       {isNavOpen ? (
         <div className="fixed inset-0 z-40 flex bg-black/40">
-          <div className="flex h-full w-72 flex-col bg-white p-6 shadow-soft">
+          <div className={`flex h-full w-72 flex-col p-6 shadow-soft ${isDarkMode ? "bg-slate-900" : "bg-white"}`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-pink-100 text-xl">
+                <span className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl text-xl ${isDarkMode ? "bg-slate-800" : "bg-pink-100"}`}>
                   💖
                 </span>
                 <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-pink-400">Asuka</p>
-                  <p className="text-base font-semibold text-slate-800">Sweet Planner</p>
+                  <p className={`text-xs uppercase tracking-[0.2em] ${isDarkMode ? "text-pink-300" : "text-pink-400"}`}>Asuka</p>
+                  <p className={`text-base font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>Sweet Planner</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsNavOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className={`text-slate-400 ${isDarkMode ? "hover:text-slate-200" : "hover:text-slate-600"}`}
               >
                 ✕
               </button>
             </div>
             <div className="mt-6 flex-1 overflow-y-auto pr-1">
-              <p className="text-xs uppercase tracking-[0.2em] text-pink-400">{t.navigate}</p>
+              <p className={`text-xs uppercase tracking-[0.2em] ${isDarkMode ? "text-pink-300" : "text-pink-400"}`}>{t.navigate}</p>
               <div className="mt-4 grid gap-3">
                 {navGroups.map((group) => {
                   const isExpanded = expandedGroups[group.key];
                   return (
-                    <div key={group.key} className="rounded-2xl border border-pink-100 bg-white/80 p-2">
+                    <div key={group.key} className={`rounded-2xl border p-2 ${isDarkMode ? "border-slate-700 bg-slate-800/80" : "border-pink-100 bg-white/80"}`}>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => setActiveCategory(group.key)}
                           className={`flex flex-1 items-center gap-3 rounded-xl px-2 py-2 text-left text-sm font-semibold transition ${
                             activeCategory === group.key
-                              ? "bg-pink-50 text-slate-800"
-                              : "text-slate-600 hover:bg-pink-50"
+                              ? (isDarkMode ? "bg-slate-700 text-slate-100" : "bg-pink-50 text-slate-800")
+                              : (isDarkMode ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-pink-50")
                           }`}
                         >
-                          <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white text-lg ${group.color}`}>
+                          <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl text-lg ${isDarkMode ? "bg-slate-700" : "bg-white"} ${group.color}`}>
                             {group.icon}
                           </span>
                           <span className="flex-1">{group.label}</span>
@@ -1507,7 +1506,7 @@ export default function Home() {
                           onClick={() =>
                             setExpandedGroups((prev) => ({ ...prev, [group.key]: !prev[group.key] }))
                           }
-                          className="rounded-xl p-2 text-slate-500 transition hover:bg-pink-50 hover:text-pink-500"
+                          className={`rounded-xl p-2 text-slate-500 transition ${isDarkMode ? "hover:bg-slate-700 hover:text-pink-300" : "hover:bg-pink-50 hover:text-pink-500"}`}
                           aria-label={`Toggle ${group.label}`}
                         >
                           <svg
@@ -1526,9 +1525,9 @@ export default function Home() {
                       </div>
 
                       {isExpanded ? (
-                        <div className="mt-2 space-y-2 border-l border-pink-100 pl-3">
+                        <div className={`mt-2 space-y-2 border-l pl-3 ${isDarkMode ? "border-slate-700" : "border-pink-100"}`}>
                           {group.entries.length === 0 ? (
-                            <p className="rounded-xl bg-pink-50 px-3 py-2 text-xs text-slate-500">
+                            <p className={`rounded-xl px-3 py-2 text-xs ${isDarkMode ? "bg-slate-700 text-slate-300" : "bg-pink-50 text-slate-500"}`}>
                               No items yet.
                             </p>
                           ) : (
@@ -1563,7 +1562,7 @@ export default function Home() {
                                     participants: item.participants ?? "",
                                     pic: item.pic ?? "",
                                     completed: item.completed ?? false,
-                                    details: item.details
+                                    details: item.details === "A dreamy new memory." ? "" : item.details
                                   });
                                   setIsModalOpen(true);
                                   setIsNavOpen(false);
@@ -1606,7 +1605,7 @@ export default function Home() {
                                           participants: item.participants ?? "",
                                           pic: item.pic ?? "",
                                           completed: item.completed ?? false,
-                                          details: item.details
+                                          details: item.details === "A dreamy new memory." ? "" : item.details
                                         });
                                         setIsModalOpen(true);
                                       }}
