@@ -48,6 +48,7 @@ const translations = {
     trips: "Trips",
     events: "Events",
     todos: "Todos",
+    doneTodos: "Done TODO",
     wishlist: "Wishlist",
     pastPlans: "Past plans",
     navigate: "Navigate",
@@ -77,6 +78,7 @@ const translations = {
     trips: "旅行",
     events: "イベント",
     todos: "TODO",
+    doneTodos: "完了TODO",
     wishlist: "ウィッシュ",
     pastPlans: "過去の予定",
     navigate: "ナビゲート",
@@ -153,7 +155,7 @@ const normalizePlannerItem = (item: unknown): PlannerItem | null => {
     participants: typeof raw.participants === "string" ? raw.participants : undefined,
     pic: typeof raw.pic === "string" ? raw.pic : undefined,
     completed: typeof raw.completed === "boolean" ? raw.completed : undefined,
-    details: typeof raw.details === "string" && raw.details.trim() ? raw.details : "A dreamy new memory."
+    details: typeof raw.details === "string" ? raw.details : ""
   };
 };
 
@@ -192,7 +194,7 @@ type PlannerFormState = {
 };
 
 export default function Home() {
-  type NavGroupKey = PlannerItem["category"] | "past";
+  type NavGroupKey = PlannerItem["category"] | "past" | "doneTodo";
   type Language = keyof typeof translations;
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -208,7 +210,7 @@ export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<
-    PlannerItem["category"] | "past"
+    PlannerItem["category"] | "past" | "doneTodo"
   >("event");
   const [activeMonth, setActiveMonth] = useState(() => new Date());
   const [newItem, setNewItem] = useState<PlannerFormState>({
@@ -233,7 +235,8 @@ export default function Home() {
     event: false,
     todo: false,
     wishlist: false,
-    past: true
+    past: true,
+    doneTodo: true
   });
   const [weatherLabel, setWeatherLabel] = useState<string>(translations.en.weatherLoading);
   const [hasHydratedPlanner, setHasHydratedPlanner] = useState(false);
@@ -283,9 +286,39 @@ export default function Home() {
     year: "numeric"
   });
 
+  const doneTodoItems = useMemo(
+    () => items.filter((item) => item.category === "todo" && item.completed),
+    [items]
+  );
+
+  const todoItems = useMemo(
+    () =>
+      items.filter((item) => {
+        if (item.category !== "todo") {
+          return false;
+        }
+
+        if (!item.completed) {
+          return true;
+        }
+
+        if (!item.date) {
+          return false;
+        }
+
+        const itemDate = new Date(item.date);
+        itemDate.setHours(0, 0, 0, 0);
+        return itemDate < normalizedToday;
+      }),
+    [items, normalizedToday]
+  );
+
   const allPastItems = useMemo(
     () =>
       items.filter((item) => {
+        if (item.category !== "trip" && item.category !== "event") {
+          return false;
+        }
         if (!item.date) {
           return false;
         }
@@ -322,7 +355,14 @@ export default function Home() {
       label: t.todos,
       color: "text-sky-500",
       icon: "📝",
-      entries: items.filter((item) => item.category === "todo")
+      entries: todoItems
+    },
+    {
+      key: "doneTodo",
+      label: t.doneTodos,
+      color: "text-slate-400",
+      icon: "✅",
+      entries: doneTodoItems
     },
     {
       key: "wishlist",
@@ -963,7 +1003,7 @@ export default function Home() {
                             details: todo.details.trim(),
                             participants: todo.participants?.trim() || undefined
                           }))
-                          .filter((todo) => todo.title || todo.details || todo.date)
+                          .filter((todo) => todo.title || todo.details || todo.participants)
                       : undefined,
                   participants:
                     newItem.category !== "todo" ? newItem.participants.trim() || undefined : undefined,
@@ -972,7 +1012,7 @@ export default function Home() {
                     newItem.category === "todo" || newItem.category === "wishlist"
                       ? newItem.completed
                       : undefined,
-                  details: newItem.details.trim() || "A dreamy new memory."
+                  details: newItem.details.trim()
                 };
                 if (editingId) {
                   setItems((prev) =>
@@ -1327,7 +1367,6 @@ export default function Home() {
                     setNewItem((prev) => ({ ...prev, details: event.target.value }))
                   }
                   className="mt-2 min-h-[110px] w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                  placeholder="Matcha cafe, pastel photos, cozy playlist."
                 />
               </label>
 
@@ -1470,17 +1509,31 @@ export default function Home() {
                                   setIsModalOpen(true);
                                   setIsNavOpen(false);
                                 }}
-                                className="w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-left transition hover:border-pink-200 hover:bg-pink-50"
+                                className={`w-full rounded-xl border border-pink-100 px-3 py-2 text-left transition hover:border-pink-200 ${group.key === "doneTodo" ? "bg-slate-100/80 hover:bg-slate-100" : "bg-pink-50/60 hover:bg-pink-50"}`}
                               >
                                 <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <p className="text-xs font-semibold text-slate-800">{item.title}</p>
+                                  <p className={`text-xs font-semibold ${group.key === "doneTodo" ? "text-slate-500 line-through" : "text-slate-800"}`}>{item.title}</p>
                                   <span
                                     className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${categoryStyles[item.category].color}`}
                                   >
                                     {categoryStyles[item.category].label}
                                   </span>
                                 </div>
-                                <p className="mt-1 text-[11px] text-slate-500">{formatMeta(item)}</p>
+                                <p className={`mt-1 text-[11px] ${group.key === "doneTodo" ? "text-slate-400" : "text-slate-500"}`}>{formatMeta(item)}</p>
+                                {item.category === "trip" && item.tripTodoItems && item.tripTodoItems.length > 0 ? (
+                                  <div className="mt-1 space-y-1">
+                                    {item.tripTodoItems.slice(0, 2).map((todo, index) => (
+                                      <p key={`${item.id}-nav-trip-todo-${index}`} className="text-[11px] text-indigo-500">
+                                        📝 {todo.title || todo.details || "Trip todo"}
+                                      </p>
+                                    ))}
+                                    {item.tripTodoItems.length > 2 ? (
+                                      <p className="text-[11px] text-indigo-400">+{item.tripTodoItems.length - 2} more</p>
+                                    ) : null}
+                                  </div>
+                                ) : item.category === "trip" && item.tripTodos ? (
+                                  <p className="mt-1 text-[11px] text-indigo-500">📝 {item.tripTodos}</p>
+                                ) : null}
                               </button>
                             ))
                           )}
