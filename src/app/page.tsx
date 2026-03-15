@@ -1223,30 +1223,6 @@ export default function Home() {
 
               {newItem.category === "trip" ? (
                 <div className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <label className="block text-sm font-medium text-slate-700">
-                      From
-                      <input
-                        type="date"
-                        value={newItem.date}
-                        onChange={(event) =>
-                          setNewItem((prev) => ({ ...prev, date: event.target.value }))
-                        }
-                        className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                      />
-                    </label>
-                    <label className="block text-sm font-medium text-slate-700">
-                      To
-                      <input
-                        type="date"
-                        value={newItem.endDate}
-                        onChange={(event) =>
-                          setNewItem((prev) => ({ ...prev, endDate: event.target.value }))
-                        }
-                        className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                      />
-                    </label>
-                  </div>
                   <div className="space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-3">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold text-indigo-700">Trip todos</p>
