@@ -251,6 +251,7 @@ export default function Home() {
     details: ""
   });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [returnToNavAfterModal, setReturnToNavAfterModal] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Record<NavGroupKey, boolean>>({
     trip: false,
     event: false,
@@ -504,20 +505,12 @@ export default function Home() {
 
       try {
         const remoteItems = normalizePlannerItems(await getPlannerItems());
-        const remoteById = new Map(remoteItems.map((item) => [item.id, item]));
-        const mergedById = new Map(remoteById);
+        setItems(remoteItems);
 
-        // Prefer local versions so unsynced edits are not lost on refresh.
-        localItems.forEach((item) => {
-          mergedById.set(item.id, item);
-        });
-
-        const mergedItems = Array.from(mergedById.values());
-        setItems(mergedItems);
-
-        const localOnlyItems = localItems.filter((item) => !remoteById.has(item.id));
-        if (localOnlyItems.length > 0) {
-          await Promise.all(localOnlyItems.map((item) => addPlannerItem(item)));
+        // Migrate legacy local-only data only when remote storage is still empty.
+        if (remoteItems.length === 0 && localItems.length > 0) {
+          await Promise.all(localItems.map((item) => addPlannerItem(item)));
+          setItems(localItems);
         }
       } catch (error) {
         console.error("Failed to sync planner items with Firestore", error);
@@ -628,6 +621,17 @@ export default function Home() {
       console.error("Failed to delete stale done TODOs from Firestore", error);
     });
   }, [items, normalizedToday]);
+
+  const closeModalAndRestoreContext = () => {
+    setIsModalOpen(false);
+    setEditingId(null);
+    setIsChoosingCategory(false);
+
+    if (returnToNavAfterModal) {
+      setIsNavOpen(true);
+      setReturnToNavAfterModal(false);
+    }
+  };
 
   const handleDeleteItem = async (id: string) => {
     const target = items.find((item) => item.id === id);
@@ -917,6 +921,7 @@ export default function Home() {
                       }
 
                       setEditingId(item.id);
+                      setReturnToNavAfterModal(false);
                       setNewItem({
                         title: item.title,
                         category: item.category,
@@ -999,6 +1004,7 @@ export default function Home() {
         onClick={() => {
           const defaultStartDate = formatDate(selectedDate);
           setEditingId(null);
+          setReturnToNavAfterModal(false);
           setIsChoosingCategory(true);
           setNewItem((prev) => ({
             ...prev,
@@ -1031,9 +1037,7 @@ export default function Home() {
                 type="button"
                 className={`text-slate-400 ${isDarkMode ? "hover:text-slate-200" : "hover:text-slate-600"}`}
                 onClick={() => {
-                  setIsModalOpen(false);
-                  setEditingId(null);
-                  setIsChoosingCategory(false);
+                  closeModalAndRestoreContext();
                 }}
               >
                 ✕
@@ -1161,8 +1165,7 @@ export default function Home() {
                     }
                   }
                 }
-                setIsModalOpen(false);
-                setIsChoosingCategory(false);
+                closeModalAndRestoreContext();
                 setNewItem({
                   title: "",
                   category: "trip",
@@ -1179,7 +1182,6 @@ export default function Home() {
                   completed: false,
                   details: ""
                 });
-                setEditingId(null);
                 if (newItem.category !== "wishlist" && newItem.date) {
                   setSelectedDate(new Date(newItem.date));
                 }
@@ -1466,10 +1468,13 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={async () => {
+                      const shouldDelete = window.confirm("Do you really want to delete this item?");
+                      if (!shouldDelete) {
+                        return;
+                      }
+
                       await handleDeleteItem(editingId);
-                      setIsModalOpen(false);
-                      setEditingId(null);
-                      setIsChoosingCategory(false);
+                      closeModalAndRestoreContext();
                     }}
                     className="rounded-full border border-rose-200 px-5 py-2 text-sm font-semibold text-rose-500 hover:bg-rose-50"
                   >
@@ -1479,9 +1484,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => {
-                    setIsModalOpen(false);
-                    setEditingId(null);
-                    setIsChoosingCategory(false);
+                    closeModalAndRestoreContext();
                   }}
                   className="rounded-full border border-pink-100 px-5 py-2 text-sm font-semibold text-slate-600 hover:border-pink-200 hover:bg-pink-50"
                 >
@@ -1606,6 +1609,7 @@ export default function Home() {
                                     completed: item.completed ?? false,
                                     details: item.details === "A dreamy new memory." ? "" : item.details
                                   });
+                                  setReturnToNavAfterModal(true);
                                   setIsModalOpen(true);
                                   setIsNavOpen(false);
                                 }}
@@ -1649,6 +1653,7 @@ export default function Home() {
                                           completed: item.completed ?? false,
                                           details: item.details === "A dreamy new memory." ? "" : item.details
                                         });
+                                        setReturnToNavAfterModal(true);
                                         setIsModalOpen(true);
                                       }}
                                       className="rounded-full border border-pink-200 px-2.5 py-0.5 text-[11px] font-semibold text-pink-500 hover:bg-pink-100"
@@ -1663,6 +1668,10 @@ export default function Home() {
                                       type="button"
                                       onClick={(event) => {
                                         event.stopPropagation();
+                                        const shouldDelete = window.confirm("Do you really want to delete this item?");
+                                        if (!shouldDelete) {
+                                          return;
+                                        }
                                         void handleDeleteItem(item.id);
                                       }}
                                       className="rounded-full border border-rose-200 px-2.5 py-0.5 text-[11px] font-semibold text-rose-500 hover:bg-rose-100"
