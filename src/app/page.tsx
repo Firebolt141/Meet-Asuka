@@ -238,6 +238,14 @@ export default function Home() {
   const [weatherLabel, setWeatherLabel] = useState<string>(translations.en.weatherLoading);
   const [hasHydratedPlanner, setHasHydratedPlanner] = useState(false);
   const t = translations[language];
+  const todaysWeatherSummary = useMemo(() => {
+    if (weeklyWeather.length === 0) {
+      return t.weatherLoading;
+    }
+
+    const todayEntry = weeklyWeather.find((day) => day.date === formatDate(new Date())) ?? weeklyWeather[0];
+    return `${t.today}: ${todayEntry.max}° / ${todayEntry.min}°`;
+  }, [t.today, t.weatherLoading, weeklyWeather]);
 
   const normalizedToday = useMemo(() => {
     const today = new Date();
@@ -718,52 +726,29 @@ export default function Home() {
                     <path d="M6.4 13a4.6 4.6 0 1 1 8.9-1.8A3.8 3.8 0 1 1 16 18H7.5a3.5 3.5 0 0 1-1.1-5z" />
                   </svg>
                 </span>
-                <span className="hidden sm:inline">{t.weeklyWeather}</span>
+                <span className="max-w-[8.5rem] truncate">{todaysWeatherSummary}</span>
               </button>
             </div>
           </div>
-          {isWeatherCardOpen ? (
-            <div className={`mt-3 rounded-2xl border p-4 ${isDarkMode ? "border-slate-700 bg-slate-800/95" : "border-pink-100 bg-white/95"}`}>
-              <p className={`text-sm font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-700"}`}>{t.weeklyWeather}</p>
-              {weeklyWeather.length === 0 ? (
-                <p className={`mt-2 text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>{t.weatherLoading}</p>
-              ) : (
-                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {weeklyWeather.map((day) => (
-                    <div
-                      key={day.date}
-                      className={`rounded-xl border px-3 py-2 ${isDarkMode ? "border-slate-700 bg-slate-900 text-slate-100" : "border-pink-100 bg-pink-50/60 text-slate-700"}`}
-                    >
-                      <p className="text-xs font-semibold">{formatWeatherDay(day.date)}</p>
-                      <p className="mt-1 text-lg">{getWeatherIcon(day.code)}</p>
-                      <p className="text-xs font-medium">{day.max}° / {day.min}°</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : null}
         </header>
 
         {isWeatherCardOpen ? (
-          <section className={`rounded-3xl border p-5 shadow-soft ${isDarkMode ? "border-slate-700 bg-slate-900/80" : "border-pink-100 bg-white/85"}`}>
-            <h3 className={`text-2xl font-bold ${isDarkMode ? "text-slate-100" : "text-slate-700"}`}>{t.weeklyWeather}</h3>
+          <section className={`rounded-3xl border p-4 shadow-soft ${isDarkMode ? "border-slate-700 bg-slate-900/80" : "border-pink-100 bg-white/85"}`}>
+            <h3 className={`text-xl font-bold ${isDarkMode ? "text-slate-100" : "text-slate-700"}`}>{t.weeklyWeather}</h3>
             {weeklyWeather.length === 0 ? (
               <p className={`mt-3 text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>{t.weatherLoading}</p>
             ) : (
-              <div className="mt-4 overflow-x-auto pb-2">
-                <div className="flex min-w-max gap-3">
-                  {weeklyWeather.map((day) => (
-                    <article
-                      key={day.date}
-                      className={`w-40 rounded-2xl border px-4 py-3 ${isDarkMode ? "border-slate-700 bg-slate-800 text-slate-100" : "border-pink-100 bg-pink-50/70 text-slate-700"}`}
-                    >
-                      <p className="text-sm font-semibold">{formatWeatherDay(day.date)}</p>
-                      <p className="mt-2 text-2xl">{getWeatherIcon(day.code)}</p>
-                      <p className="mt-2 text-base font-medium">{day.max}° / {day.min}°</p>
-                    </article>
-                  ))}
-                </div>
+              <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                {weeklyWeather.map((day) => (
+                  <article
+                    key={day.date}
+                    className={`w-full rounded-2xl border px-3 py-2.5 ${isDarkMode ? "border-slate-700 bg-slate-800 text-slate-100" : "border-pink-100 bg-pink-50/70 text-slate-700"}`}
+                  >
+                    <p className="text-xs font-semibold">{formatWeatherDay(day.date)}</p>
+                    <p className="mt-1.5 text-xl">{getWeatherIcon(day.code)}</p>
+                    <p className="mt-1.5 text-sm font-medium">{day.max}° / {day.min}°</p>
+                  </article>
+                ))}
               </div>
             )}
           </section>
