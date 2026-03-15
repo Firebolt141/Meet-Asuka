@@ -1657,6 +1657,20 @@ export default function Home() {
                                     </button>
                                   </div>
                                 ) : null}
+                                {group.key === "doneTodo" && item.category === "todo" ? (
+                                  <div className="mt-2 flex justify-end">
+                                    <button
+                                      type="button"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        void handleDeleteItem(item.id);
+                                      }}
+                                      className="rounded-full border border-rose-200 px-2.5 py-0.5 text-[11px] font-semibold text-rose-500 hover:bg-rose-100"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                ) : null}
                                 {item.category === "trip" && item.tripTodoItems && item.tripTodoItems.length > 0 ? (
                                   <div className="mt-1 space-y-1">
                                     {item.tripTodoItems.slice(0, 2).map((todo, index) => (
