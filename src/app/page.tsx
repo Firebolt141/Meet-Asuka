@@ -155,6 +155,7 @@ const normalizePlannerItem = (item: unknown): PlannerItem | null => {
     participants: typeof raw.participants === "string" ? raw.participants : undefined,
     pic: typeof raw.pic === "string" ? raw.pic : undefined,
     completed: typeof raw.completed === "boolean" ? raw.completed : undefined,
+    parentTripId: typeof raw.parentTripId === "string" ? raw.parentTripId : undefined,
     details: typeof raw.details === "string" ? raw.details : ""
   };
 };
@@ -175,6 +176,25 @@ const createEmptyTripTodo = (): TripTodoEntry => ({
   details: "",
   participants: ""
 });
+
+const buildTripTodoPlannerItems = (tripId: string, tripTitle: string, tripDate: string, tripTodos: TripTodoEntry[]): PlannerItem[] => {
+  return tripTodos.map((todo, index) => {
+    const trimmedTitle = todo.title.trim();
+    const trimmedDetails = todo.details.trim();
+    const trimmedPic = todo.participants?.trim() ?? "";
+
+    return {
+      id: crypto.randomUUID(),
+      title: trimmedTitle || `${tripTitle} • Todo ${index + 1}`,
+      category: "todo",
+      date: todo.date || tripDate,
+      pic: trimmedPic || undefined,
+      completed: false,
+      parentTripId: tripId,
+      details: trimmedDetails
+    };
+  });
+};
 
 type PlannerFormState = {
   title: string;
@@ -292,25 +312,8 @@ export default function Home() {
   );
 
   const todoItems = useMemo(
-    () =>
-      items.filter((item) => {
-        if (item.category !== "todo") {
-          return false;
-        }
-
-        if (!item.completed) {
-          return true;
-        }
-
-        if (!item.date) {
-          return false;
-        }
-
-        const itemDate = new Date(item.date);
-        itemDate.setHours(0, 0, 0, 0);
-        return itemDate < normalizedToday;
-      }),
-    [items, normalizedToday]
+    () => items.filter((item) => item.category === "todo" && !item.completed),
+    [items]
   );
 
   const allPastItems = useMemo(
@@ -358,13 +361,6 @@ export default function Home() {
       entries: todoItems
     },
     {
-      key: "doneTodo",
-      label: t.doneTodos,
-      color: "text-slate-400",
-      icon: "✅",
-      entries: doneTodoItems
-    },
-    {
       key: "wishlist",
       label: t.wishlist,
       color: "text-amber-500",
@@ -377,6 +373,13 @@ export default function Home() {
       color: "text-rose-500",
       icon: "⏳",
       entries: allPastItems
+    },
+    {
+      key: "doneTodo",
+      label: t.doneTodos,
+      color: "text-slate-400",
+      icon: "✅",
+      entries: doneTodoItems
     }
   ];
 
@@ -580,7 +583,13 @@ export default function Home() {
   }, [isLoggedIn]);
 
   const handleDeleteItem = async (id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
+    const target = items.find((item) => item.id === id);
+    const linkedTodoIds =
+      target?.category === "trip"
+        ? items.filter((item) => item.parentTripId === id).map((item) => item.id)
+        : [];
+
+    setItems((prev) => prev.filter((item) => item.id !== id && item.parentTripId !== id));
 
     if (!isFirebaseConfigured) {
       return;
@@ -588,6 +597,7 @@ export default function Home() {
 
     try {
       await deletePlannerItem(id);
+      await Promise.all(linkedTodoIds.map((todoId) => deletePlannerItem(todoId)));
     } catch (error) {
       console.error("Failed to delete planner item from Firestore", error);
     }
@@ -978,14 +988,23 @@ export default function Home() {
               className="mt-6 space-y-4"
               onSubmit={async (event) => {
                 event.preventDefault();
+                const normalizedTripTodos =
+                  newItem.category === "trip"
+                    ? newItem.tripTodoItems
+                        .map((todo) => ({
+                          title: todo.title.trim(),
+                          date: todo.date,
+                          details: todo.details.trim(),
+                          participants: todo.participants?.trim() || undefined
+                        }))
+                        .filter((todo) => todo.title || todo.details || todo.participants)
+                    : undefined;
+
                 const payload = {
                   title: newItem.title.trim() || "Untitled plan",
                   category: newItem.category as PlannerItem["category"],
                   date: newItem.category === "wishlist" ? "" : newItem.date,
-                  endDate:
-                    newItem.category === "trip"
-                      ? newItem.endDate || newItem.date
-                      : undefined,
+                  endDate: newItem.category === "trip" ? newItem.date : undefined,
                   startTime: newItem.category === "event" ? newItem.startTime : undefined,
                   endTime: newItem.category === "event" ? newItem.endTime : undefined,
                   location: newItem.category === "event" ? newItem.location.trim() : undefined,
@@ -994,17 +1013,7 @@ export default function Home() {
                       ? (newItem.recurring as PlannerItem["recurring"])
                       : undefined,
                   tripTodos: newItem.category === "trip" ? newItem.tripTodos.trim() : undefined,
-                  tripTodoItems:
-                    newItem.category === "trip"
-                      ? newItem.tripTodoItems
-                          .map((todo) => ({
-                            title: todo.title.trim(),
-                            date: todo.date,
-                            details: todo.details.trim(),
-                            participants: todo.participants?.trim() || undefined
-                          }))
-                          .filter((todo) => todo.title || todo.details || todo.participants)
-                      : undefined,
+                  tripTodoItems: normalizedTripTodos,
                   participants:
                     newItem.category !== "todo" ? newItem.participants.trim() || undefined : undefined,
                   pic: newItem.category === "todo" ? newItem.pic.trim() || undefined : undefined,
@@ -1014,32 +1023,56 @@ export default function Home() {
                       : undefined,
                   details: newItem.details.trim()
                 };
+
                 if (editingId) {
-                  setItems((prev) =>
-                    prev.map((item) => (item.id === editingId ? { ...item, ...payload } : item))
-                  );
+                  const generatedTripTodos =
+                    payload.category === "trip" && normalizedTripTodos
+                      ? buildTripTodoPlannerItems(editingId, payload.title, payload.date, normalizedTripTodos)
+                      : [];
+
+                  setItems((prev) => {
+                    const withoutLinkedTodos = prev.filter((item) => item.parentTripId !== editingId);
+                    return withoutLinkedTodos.map((item) =>
+                      item.id === editingId ? { ...item, ...payload } : item
+                    ).concat(generatedTripTodos);
+                  });
+
                   if (isFirebaseConfigured) {
                     try {
+                      const linkedTodoIds = items
+                        .filter((item) => item.parentTripId === editingId)
+                        .map((item) => item.id);
+
                       await updatePlannerItem(editingId, payload);
+                      await Promise.all(linkedTodoIds.map((todoId) => deletePlannerItem(todoId)));
+                      await Promise.all(generatedTripTodos.map((todo) => addPlannerItem(todo)));
                     } catch (error) {
                       console.error("Failed to update planner item in Firestore", error);
                     }
                   }
                 } else {
                   const id = crypto.randomUUID();
+                  const generatedTripTodos =
+                    payload.category === "trip" && normalizedTripTodos
+                      ? buildTripTodoPlannerItems(id, payload.title, payload.date, normalizedTripTodos)
+                      : [];
+
                   setItems((prev) => [
                     ...prev,
                     {
                       id,
                       ...payload
-                    }
+                    },
+                    ...generatedTripTodos
                   ]);
+
                   if (isFirebaseConfigured) {
                     try {
                       await addPlannerItem({
                         id,
                         ...payload
                       });
+                      await Promise.all(generatedTripTodos.map((todo) => addPlannerItem(todo)));
                     } catch (error) {
                       console.error("Failed to add planner item to Firestore", error);
                     }
@@ -1115,7 +1148,6 @@ export default function Home() {
                       setNewItem((prev) => ({ ...prev, title: event.target.value }))
                     }
                     className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                    placeholder="Cherry blossom day trip"
                   />
                 </label>
 
@@ -1124,10 +1156,6 @@ export default function Home() {
                   {newItem.category === "wishlist" ? (
                     <span className="mt-2 block w-full rounded-2xl border border-dashed border-pink-200 bg-pink-50/60 px-4 py-3 text-sm text-slate-500">
                       No date needed for wishlist dreams ✨
-                    </span>
-                  ) : newItem.category === "trip" ? (
-                    <span className="mt-2 block w-full rounded-2xl border border-dashed border-pink-200 bg-pink-50/60 px-4 py-3 text-sm text-slate-500">
-                      Pick your trip range below.
                     </span>
                   ) : (
                     <input
@@ -1144,30 +1172,6 @@ export default function Home() {
 
               {newItem.category === "trip" ? (
                 <div className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <label className="block text-sm font-medium text-slate-700">
-                      From
-                      <input
-                        type="date"
-                        value={newItem.date}
-                        onChange={(event) =>
-                          setNewItem((prev) => ({ ...prev, date: event.target.value }))
-                        }
-                        className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                      />
-                    </label>
-                    <label className="block text-sm font-medium text-slate-700">
-                      To
-                      <input
-                        type="date"
-                        value={newItem.endDate}
-                        onChange={(event) =>
-                          setNewItem((prev) => ({ ...prev, endDate: event.target.value }))
-                        }
-                        className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                      />
-                    </label>
-                  </div>
                   <div className="space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-3">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold text-indigo-700">Trip todos</p>
@@ -1200,7 +1204,6 @@ export default function Home() {
                                 }))
                               }
                               className="mt-1 w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none"
-                              placeholder="Pack camera"
                             />
                           </label>
                           <label className="block text-xs font-medium text-slate-700">
@@ -1233,7 +1236,6 @@ export default function Home() {
                               }))
                             }
                             className="mt-1 w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none"
-                            placeholder="Person responsible"
                           />
                         </label>
                         <label className="block text-xs font-medium text-slate-700">
@@ -1249,7 +1251,6 @@ export default function Home() {
                               }))
                             }
                             className="mt-1 min-h-[70px] w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none"
-                            placeholder="Charge battery and pack the strap."
                           />
                         </label>
                         {newItem.tripTodoItems.length > 1 ? (
@@ -1307,7 +1308,6 @@ export default function Home() {
                           setNewItem((prev) => ({ ...prev, location: event.target.value }))
                         }
                         className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                        placeholder="Shibuya Sky"
                       />
                     </label>
                     <label className="block text-sm font-medium text-slate-700">
@@ -1341,7 +1341,6 @@ export default function Home() {
                     )
                   }
                   className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                  placeholder={newItem.category === "todo" ? "Person responsible" : "Asuka, Yui, Rina"}
                 />
               </label>
 
