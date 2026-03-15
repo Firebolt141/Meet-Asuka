@@ -123,6 +123,7 @@ export function Calendar({
             date.getMonth() === selectedDate.getMonth() &&
             date.getDate() === selectedDate.getDate();
           const dayItems = itemsByDate[dateKey] ?? [];
+          const indicatorItems = dayItems.filter((item) => !(item.category === "todo" && item.completed));
           const tripSpan = tripSpansByDate[dateKey];
           const hasTripLeftConnector = Boolean(tripSpan && !tripSpan.isStart);
           const hasTripRightConnector = Boolean(tripSpan && !tripSpan.isEnd);
@@ -146,7 +147,7 @@ export function Calendar({
                 {date.getDate()}
               </span>
               <span className="pointer-events-none absolute bottom-4 z-10 flex gap-1">
-                {dayItems.slice(0, 3).map((item) => (
+                {indicatorItems.slice(0, 3).map((item) => (
                   <span
                     key={item.id}
                     className={`h-1.5 w-1.5 rounded-full ${
@@ -173,7 +174,7 @@ export function Calendar({
                 </span>
               ) : null}
               <span className="relative z-10 mt-auto mb-1 flex gap-1 opacity-0">
-                {dayItems.slice(0, 3).map((item) => (
+                {indicatorItems.slice(0, 3).map((item) => (
                   <span
                     key={item.id}
                     className={`h-1.5 w-1.5 rounded-full ${
