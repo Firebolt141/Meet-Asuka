@@ -661,7 +661,7 @@ export default function Home() {
   return (
     <main className={`min-h-screen px-5 pb-24 pt-6 ${isDarkMode ? "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" : "bg-gradient-to-br from-pink-50 via-blush to-orange-100"}`}>
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-        <header className={`sticky top-4 z-20 rounded-3xl px-3 py-2 shadow-soft backdrop-blur ${isDarkMode ? "bg-slate-900/85 border border-slate-700" : "bg-white/70"}`}>
+        <header className={`relative z-20 rounded-3xl px-3 py-2 shadow-soft backdrop-blur ${isDarkMode ? "bg-slate-900/85 border border-slate-700" : "bg-white/70"}`}>
           <div className="flex items-center justify-between">
             <button
               type="button"
@@ -681,40 +681,69 @@ export default function Home() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setIsDarkMode((prev) => !prev)}
-                className={`inline-flex h-10 w-10 items-center justify-center rounded-full shadow ${isDarkMode ? "bg-slate-800 text-amber-300" : "bg-white text-slate-700"}`}
-                aria-label={isDarkMode ? t.lightMode : t.darkMode}
-                title={isDarkMode ? t.lightMode : t.darkMode}
-              >
-                {isDarkMode ? "☀️" : "🌙"}
-              </button>
-              <button
-                type="button"
                 onClick={() => setLanguage((prev) => (prev === "en" ? "ja" : "en"))}
-                className={`inline-flex h-10 w-10 items-center justify-center rounded-full shadow ${isDarkMode ? "bg-slate-800 text-sky-300" : "bg-white text-slate-700"}`}
+                className={`inline-flex h-11 w-11 items-center justify-center rounded-full border shadow-sm ${isDarkMode ? "border-slate-500 bg-slate-700 text-slate-100" : "border-slate-300 bg-slate-100 text-slate-700"}`}
                 aria-label={t.switchLanguage}
                 title={t.switchLanguage}
               >
-                🌐
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 5h7m-3.5 0v1.5M6 8h5m-2.5 0c0 2.7-1.7 4.7-4 6m6-2c-1.3-1-2.4-2.3-3.1-4" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14 8h6m-3 0v11m-4-3h8" />
+                </svg>
               </button>
               <button
                 type="button"
-                onClick={() => setIsWeatherCardOpen((prev) => !prev)}
-                className={`flex items-center gap-2 rounded-full px-3 py-2 text-xs font-medium shadow ${isDarkMode ? "bg-slate-800 text-slate-100" : "bg-white/90 text-slate-700"}`}
-                aria-label={t.weeklyWeather}
+                onClick={() => setIsDarkMode((prev) => !prev)}
+                className={`inline-flex h-11 w-11 items-center justify-center rounded-full border shadow-sm ${isDarkMode ? "border-slate-500 bg-slate-700 text-slate-100" : "border-slate-300 bg-slate-100 text-slate-700"}`}
+                aria-label={isDarkMode ? t.lightMode : t.darkMode}
+                title={isDarkMode ? t.lightMode : t.darkMode}
               >
-                <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${isDarkMode ? "bg-slate-700" : "bg-pink-100"}`}>
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    className={`h-5 w-5 ${isDarkMode ? "text-pink-300" : "text-pink-500"}`}
-                    fill="currentColor"
-                  >
-                    <path d="M6.4 13a4.6 4.6 0 1 1 8.9-1.8A3.8 3.8 0 1 1 16 18H7.5a3.5 3.5 0 0 1-1.1-5z" />
-                  </svg>
-                </span>
-                <span className="hidden sm:inline">{weatherLabel}</span>
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                  <circle cx="12" cy="12" r="3.2" />
+                  <path strokeLinecap="round" d="M12 2.5v2.2M12 19.3v2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" />
+                </svg>
               </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsWeatherCardOpen((prev) => !prev)}
+                  className={`flex items-center gap-2 rounded-full px-3 py-2 text-xs font-medium shadow ${isDarkMode ? "bg-slate-800 text-slate-100" : "bg-white/90 text-slate-700"}`}
+                  aria-label={t.weeklyWeather}
+                >
+                  <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${isDarkMode ? "bg-slate-700" : "bg-pink-100"}`}>
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className={`h-5 w-5 ${isDarkMode ? "text-pink-300" : "text-pink-500"}`}
+                      fill="currentColor"
+                    >
+                      <path d="M6.4 13a4.6 4.6 0 1 1 8.9-1.8A3.8 3.8 0 1 1 16 18H7.5a3.5 3.5 0 0 1-1.1-5z" />
+                    </svg>
+                  </span>
+                  <span className="hidden sm:inline">{weatherLabel}</span>
+                </button>
+                {isWeatherCardOpen ? (
+                  <div className={`absolute right-0 mt-2 w-72 rounded-2xl border p-3 shadow-xl ${isDarkMode ? "border-slate-700 bg-slate-900 text-slate-100" : "border-pink-100 bg-white text-slate-700"}`}>
+                    <p className={`text-sm font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-700"}`}>{t.weeklyWeather}</p>
+                    {weeklyWeather.length === 0 ? (
+                      <p className={`mt-2 text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>{t.weatherLoading}</p>
+                    ) : (
+                      <div className="mt-3 space-y-2">
+                        {weeklyWeather.map((day) => (
+                          <div
+                            key={day.date}
+                            className={`flex items-center justify-between rounded-xl border px-3 py-2 ${isDarkMode ? "border-slate-700 bg-slate-800 text-slate-100" : "border-pink-100 bg-pink-50/60 text-slate-700"}`}
+                          >
+                            <p className="text-xs font-semibold">{formatWeatherDay(day.date)}</p>
+                            <p className="text-lg">{getWeatherIcon(day.code)}</p>
+                            <p className="text-xs font-medium">{day.max}° / {day.min}°</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
           {isWeatherCardOpen ? (
