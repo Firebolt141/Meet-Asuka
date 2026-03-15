@@ -268,6 +268,17 @@ export default function Home() {
     { category: "todo", title: "TODO", subtitle: "deadline", icon: "✅" },
     { category: "wishlist", title: "Wishlist", subtitle: "someday", icon: "♡" }
   ];
+  const modalTitleClass = isDarkMode ? "text-slate-100" : "text-slate-800";
+  const modalLabelClass = isDarkMode ? "block text-sm font-medium text-slate-200" : "block text-sm font-medium text-slate-700";
+  const modalInputClass = isDarkMode
+    ? "mt-2 w-full rounded-2xl border border-slate-600 bg-slate-800 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-500/30"
+    : "mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200";
+  const modalInputCompactClass = isDarkMode
+    ? "mt-1 w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-pink-400 focus:outline-none"
+    : "mt-1 w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none";
+  const modalTextareaClass = isDarkMode
+    ? "mt-2 min-h-[110px] w-full rounded-2xl border border-slate-600 bg-slate-800 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-500/30"
+    : "mt-2 min-h-[110px] w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200";
   const todaysWeatherSummary = useMemo(() => {
     if (weeklyWeather.length === 0) {
       return t.weatherLoading;
@@ -292,6 +303,11 @@ export default function Home() {
       if (!item.date) {
         return false;
       }
+
+      if (item.category === "todo" && item.completed) {
+        return false;
+      }
+
       if (item.category !== "trip") {
         return item.date === selectedKey;
       }
@@ -1004,7 +1020,7 @@ export default function Home() {
           <div className={`max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-3xl p-6 shadow-soft ${isDarkMode ? "bg-slate-900 text-slate-100" : "bg-white"}`}>
             <div className="flex items-start justify-between">
               <div>
-                <h4 className="text-xl font-semibold text-slate-800">
+                <h4 className={`text-xl font-semibold ${modalTitleClass}`}>
                   {editingId ? "Edit plan" : isChoosingCategory ? "Add something ✨" : "Add a sweet plan"}
                 </h4>
                 <p className={`text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>
@@ -1170,7 +1186,7 @@ export default function Home() {
               }}
             >
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="block text-sm font-medium text-slate-700">
+                <label className={modalLabelClass}>
                   Category
                   <select
                     value={newItem.category}
@@ -1199,7 +1215,7 @@ export default function Home() {
                         };
                       })
                     }
-                    className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                    className={modalInputClass}
                   >
                     <option value="trip">Trip</option>
                     <option value="event">Event</option>
@@ -1208,19 +1224,19 @@ export default function Home() {
                   </select>
                 </label>
 
-                <label className="block text-sm font-medium text-slate-700">
+                <label className={modalLabelClass}>
                   Title
                   <input
                     value={newItem.title}
                     onChange={(event) =>
                       setNewItem((prev) => ({ ...prev, title: event.target.value }))
                     }
-                    className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                    className={modalInputClass}
                   />
                 </label>
 
                 {newItem.category === "event" || newItem.category === "todo" ? (
-                  <label className="block text-sm font-medium text-slate-700">
+                  <label className={modalLabelClass}>
                     Date
                     <input
                       type="date"
@@ -1228,7 +1244,7 @@ export default function Home() {
                       onChange={(event) =>
                         setNewItem((prev) => ({ ...prev, date: event.target.value }))
                       }
-                      className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      className={modalInputClass}
                     />
                   </label>
                 ) : null}
@@ -1236,9 +1252,35 @@ export default function Home() {
 
               {newItem.category === "trip" ? (
                 <div className="space-y-4">
-                  <div className="space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-3">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className={modalLabelClass}>
+                      From
+                      <input
+                        type="date"
+                        required
+                        value={newItem.date}
+                        onChange={(event) =>
+                          setNewItem((prev) => ({ ...prev, date: event.target.value }))
+                        }
+                        className={modalInputClass}
+                      />
+                    </label>
+                    <label className={modalLabelClass}>
+                      To
+                      <input
+                        type="date"
+                        required
+                        value={newItem.endDate}
+                        onChange={(event) =>
+                          setNewItem((prev) => ({ ...prev, endDate: event.target.value }))
+                        }
+                        className={modalInputClass}
+                      />
+                    </label>
+                  </div>
+                  <div className={`space-y-3 rounded-2xl border p-3 ${isDarkMode ? "border-slate-600 bg-slate-700/40" : "border-indigo-100 bg-indigo-50/40"}`}>
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-indigo-700">Trip todos</p>
+                      <p className={`text-sm font-semibold ${isDarkMode ? "text-indigo-300" : "text-indigo-700"}`}>Trip todos</p>
                       <button
                         type="button"
                         onClick={() =>
@@ -1247,15 +1289,15 @@ export default function Home() {
                             tripTodoItems: [...prev.tripTodoItems, createEmptyTripTodo()]
                           }))
                         }
-                        className="rounded-full border border-indigo-200 px-3 py-1 text-xs font-semibold text-indigo-600 hover:bg-indigo-100"
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${isDarkMode ? "border-indigo-400/40 text-indigo-300 hover:bg-slate-700" : "border-indigo-200 text-indigo-600 hover:bg-indigo-100"}`}
                       >
                         + Add todo
                       </button>
                     </div>
                     {newItem.tripTodoItems.map((todo, todoIndex) => (
-                      <div key={`trip-todo-${todoIndex}`} className="space-y-2 rounded-xl border border-indigo-100 bg-white p-3">
+                      <div key={`trip-todo-${todoIndex}`} className={`space-y-2 rounded-xl border p-3 ${isDarkMode ? "border-slate-600 bg-slate-800" : "border-indigo-100 bg-white"}`}>
                         <div className="grid gap-3 md:grid-cols-2">
-                          <label className="block text-xs font-medium text-slate-700">
+                          <label className={`block text-xs font-medium ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
                             Todo title
                             <input
                               value={todo.title}
@@ -1267,10 +1309,10 @@ export default function Home() {
                                   )
                                 }))
                               }
-                              className="mt-1 w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none"
+                              className={modalInputCompactClass}
                             />
                           </label>
-                          <label className="block text-xs font-medium text-slate-700">
+                          <label className={`block text-xs font-medium ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
                             Due date
                             <input
                               type="date"
@@ -1283,11 +1325,11 @@ export default function Home() {
                                   )
                                 }))
                               }
-                              className="mt-1 w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none"
+                              className={modalInputCompactClass}
                             />
                           </label>
                         </div>
-                        <label className="block text-xs font-medium text-slate-700">
+                        <label className={`block text-xs font-medium ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
                           PIC
                           <input
                             value={todo.participants ?? ""}
@@ -1299,10 +1341,10 @@ export default function Home() {
                                 )
                               }))
                             }
-                            className="mt-1 w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none"
+                            className={modalInputCompactClass}
                           />
                         </label>
-                        <label className="block text-xs font-medium text-slate-700">
+                        <label className={`block text-xs font-medium ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
                           Details
                           <textarea
                             value={todo.details}
@@ -1340,7 +1382,7 @@ export default function Home() {
               {newItem.category === "event" ? (
                 <div className="space-y-4">
                   <div className="grid gap-4 md:grid-cols-2">
-                    <label className="block text-sm font-medium text-slate-700">
+                    <label className={modalLabelClass}>
                       From time
                       <input
                         type="time"
@@ -1348,10 +1390,10 @@ export default function Home() {
                         onChange={(event) =>
                           setNewItem((prev) => ({ ...prev, startTime: event.target.value }))
                         }
-                        className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                        className={modalInputClass}
                       />
                     </label>
-                    <label className="block text-sm font-medium text-slate-700">
+                    <label className={modalLabelClass}>
                       To time (optional)
                       <input
                         type="time"
@@ -1359,29 +1401,29 @@ export default function Home() {
                         onChange={(event) =>
                           setNewItem((prev) => ({ ...prev, endTime: event.target.value }))
                         }
-                        className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                        className={modalInputClass}
                       />
                     </label>
                   </div>
                   <div className="grid gap-4 md:grid-cols-2">
-                    <label className="block text-sm font-medium text-slate-700">
+                    <label className={modalLabelClass}>
                       Location
                       <input
                         value={newItem.location}
                         onChange={(event) =>
                           setNewItem((prev) => ({ ...prev, location: event.target.value }))
                         }
-                        className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                        className={modalInputClass}
                       />
                     </label>
-                    <label className="block text-sm font-medium text-slate-700">
+                    <label className={modalLabelClass}>
                       Recurring
                       <select
                         value={newItem.recurring}
                         onChange={(event) =>
                           setNewItem((prev) => ({ ...prev, recurring: event.target.value as PlannerItem["recurring"] }))
                         }
-                        className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                        className={modalInputClass}
                       >
                         <option value="none">Does not repeat</option>
                         <option value="daily">Daily</option>
@@ -1393,7 +1435,7 @@ export default function Home() {
                 </div>
               ) : null}
 
-              <label className="block text-sm font-medium text-slate-700">
+              <label className={modalLabelClass}>
                 {newItem.category === "todo" ? "PIC" : "Participants"}
                 <input
                   value={newItem.category === "todo" ? newItem.pic : newItem.participants}
@@ -1404,18 +1446,18 @@ export default function Home() {
                         : { ...prev, participants: event.target.value }
                     )
                   }
-                  className="mt-2 w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  className={modalInputClass}
                 />
               </label>
 
-              <label className="block text-sm font-medium text-slate-700">
+              <label className={modalLabelClass}>
                 Details
                 <textarea
                   value={newItem.details}
                   onChange={(event) =>
                     setNewItem((prev) => ({ ...prev, details: event.target.value }))
                   }
-                  className="mt-2 min-h-[110px] w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  className={modalTextareaClass}
                 />
               </label>
 
