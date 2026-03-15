@@ -585,12 +585,13 @@ export default function Home() {
     return "🌤️";
   };
 
-  const formatWeatherDay = (date: string) =>
-    new Date(date).toLocaleDateString(language === "ja" ? "ja-JP" : "en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric"
+  const formatWeatherDayCompact = (date: string) => {
+    const parsed = new Date(date);
+    const weekday = parsed.toLocaleDateString(language === "ja" ? "ja-JP" : "en-US", {
+      weekday: "short"
     });
+    return `${weekday} ${parsed.getDate()}`;
+  };
 
   const handleLogin = () => {
     if (pinInput === LOGIN_PIN) {
@@ -738,15 +739,15 @@ export default function Home() {
             {weeklyWeather.length === 0 ? (
               <p className={`mt-3 text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>{t.weatherLoading}</p>
             ) : (
-              <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+              <div className="mt-3 grid grid-cols-7 gap-1">
                 {weeklyWeather.map((day) => (
                   <article
                     key={day.date}
-                    className={`w-full rounded-2xl border px-3 py-2.5 ${isDarkMode ? "border-slate-700 bg-slate-800 text-slate-100" : "border-pink-100 bg-pink-50/70 text-slate-700"}`}
+                    className={`w-full rounded-lg border px-1 py-1.5 text-center ${isDarkMode ? "border-slate-700 bg-slate-800 text-slate-100" : "border-pink-100 bg-pink-50/70 text-slate-700"}`}
                   >
-                    <p className="text-xs font-semibold">{formatWeatherDay(day.date)}</p>
-                    <p className="mt-1.5 text-xl">{getWeatherIcon(day.code)}</p>
-                    <p className="mt-1.5 text-sm font-medium">{day.max}° / {day.min}°</p>
+                    <p className="text-[10px] font-semibold leading-tight">{formatWeatherDayCompact(day.date)}</p>
+                    <p className="mt-1 text-sm leading-none">{getWeatherIcon(day.code)}</p>
+                    <p className="mt-1 text-[10px] font-medium leading-tight">{day.max}°/{day.min}°</p>
                   </article>
                 ))}
               </div>
