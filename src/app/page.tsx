@@ -9,6 +9,11 @@ import {
   isFirebaseConfigured,
   updatePlannerItem
 } from "@/lib/firestore";
+import {
+  notificationPermissionStatus,
+  requestNotificationPermission,
+  scheduleReminders
+} from "@/lib/notifications";
 
 const pad = (value: number) => value.toString().padStart(2, "0");
 
@@ -164,7 +169,8 @@ const normalizePlannerItem = (item: unknown): PlannerItem | null => {
     pic: typeof raw.pic === "string" ? raw.pic : undefined,
     completed: typeof raw.completed === "boolean" ? raw.completed : undefined,
     parentTripId: typeof raw.parentTripId === "string" ? raw.parentTripId : undefined,
-    details: typeof raw.details === "string" && raw.details !== "A dreamy new memory." ? raw.details : ""
+    details: typeof raw.details === "string" && raw.details !== "A dreamy new memory." ? raw.details : "",
+    reminderDays: typeof raw.reminderDays === "number" ? raw.reminderDays : undefined
   };
 };
 
@@ -199,7 +205,8 @@ const createEmptyFormState = (date?: string): PlannerFormState => ({
   participants: "",
   pic: "",
   completed: false,
-  details: ""
+  details: "",
+  reminderDays: null
 });
 
 const buildTripTodoPlannerItems = (tripId: string, tripTitle: string, tripDate: string, tripTodos: TripTodoEntry[]): PlannerItem[] => {
@@ -236,6 +243,7 @@ type PlannerFormState = {
   pic: string;
   completed: boolean;
   details: string;
+  reminderDays: number | null;
 };
 
 export default function Home() {
@@ -272,6 +280,7 @@ export default function Home() {
   });
   const [weatherLabel, setWeatherLabel] = useState<string>(translations.en.weatherLoading);
   const [hasHydratedPlanner, setHasHydratedPlanner] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<"granted" | "denied" | "default" | "unsupported">("default");
   const [syncError, setSyncError] = useState<string | null>(null);
   const t = translations[language];
   const addPlanCategoryOptions: Array<{ category: PlannerItem["category"]; title: string; subtitle: string; icon: string }> = [
@@ -557,6 +566,18 @@ export default function Home() {
     }
     window.localStorage.setItem(LOCAL_ITEMS_KEY, JSON.stringify(items));
   }, [hasHydratedPlanner, items]);
+
+  // Initialize notification permission state and schedule reminders
+  useEffect(() => {
+    if (!hasHydratedPlanner) return;
+    setNotifPermission(notificationPermissionStatus());
+  }, [hasHydratedPlanner]);
+
+  useEffect(() => {
+    if (!hasHydratedPlanner) return;
+    if (notifPermission !== "granted") return;
+    void scheduleReminders(items);
+  }, [hasHydratedPlanner, items, notifPermission]);
 
   useEffect(() => {
     const loadWeather = async () => {
@@ -883,6 +904,23 @@ export default function Home() {
           </div>
         ) : null}
 
+        {notifPermission === "default" ? (
+          <div className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm ${isDarkMode ? "border-pink-800/50 bg-pink-950/30 text-pink-300" : "border-pink-200 bg-pink-50 text-pink-800"}`}>
+            <p className="leading-snug">🔔 Enable reminders to get notified before trips & events</p>
+            <button
+              type="button"
+              onClick={async () => {
+                const granted = await requestNotificationPermission();
+                setNotifPermission(granted ? "granted" : "denied");
+                if (granted) void scheduleReminders(items);
+              }}
+              className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${isDarkMode ? "bg-pink-700 text-white hover:bg-pink-600" : "bg-pink-500 text-white hover:bg-pink-600"}`}
+            >
+              Allow
+            </button>
+          </div>
+        ) : null}
+
         {isWeatherCardOpen ? (
           <section className={`rounded-3xl border p-4 shadow-soft ${isDarkMode ? "border-slate-700 bg-slate-900/80" : "border-pink-100 bg-white/85"}`}>
             <h3 className={`text-xl font-bold ${isDarkMode ? "text-slate-100" : "text-slate-700"}`}>{t.weeklyWeather}</h3>
@@ -990,7 +1028,8 @@ export default function Home() {
                         participants: item.participants ?? "",
                         pic: item.pic ?? "",
                         completed: item.completed ?? false,
-                        details: item.details === "A dreamy new memory." ? "" : item.details
+                        details: item.details === "A dreamy new memory." ? "" : item.details,
+                        reminderDays: item.reminderDays ?? null
                       });
                       setIsModalOpen(true);
                     }}
@@ -1169,7 +1208,8 @@ export default function Home() {
                     newItem.category === "todo" || newItem.category === "wishlist"
                       ? newItem.completed
                       : undefined,
-                  details: newItem.details.trim()
+                  details: newItem.details.trim(),
+                  reminderDays: newItem.category !== "wishlist" && newItem.reminderDays != null ? newItem.reminderDays : undefined
                 };
 
                 if (editingId) {
@@ -1517,6 +1557,40 @@ export default function Home() {
                 />
               </label>
 
+              {newItem.category !== "wishlist" && (
+                <div>
+                  <p className={`mb-2 text-sm font-medium ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
+                    🔔 Reminder
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {([
+                      { label: "Off", value: null },
+                      { label: "Day of", value: 0 },
+                      { label: "1 day before", value: 1 },
+                      { label: "3 days before", value: 3 },
+                      { label: "1 week before", value: 7 }
+                    ] as { label: string; value: number | null }[]).map(({ label, value }) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => setNewItem((prev) => ({ ...prev, reminderDays: value }))}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                          newItem.reminderDays === value
+                            ? isDarkMode
+                              ? "border-pink-400 bg-pink-900/40 text-pink-300"
+                              : "border-pink-400 bg-pink-100 text-pink-700"
+                            : isDarkMode
+                            ? "border-slate-700 text-slate-400 hover:border-pink-500"
+                            : "border-pink-100 text-slate-500 hover:border-pink-300"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-end gap-3">
                 {editingId ? (
                   <button
@@ -1646,7 +1720,8 @@ export default function Home() {
                                     participants: item.participants ?? "",
                                     pic: item.pic ?? "",
                                     completed: item.completed ?? false,
-                                    details: item.details === "A dreamy new memory." ? "" : item.details
+                                    details: item.details === "A dreamy new memory." ? "" : item.details,
+                                    reminderDays: item.reminderDays ?? null
                                   });
                                   setReturnToNavAfterModal(true);
                                   setIsModalOpen(true);
@@ -1690,7 +1765,8 @@ export default function Home() {
                                           participants: item.participants ?? "",
                                           pic: item.pic ?? "",
                                           completed: item.completed ?? false,
-                                          details: item.details === "A dreamy new memory." ? "" : item.details
+                                          details: item.details === "A dreamy new memory." ? "" : item.details,
+                                          reminderDays: item.reminderDays ?? null
                                         });
                                         setReturnToNavAfterModal(true);
                                         setIsModalOpen(true);
