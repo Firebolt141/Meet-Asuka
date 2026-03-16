@@ -367,6 +367,9 @@ export default function Home() {
     [items, normalizedToday]
   );
 
+  const byDateAsc = (a: PlannerItem, b: PlannerItem) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  const byDateDesc = (a: PlannerItem, b: PlannerItem) => (a.date > b.date ? -1 : a.date < b.date ? 1 : 0);
+
   const navGroups: {
     key: NavGroupKey;
     label: string;
@@ -385,7 +388,7 @@ export default function Home() {
         const relevantDate = new Date(item.endDate || item.date);
         relevantDate.setHours(0, 0, 0, 0);
         return relevantDate >= normalizedToday;
-      })
+      }).sort(byDateAsc)
     },
     {
       key: "event",
@@ -397,35 +400,37 @@ export default function Home() {
         const eventDate = new Date(item.date);
         eventDate.setHours(0, 0, 0, 0);
         return eventDate >= normalizedToday;
-      })
+      }).sort(byDateAsc)
     },
     {
       key: "todo",
       label: t.todos,
       color: "text-sky-500",
       icon: "📝",
-      entries: todoItems
+      entries: [...todoItems].sort(byDateAsc)
     },
     {
       key: "wishlist",
       label: t.wishlist,
       color: "text-amber-500",
       icon: "🌟",
-      entries: items.filter((item) => item.category === "wishlist")
+      entries: items
+        .filter((item) => item.category === "wishlist")
+        .sort((a, b) => a.title.localeCompare(b.title))
     },
     {
       key: "past",
       label: t.pastPlans,
       color: "text-rose-500",
       icon: "⏳",
-      entries: allPastItems
+      entries: [...allPastItems].sort(byDateDesc)
     },
     {
       key: "doneTodo",
       label: t.doneTodos,
       color: "text-slate-400",
       icon: "✅",
-      entries: doneTodoItems
+      entries: [...doneTodoItems].sort(byDateDesc)
     }
   ];
 
