@@ -906,7 +906,7 @@ export default function Home() {
           </div>
         ) : null}
 
-        {notifPermission === "granted" ? (
+        {true /* TODO: remove after testing */ ? (
           <div className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm ${isDarkMode ? "border-yellow-800/50 bg-yellow-950/30 text-yellow-300" : "border-yellow-200 bg-yellow-50 text-yellow-800"}`}>
             <p className="leading-snug">🧪 Test notification</p>
             <button
