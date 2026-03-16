@@ -267,8 +267,8 @@ export default function Home() {
     event: false,
     todo: false,
     wishlist: false,
-    past: true,
-    doneTodo: true
+    past: false,
+    doneTodo: false
   });
   const [weatherLabel, setWeatherLabel] = useState<string>(translations.en.weatherLoading);
   const [hasHydratedPlanner, setHasHydratedPlanner] = useState(false);
@@ -820,11 +820,7 @@ export default function Home() {
                 <path d="M4 6h16a1 1 0 1 0 0-2H4a1 1 0 1 0 0 2zm16 5H4a1 1 0 1 0 0 2h16a1 1 0 1 0 0-2zm0 7H4a1 1 0 1 0 0 2h16a1 1 0 1 0 0-2z" />
               </svg>
             </button>
-            <div className="text-center">
-              <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${isDarkMode ? "text-pink-300" : "text-pink-400"}`}>
-                {t.plannerTagline}
-              </p>
-            </div>
+            <div />
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -1564,16 +1560,7 @@ export default function Home() {
       {isNavOpen ? (
         <div className="fixed inset-0 z-40 flex bg-black/40">
           <div className={`flex h-full w-72 flex-col p-6 shadow-soft ${isDarkMode ? "bg-slate-900" : "bg-white"}`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl text-xl ${isDarkMode ? "bg-slate-800" : "bg-pink-100"}`}>
-                  💖
-                </span>
-                <div>
-                  <p className={`text-xs uppercase tracking-[0.2em] ${isDarkMode ? "text-pink-300" : "text-pink-400"}`}>Asuka</p>
-                  <p className={`text-base font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>Sweet Planner</p>
-                </div>
-              </div>
+            <div className="flex items-center justify-end">
               <button
                 type="button"
                 onClick={() => setIsNavOpen(false)}
@@ -1593,11 +1580,7 @@ export default function Home() {
                         <button
                           type="button"
                           onClick={() => setActiveCategory(group.key)}
-                          className={`flex flex-1 items-center gap-3 rounded-xl px-2 py-2 text-left text-sm font-semibold transition ${
-                            activeCategory === group.key
-                              ? (isDarkMode ? "bg-slate-700 text-slate-100" : "bg-pink-50 text-slate-800")
-                              : (isDarkMode ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-pink-50")
-                          }`}
+                          className={`flex flex-1 items-center gap-3 rounded-xl px-2 py-2 text-left text-sm font-semibold transition ${isDarkMode ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-pink-50"}`}
                         >
                           <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl text-lg ${isDarkMode ? "bg-slate-700" : "bg-white"} ${group.color}`}>
                             {group.icon}
