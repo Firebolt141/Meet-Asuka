@@ -1467,7 +1467,6 @@ export default function Home() {
                             : "none";
                           setNewItem((prev) => ({ ...prev, recurring }));
                         }}
-                        }
                         className={modalInputClass}
                       >
                         <option value="none">Does not repeat</option>
