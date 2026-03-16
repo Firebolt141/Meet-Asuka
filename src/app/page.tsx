@@ -567,11 +567,10 @@ export default function Home() {
     window.localStorage.setItem(LOCAL_ITEMS_KEY, JSON.stringify(items));
   }, [hasHydratedPlanner, items]);
 
-  // Initialize notification permission state and schedule reminders
+  // Initialize notification permission state on mount (independent of data loading)
   useEffect(() => {
-    if (!hasHydratedPlanner) return;
     void getNotificationPermissionStatus().then(setNotifPermission);
-  }, [hasHydratedPlanner]);
+  }, []);
 
   useEffect(() => {
     if (!hasHydratedPlanner) return;
@@ -808,6 +807,9 @@ export default function Home() {
                 if (pinError) {
                   setPinError("");
                 }
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") handleLogin();
               }}
               className="sr-only"
               placeholder={t.pinPlaceholder}

@@ -44,7 +44,7 @@ export async function getNotificationPermissionStatus(): Promise<"granted" | "de
       if (result.display === "denied") return "denied";
       return "default"; // "prompt" or "prompt-with-rationale"
     } catch {
-      return "unsupported";
+      return "default"; // show banner anyway so user can attempt to enable
     }
   }
 
