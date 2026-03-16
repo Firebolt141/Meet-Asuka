@@ -5,8 +5,8 @@ import { Calendar, PlannerItem, type TripTodoEntry } from "@/components/Calendar
 import {
   addPlannerItem,
   deletePlannerItem,
-  getPlannerItems,
   isFirebaseConfigured,
+  subscribePlannerItems,
   updatePlannerItem
 } from "@/lib/firestore";
 import {
@@ -518,47 +518,51 @@ export default function Home() {
   }, [t.weatherLoading]);
 
   useEffect(() => {
-    const loadPlanner = async () => {
-      if (typeof window === "undefined") {
-        return;
-      }
+    if (typeof window === "undefined") {
+      return;
+    }
 
-      let localItems: PlannerItem[] = [];
-      const localRaw = window.localStorage.getItem(LOCAL_ITEMS_KEY);
-      if (localRaw) {
-        try {
-          const parsedItems = JSON.parse(localRaw) as unknown;
-          localItems = normalizePlannerItems(parsedItems);
-        } catch {
-          window.localStorage.removeItem(LOCAL_ITEMS_KEY);
-        }
-      }
-
-      if (!isFirebaseConfigured) {
-        setItems(localItems);
-        setHasHydratedPlanner(true);
-        return;
-      }
-
+    let localItems: PlannerItem[] = [];
+    const localRaw = window.localStorage.getItem(LOCAL_ITEMS_KEY);
+    if (localRaw) {
       try {
-        const remoteItems = normalizePlannerItems(await getPlannerItems());
-        setItems(remoteItems);
+        const parsedItems = JSON.parse(localRaw) as unknown;
+        localItems = normalizePlannerItems(parsedItems);
+      } catch {
+        window.localStorage.removeItem(LOCAL_ITEMS_KEY);
+      }
+    }
 
-        // Migrate legacy local-only data only when remote storage is still empty.
-        if (remoteItems.length === 0 && localItems.length > 0) {
-          await Promise.all(localItems.map((item) => addPlannerItem(item)));
+    if (!isFirebaseConfigured) {
+      setItems(localItems);
+      setHasHydratedPlanner(true);
+      return;
+    }
+
+    let hasMigrated = false;
+
+    const unsubscribe = subscribePlannerItems(
+      (remoteItems) => {
+        const normalized = normalizePlannerItems(remoteItems);
+        // Migrate legacy local-only data only on the first snapshot when remote is empty.
+        if (!hasMigrated && normalized.length === 0 && localItems.length > 0) {
+          hasMigrated = true;
+          void Promise.all(localItems.map((item) => addPlannerItem(item)));
           setItems(localItems);
+        } else {
+          setItems(normalized);
         }
-      } catch (error) {
+        setHasHydratedPlanner(true);
+      },
+      (error) => {
         console.error("Failed to sync planner items with Firestore", error);
         setItems(localItems);
         setSyncError("Couldn't reach the cloud — showing local data. Changes will still save locally.");
-      } finally {
         setHasHydratedPlanner(true);
       }
-    };
+    );
 
-    void loadPlanner();
+    return unsubscribe;
   }, []);
 
   useEffect(() => {
