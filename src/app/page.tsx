@@ -170,6 +170,7 @@ const normalizePlannerItem = (item: unknown): PlannerItem | null => {
     completed: typeof raw.completed === "boolean" ? raw.completed : undefined,
     parentTripId: typeof raw.parentTripId === "string" ? raw.parentTripId : undefined,
     details: typeof raw.details === "string" && raw.details !== "A dreamy new memory." ? raw.details : "",
+    reminderAt: typeof raw.reminderAt === "string" ? raw.reminderAt : undefined,
     reminderDays: typeof raw.reminderDays === "number" ? raw.reminderDays : undefined
   };
 };
@@ -182,6 +183,13 @@ const normalizePlannerItems = (items: unknown): PlannerItem[] => {
   return items
     .map((item) => normalizePlannerItem(item))
     .filter((item): item is PlannerItem => item !== null);
+};
+
+// Returns an ISO datetime string "YYYY-MM-DDTHH:MM" for a reminder N days before itemDate at 9 AM
+const reminderAtFromDaysBefore = (itemDate: string, days: number): string => {
+  const [y, m, d] = itemDate.split("-").map(Number);
+  const dt = new Date(y, m - 1, d - days, 9, 0, 0);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}T09:00`;
 };
 
 const createEmptyTripTodo = (): TripTodoEntry => ({
@@ -206,7 +214,7 @@ const createEmptyFormState = (date?: string): PlannerFormState => ({
   pic: "",
   completed: false,
   details: "",
-  reminderDays: null
+  reminderAt: ""
 });
 
 const buildTripTodoPlannerItems = (tripId: string, tripTitle: string, tripDate: string, tripTodos: TripTodoEntry[]): PlannerItem[] => {
@@ -243,7 +251,7 @@ type PlannerFormState = {
   pic: string;
   completed: boolean;
   details: string;
-  reminderDays: number | null;
+  reminderAt: string; // ISO datetime e.g. "2025-03-15T09:00", empty string = off
 };
 
 export default function Home() {
@@ -1032,7 +1040,7 @@ export default function Home() {
                         pic: item.pic ?? "",
                         completed: item.completed ?? false,
                         details: item.details === "A dreamy new memory." ? "" : item.details,
-                        reminderDays: item.reminderDays ?? null
+                        reminderAt: item.reminderAt ?? (item.reminderDays != null && item.date ? reminderAtFromDaysBefore(item.date, item.reminderDays) : "")
                       });
                       setIsModalOpen(true);
                     }}
@@ -1212,7 +1220,7 @@ export default function Home() {
                       ? newItem.completed
                       : undefined,
                   details: newItem.details.trim(),
-                  reminderDays: newItem.category !== "wishlist" && newItem.reminderDays != null ? newItem.reminderDays : undefined
+                  reminderAt: newItem.category !== "wishlist" && newItem.reminderAt ? newItem.reminderAt : undefined
                 };
 
                 if (editingId) {
@@ -1565,32 +1573,61 @@ export default function Home() {
                   <p className={`mb-2 text-sm font-medium ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
                     🔔 Reminder
                   </p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 mb-3">
                     {([
-                      { label: "Off", value: null },
-                      { label: "Day of", value: 0 },
-                      { label: "1 day before", value: 1 },
-                      { label: "3 days before", value: 3 },
-                      { label: "1 week before", value: 7 }
-                    ] as { label: string; value: number | null }[]).map(({ label, value }) => (
-                      <button
-                        key={label}
-                        type="button"
-                        onClick={() => setNewItem((prev) => ({ ...prev, reminderDays: value }))}
-                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                          newItem.reminderDays === value
-                            ? isDarkMode
-                              ? "border-pink-400 bg-pink-900/40 text-pink-300"
-                              : "border-pink-400 bg-pink-100 text-pink-700"
-                            : isDarkMode
-                            ? "border-slate-700 text-slate-400 hover:border-pink-500"
-                            : "border-pink-100 text-slate-500 hover:border-pink-300"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
+                      { label: "Off", days: null },
+                      { label: "Day of", days: 0 },
+                      { label: "1 day before", days: 1 },
+                      { label: "3 days before", days: 3 },
+                      { label: "1 week before", days: 7 }
+                    ] as { label: string; days: number | null }[]).map(({ label, days }) => {
+                      const presetValue = days != null && newItem.date ? reminderAtFromDaysBefore(newItem.date, days) : null;
+                      const isActive = days === null ? newItem.reminderAt === "" : newItem.reminderAt === presetValue;
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          onClick={() => setNewItem((prev) => ({
+                            ...prev,
+                            reminderAt: days === null ? "" : (prev.date ? reminderAtFromDaysBefore(prev.date, days) : "")
+                          }))}
+                          className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                            isActive
+                              ? isDarkMode
+                                ? "border-pink-400 bg-pink-900/40 text-pink-300"
+                                : "border-pink-400 bg-pink-100 text-pink-700"
+                              : isDarkMode
+                              ? "border-slate-700 text-slate-400 hover:border-pink-500"
+                              : "border-pink-100 text-slate-500 hover:border-pink-300"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
                   </div>
+                  {newItem.reminderAt !== "" && (
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        value={newItem.reminderAt.split("T")[0] ?? ""}
+                        onChange={(e) => setNewItem((prev) => ({
+                          ...prev,
+                          reminderAt: `${e.target.value}T${prev.reminderAt.split("T")[1] || "09:00"}`
+                        }))}
+                        className={`flex-1 rounded-xl border px-3 py-2 text-sm ${isDarkMode ? "border-slate-600 bg-slate-800 text-slate-100" : "border-pink-200 bg-white text-slate-800"}`}
+                      />
+                      <input
+                        type="time"
+                        value={newItem.reminderAt.split("T")[1] ?? "09:00"}
+                        onChange={(e) => setNewItem((prev) => ({
+                          ...prev,
+                          reminderAt: `${prev.reminderAt.split("T")[0] || prev.date}T${e.target.value}`
+                        }))}
+                        className={`rounded-xl border px-3 py-2 text-sm ${isDarkMode ? "border-slate-600 bg-slate-800 text-slate-100" : "border-pink-200 bg-white text-slate-800"}`}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1724,7 +1761,7 @@ export default function Home() {
                                     pic: item.pic ?? "",
                                     completed: item.completed ?? false,
                                     details: item.details === "A dreamy new memory." ? "" : item.details,
-                                    reminderDays: item.reminderDays ?? null
+                                    reminderAt: item.reminderAt ?? (item.reminderDays != null && item.date ? reminderAtFromDaysBefore(item.date, item.reminderDays) : "")
                                   });
                                   setReturnToNavAfterModal(true);
                                   setIsModalOpen(true);
@@ -1769,7 +1806,7 @@ export default function Home() {
                                           pic: item.pic ?? "",
                                           completed: item.completed ?? false,
                                           details: item.details === "A dreamy new memory." ? "" : item.details,
-                                          reminderDays: item.reminderDays ?? null
+                                          reminderAt: item.reminderAt ?? (item.reminderDays != null && item.date ? reminderAtFromDaysBefore(item.date, item.reminderDays) : "")
                                         });
                                         setReturnToNavAfterModal(true);
                                         setIsModalOpen(true);
