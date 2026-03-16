@@ -1576,28 +1576,33 @@ export default function Home() {
                   const isExpanded = expandedGroups[group.key];
                   return (
                     <div key={group.key} className={`rounded-2xl border p-2 ${isDarkMode ? "border-slate-700 bg-slate-800/80" : "border-pink-100 bg-white/80"}`}>
-                      <button
-                        type="button"
-                        onClick={() => setExpandedGroups((prev) => ({ ...prev, [group.key]: !prev[group.key] }))}
-                        className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-sm font-semibold ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}
-                      >
-                        <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl text-lg ${isDarkMode ? "bg-slate-700" : "bg-white"} ${group.color}`}>
-                          {group.icon}
-                        </span>
-                        <span className="flex-1">{group.label}</span>
-                        <svg
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                          className={`h-4 w-4 transition ${isExpanded ? "rotate-180" : "rotate-0"}`}
-                          aria-hidden
+                      <div className="flex items-center gap-2">
+                        <div className={`flex flex-1 items-center gap-3 rounded-xl px-2 py-2 text-sm font-semibold ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}>
+                          <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl text-lg ${isDarkMode ? "bg-slate-700" : "bg-white"} ${group.color}`}>
+                            {group.icon}
+                          </span>
+                          <span className="flex-1">{group.label}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedGroups((prev) => ({ ...prev, [group.key]: !prev[group.key] }))}
+                          className="rounded-xl p-2 text-slate-500"
+                          aria-label={`Toggle ${group.label}`}
                         >
-                          <path
-                            fillRule="evenodd"
-                            d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </button>
+                          <svg
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            className={`h-4 w-4 transition ${isExpanded ? "rotate-180" : "rotate-0"}`}
+                            aria-hidden
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </button>
+                      </div>
 
                       {isExpanded ? (
                         <div className={`mt-2 space-y-2 border-l pl-3 ${isDarkMode ? "border-slate-700" : "border-pink-100"}`}>
