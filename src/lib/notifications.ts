@@ -33,6 +33,25 @@ export function notificationPermissionStatus(): "granted" | "denied" | "default"
   return Notification.permission;
 }
 
+export async function getNotificationPermissionStatus(): Promise<"granted" | "denied" | "default" | "unsupported"> {
+  if (typeof window === "undefined") return "unsupported";
+
+  if (isCapacitor()) {
+    try {
+      const { LocalNotifications } = await import("@capacitor/local-notifications");
+      const result = await LocalNotifications.checkPermissions();
+      if (result.display === "granted") return "granted";
+      if (result.display === "denied") return "denied";
+      return "default"; // "prompt" or "prompt-with-rationale"
+    } catch {
+      return "unsupported";
+    }
+  }
+
+  if (!("Notification" in window)) return "unsupported";
+  return Notification.permission as "granted" | "denied" | "default";
+}
+
 // ---------- Scheduling ----------
 
 export type ScheduledReminder = {
