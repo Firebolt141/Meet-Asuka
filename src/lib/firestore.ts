@@ -1,4 +1,4 @@
-import { collection, deleteDoc, doc, getDocs, setDoc, updateDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
 
 import { db, firebaseProjectId, hasFirebaseConfig, missingFirebaseEnvVars } from "@/lib/firebase";
 import type { PlannerItem } from "@/components/Calendar";
@@ -40,6 +40,27 @@ export const getPlannerItems = async (): Promise<PlannerItem[]> => {
     id: docSnap.id,
     ...(docSnap.data() as Omit<PlannerItem, "id">)
   }));
+};
+
+export const subscribePlannerItems = (
+  onUpdate: (items: PlannerItem[]) => void,
+  onError: (error: Error) => void
+): (() => void) => {
+  if (!db) {
+    return () => {};
+  }
+  const plannerCollection = collection(db, "plannerItems");
+  return onSnapshot(
+    plannerCollection,
+    (snapshot) => {
+      const items = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...(docSnap.data() as Omit<PlannerItem, "id">)
+      }));
+      onUpdate(items);
+    },
+    (error) => onError(error)
+  );
 };
 
 export const addPlannerItem = async (item: PlannerItem): Promise<void> => {
