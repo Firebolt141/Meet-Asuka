@@ -906,6 +906,22 @@ export default function Home() {
           </div>
         ) : null}
 
+        {notifPermission === "granted" ? (
+          <div className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm ${isDarkMode ? "border-yellow-800/50 bg-yellow-950/30 text-yellow-300" : "border-yellow-200 bg-yellow-50 text-yellow-800"}`}>
+            <p className="leading-snug">🧪 Test notification</p>
+            <button
+              type="button"
+              onClick={async () => {
+                const { sendTestNotification } = await import("@/lib/notifications");
+                await sendTestNotification();
+              }}
+              className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${isDarkMode ? "bg-yellow-700 text-white hover:bg-yellow-600" : "bg-yellow-500 text-white hover:bg-yellow-600"}`}
+            >
+              Send test
+            </button>
+          </div>
+        ) : null}
+
         {notifPermission === "default" ? (
           <div className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm ${isDarkMode ? "border-pink-800/50 bg-pink-950/30 text-pink-300" : "border-pink-200 bg-pink-50 text-pink-800"}`}>
             <p className="leading-snug">🔔 Enable reminders to get notified before trips & events</p>
