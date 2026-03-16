@@ -198,6 +198,36 @@ export async function scheduleReminders(items: PlannerItem[]): Promise<void> {
   markScheduled(reminders.map((r) => r.id));
 }
 
+// ---------- Test ----------
+
+export async function sendTestNotification(): Promise<void> {
+  if (isCapacitor()) {
+    try {
+      const { LocalNotifications } = await import("@capacitor/local-notifications");
+      await LocalNotifications.schedule({
+        notifications: [{
+          id: 999999,
+          title: "🔔 Test notification",
+          body: "Notifications are working!",
+          schedule: { at: new Date(Date.now() + 2000) }
+        }]
+      });
+    } catch {
+      // fall through to web
+    }
+    return;
+  }
+  if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: "SHOW_NOTIFICATION",
+      title: "🔔 Test notification",
+      body: "Notifications are working!"
+    });
+  } else {
+    new Notification("🔔 Test notification", { body: "Notifications are working!" });
+  }
+}
+
 // ---------- Utilities ----------
 
 function hashCode(s: string): number {
