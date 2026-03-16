@@ -24,7 +24,15 @@ const categoryStyles: Record<PlannerItem["category"], { label: string; color: st
 
 const LOCAL_THEME_KEY = "meet-asuka:theme";
 const LOCAL_LANGUAGE_KEY = "meet-asuka:language";
-const LOGIN_PIN = "4869";
+// Read from .env.local (see .env.local.example). Falls back to a placeholder
+// that will always fail so the app doesn't silently stay open if the env var
+// is missing.
+const LOGIN_PIN = process.env.NEXT_PUBLIC_LOGIN_PIN ?? "";
+
+// Tokyo coordinates used for the Open-Meteo weather API.
+// Override in .env.local via NEXT_PUBLIC_WEATHER_LAT / NEXT_PUBLIC_WEATHER_LON.
+const WEATHER_LAT = process.env.NEXT_PUBLIC_WEATHER_LAT ?? "35.7082";
+const WEATHER_LON = process.env.NEXT_PUBLIC_WEATHER_LON ?? "139.6984";
 
 const translations = {
   en: {
@@ -177,6 +185,23 @@ const createEmptyTripTodo = (): TripTodoEntry => ({
   participants: ""
 });
 
+const createEmptyFormState = (date?: string): PlannerFormState => ({
+  title: "",
+  category: "trip",
+  date: date ?? formatDate(new Date()),
+  endDate: "",
+  startTime: "",
+  endTime: "",
+  location: "",
+  recurring: "none",
+  tripTodos: "",
+  tripTodoItems: [createEmptyTripTodo()],
+  participants: "",
+  pic: "",
+  completed: false,
+  details: ""
+});
+
 const buildTripTodoPlannerItems = (tripId: string, tripTitle: string, tripDate: string, tripTodos: TripTodoEntry[]): PlannerItem[] => {
   return tripTodos.map((todo, index) => {
     const trimmedTitle = todo.title.trim();
@@ -234,22 +259,7 @@ export default function Home() {
     PlannerItem["category"] | "past" | "doneTodo"
   >("event");
   const [activeMonth, setActiveMonth] = useState(() => new Date());
-  const [newItem, setNewItem] = useState<PlannerFormState>({
-    title: "",
-    category: "trip",
-    date: formatDate(new Date()),
-    endDate: "",
-    startTime: "",
-    endTime: "",
-    location: "",
-    recurring: "none",
-    tripTodos: "",
-    tripTodoItems: [createEmptyTripTodo()],
-    participants: "",
-    pic: "",
-    completed: false,
-    details: ""
-  });
+  const [newItem, setNewItem] = useState<PlannerFormState>(createEmptyFormState);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [returnToNavAfterModal, setReturnToNavAfterModal] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Record<NavGroupKey, boolean>>({
@@ -262,6 +272,7 @@ export default function Home() {
   });
   const [weatherLabel, setWeatherLabel] = useState<string>(translations.en.weatherLoading);
   const [hasHydratedPlanner, setHasHydratedPlanner] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const t = translations[language];
   const addPlanCategoryOptions: Array<{ category: PlannerItem["category"]; title: string; subtitle: string; icon: string }> = [
     { category: "event", title: "Event", subtitle: "meetups", icon: "✈️" },
@@ -515,6 +526,7 @@ export default function Home() {
       } catch (error) {
         console.error("Failed to sync planner items with Firestore", error);
         setItems(localItems);
+        setSyncError("Couldn't reach the cloud — showing local data. Changes will still save locally.");
       } finally {
         setHasHydratedPlanner(true);
       }
@@ -534,7 +546,7 @@ export default function Home() {
     const loadWeather = async () => {
       try {
         const response = await fetch(
-          "https://api.open-meteo.com/v1/forecast?latitude=35.7082&longitude=139.6984&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo"
+          `https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_LAT}&longitude=${WEATHER_LON}&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo`
         );
         if (!response.ok) {
           throw new Error("Weather request failed");
@@ -584,13 +596,16 @@ export default function Home() {
         setWeeklyWeather(nextWeek);
       } catch (error) {
         console.error("Failed to load weather", error);
-        setWeatherLabel(t.weatherUnavailable);
+        // Use the English fallback directly — the label useEffect below
+        // will translate it once the component re-renders with the right language.
+        setWeatherLabel(translations.en.weatherUnavailable);
         setWeeklyWeather([]);
       }
     };
 
     void loadWeather();
-  }, [t.weatherUnavailable]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Fetch once on mount; label translation is handled by todaysWeatherSummary memo
 
   useEffect(() => {
     const cutoff = new Date(normalizedToday);
@@ -611,6 +626,9 @@ export default function Home() {
       return;
     }
 
+    // Capture the items before removing so we can restore them if the Firestore
+    // delete fails and the next load would otherwise bring them back as ghosts.
+    const staleItems = items.filter((item) => staleDoneTodoIds.includes(item.id));
     setItems((prev) => prev.filter((item) => !staleDoneTodoIds.includes(item.id)));
 
     if (!isFirebaseConfigured) {
@@ -619,6 +637,8 @@ export default function Home() {
 
     void Promise.all(staleDoneTodoIds.map((id) => deletePlannerItem(id))).catch((error) => {
       console.error("Failed to delete stale done TODOs from Firestore", error);
+      // Restore so local state and Firestore stay in sync.
+      setItems((prev) => [...prev, ...staleItems]);
     });
   }, [items, normalizedToday]);
 
@@ -651,6 +671,7 @@ export default function Home() {
       await Promise.all(linkedTodoIds.map((todoId) => deletePlannerItem(todoId)));
     } catch (error) {
       console.error("Failed to delete planner item from Firestore", error);
+      setSyncError("Deletion saved locally but couldn't sync to cloud. It will retry on next load.");
     }
   };
 
@@ -672,6 +693,7 @@ export default function Home() {
       await updatePlannerItem(id, { ...rest, completed: nextCompleted });
     } catch (error) {
       console.error("Failed to toggle checklist completion in Firestore", error);
+      setSyncError("Change saved locally but couldn't sync to cloud.");
     }
   };
 
@@ -683,6 +705,7 @@ export default function Home() {
     if (code >= 71 && code <= 77) return "❄️";
     if (code >= 80 && code <= 82) return "🌦️";
     if (code >= 95) return "⛈️";
+    // Fallback for any WMO codes not yet covered above (e.g. future API additions).
     return "🌤️";
   };
 
@@ -714,7 +737,7 @@ export default function Home() {
           <h1 className={`mt-1 text-left text-5xl font-bold ${isDarkMode ? "text-white" : "text-slate-800"}`}>Asuka ✨</h1>
           <p className={`mt-2 text-left text-base ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}>{t.loginSubtitle}</p>
           <div className="mt-7 flex justify-center">
-            <img src="https://raw.githubusercontent.com/chux0519/runcat-tray/master/runcat.gif" alt="RunCat loading" className="h-16 w-auto" />
+            <img src="/runcat.gif" alt="RunCat loading" className="h-16 w-auto" />
           </div>
           <div className="mt-6 text-center">
             <p className={`text-sm font-semibold ${isDarkMode ? "text-slate-200" : "text-slate-600"}`}>{t.pinLabel}</p>
@@ -833,6 +856,20 @@ export default function Home() {
             </div>
           </div>
         </header>
+
+        {syncError ? (
+          <div className={`flex items-start justify-between gap-3 rounded-2xl border px-4 py-3 text-sm ${isDarkMode ? "border-amber-700/50 bg-amber-900/20 text-amber-300" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+            <p className="leading-snug">⚠️ {syncError}</p>
+            <button
+              type="button"
+              onClick={() => setSyncError(null)}
+              className="shrink-0 font-bold opacity-60 hover:opacity-100"
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        ) : null}
 
         {isWeatherCardOpen ? (
           <section className={`rounded-3xl border p-4 shadow-soft ${isDarkMode ? "border-slate-700 bg-slate-900/80" : "border-pink-100 bg-white/85"}`}>
@@ -1075,6 +1112,18 @@ export default function Home() {
               className="mt-6 space-y-4"
               onSubmit={async (event) => {
                 event.preventDefault();
+
+                // Validate trip date range before saving.
+                if (
+                  newItem.category === "trip" &&
+                  newItem.date &&
+                  newItem.endDate &&
+                  newItem.endDate < newItem.date
+                ) {
+                  alert("The end date can't be before the start date.");
+                  return;
+                }
+
                 const normalizedTripTodos =
                   newItem.category === "trip"
                     ? newItem.tripTodoItems
@@ -1097,7 +1146,7 @@ export default function Home() {
                   location: newItem.category === "event" ? newItem.location.trim() : undefined,
                   recurring:
                     newItem.category === "event"
-                      ? (newItem.recurring as PlannerItem["recurring"])
+                      ? newItem.recurring
                       : undefined,
                   tripTodos: newItem.category === "trip" ? newItem.tripTodos.trim() : undefined,
                   tripTodoItems: normalizedTripTodos,
@@ -1135,6 +1184,7 @@ export default function Home() {
                       await Promise.all(generatedTripTodos.map((todo) => addPlannerItem(todo)));
                     } catch (error) {
                       console.error("Failed to update planner item in Firestore", error);
+                      setSyncError("Saved locally but couldn't sync to cloud. Changes may be lost if you clear local storage.");
                     }
                   }
                 } else {
@@ -1162,26 +1212,13 @@ export default function Home() {
                       await Promise.all(generatedTripTodos.map((todo) => addPlannerItem(todo)));
                     } catch (error) {
                       console.error("Failed to add planner item to Firestore", error);
+                      setSyncError("Saved locally but couldn't sync to cloud. Changes may be lost if you clear local storage.");
                     }
                   }
                 }
                 closeModalAndRestoreContext();
-                setNewItem({
-                  title: "",
-                  category: "trip",
-                  date: newItem.date,
-                  endDate: "",
-                  startTime: "",
-                  endTime: "",
-                  location: "",
-                  recurring: "none",
-                  tripTodos: "",
-                  tripTodoItems: [createEmptyTripTodo()],
-                  participants: "",
-                  pic: "",
-                  completed: false,
-                  details: ""
-                });
+                // Preserve the date so the calendar stays on the same day after saving.
+                setNewItem(createEmptyFormState(newItem.date));
                 if (newItem.category !== "wishlist" && newItem.date) {
                   setSelectedDate(new Date(newItem.date));
                 }
@@ -1229,6 +1266,7 @@ export default function Home() {
                 <label className={modalLabelClass}>
                   Title
                   <input
+                    required
                     value={newItem.title}
                     onChange={(event) =>
                       setNewItem((prev) => ({ ...prev, title: event.target.value }))
@@ -1358,7 +1396,7 @@ export default function Home() {
                                 )
                               }))
                             }
-                            className="mt-1 min-h-[70px] w-full rounded-xl border border-pink-100 bg-pink-50/60 px-3 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none"
+                            className={`min-h-[70px] ${modalInputCompactClass}`}
                           />
                         </label>
                         {newItem.tripTodoItems.length > 1 ? (
@@ -1422,8 +1460,13 @@ export default function Home() {
                       Recurring
                       <select
                         value={newItem.recurring}
-                        onChange={(event) =>
-                          setNewItem((prev) => ({ ...prev, recurring: event.target.value as PlannerItem["recurring"] }))
+                        onChange={(event) => {
+                          const v = event.target.value;
+                          const recurring = validRecurring.includes(v as NonNullable<PlannerItem["recurring"]>)
+                            ? (v as NonNullable<PlannerItem["recurring"]>)
+                            : "none";
+                          setNewItem((prev) => ({ ...prev, recurring }));
+                        }}
                         }
                         className={modalInputClass}
                       >
@@ -1581,6 +1624,10 @@ export default function Home() {
                                 key={item.id}
                                 type="button"
                                 onClick={() => {
+                                  // Tapping a todo/doneTodo entry toggles its completion (todo ↔ done).
+                                  // item.category === "todo" is always true here since both groups
+                                  // only contain todo items, but the check acts as a type guard for
+                                  // TypeScript and documents the intent explicitly.
                                   if ((group.key === "todo" || group.key === "doneTodo") && item.category === "todo") {
                                     void toggleChecklistCompletion(item);
                                     return;

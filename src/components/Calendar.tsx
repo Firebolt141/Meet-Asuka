@@ -173,26 +173,6 @@ export function Calendar({
                   {hasTripRightConnector ? <span className="h-1 w-2 rounded-r-full bg-indigo-200" /> : null}
                 </span>
               ) : null}
-              <span className="relative z-10 mt-auto mb-1 flex gap-1 opacity-0">
-                {indicatorItems.slice(0, 3).map((item) => (
-                  <span
-                    key={item.id}
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      item.category === "trip"
-                        ? "bg-indigo-400"
-                        : item.category === "event"
-                        ? "bg-cyan-500"
-                        : item.category === "todo"
-                        ? item.completed
-                          ? "bg-emerald-500"
-                          : "bg-rose-500"
-                        : item.completed
-                        ? "bg-emerald-500"
-                        : "bg-violet-500"
-                    } ${isSelected ? "ring-1 ring-pink-200" : ""}`}
-                  />
-                ))}
-              </span>
             </button>
           );
         })}
