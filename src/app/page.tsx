@@ -185,13 +185,6 @@ const normalizePlannerItems = (items: unknown): PlannerItem[] => {
     .filter((item): item is PlannerItem => item !== null);
 };
 
-// Returns an ISO datetime string "YYYY-MM-DDTHH:MM" for a reminder N days before itemDate at 9 AM
-const reminderAtFromDaysBefore = (itemDate: string, days: number): string => {
-  const [y, m, d] = itemDate.split("-").map(Number);
-  const dt = new Date(y, m - 1, d - days, 9, 0, 0);
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}T09:00`;
-};
-
 const createEmptyTripTodo = (): TripTodoEntry => ({
   title: "",
   date: formatDate(new Date()),
@@ -679,7 +672,7 @@ export default function Home() {
       return;
     }
 
-    void Promise.all(staleDoneTodoIds.map((id) => deletePlannerItem(id))).catch((error) => {
+    Promise.all(staleDoneTodoIds.map((id) => deletePlannerItem(id))).catch((error) => {
       console.error("Failed to delete stale done TODOs from Firestore", error);
       // Restore so local state and Firestore stay in sync.
       setItems((prev) => [...prev, ...staleItems]);
@@ -1040,7 +1033,7 @@ export default function Home() {
                         pic: item.pic ?? "",
                         completed: item.completed ?? false,
                         details: item.details === "A dreamy new memory." ? "" : item.details,
-                        reminderAt: item.reminderAt ?? (item.reminderDays != null && item.date ? reminderAtFromDaysBefore(item.date, item.reminderDays) : "")
+                        reminderAt: item.reminderAt ?? (item.reminderDays != null && item.date ? (() => { const [y,m,d] = item.date.split("-").map(Number); const dt = new Date(y, m-1, d - (item.reminderDays ?? 0), 9, 0, 0); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}T09:00`; })() : "")
                       });
                       setIsModalOpen(true);
                     }}
@@ -1573,61 +1566,42 @@ export default function Home() {
                   <p className={`mb-2 text-sm font-medium ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
                     🔔 Reminder
                   </p>
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {([
-                      { label: "Off", days: null },
-                      { label: "Day of", days: 0 },
-                      { label: "1 day before", days: 1 },
-                      { label: "3 days before", days: 3 },
-                      { label: "1 week before", days: 7 }
-                    ] as { label: string; days: number | null }[]).map(({ label, days }) => {
-                      const presetValue = days != null && newItem.date ? reminderAtFromDaysBefore(newItem.date, days) : null;
-                      const isActive = days === null ? newItem.reminderAt === "" : newItem.reminderAt === presetValue;
-                      return (
-                        <button
-                          key={label}
-                          type="button"
-                          onClick={() => setNewItem((prev) => ({
-                            ...prev,
-                            reminderAt: days === null ? "" : (prev.date ? reminderAtFromDaysBefore(prev.date, days) : "")
-                          }))}
-                          className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                            isActive
-                              ? isDarkMode
-                                ? "border-pink-400 bg-pink-900/40 text-pink-300"
-                                : "border-pink-400 bg-pink-100 text-pink-700"
-                              : isDarkMode
-                              ? "border-slate-700 text-slate-400 hover:border-pink-500"
-                              : "border-pink-100 text-slate-500 hover:border-pink-300"
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="date"
+                      value={newItem.reminderAt.split("T")[0] ?? ""}
+                      onChange={(e) => setNewItem((prev) => ({
+                        ...prev,
+                        reminderAt: e.target.value
+                          ? `${e.target.value}T${prev.reminderAt.split("T")[1] || "09:00"}`
+                          : ""
+                      }))}
+                      className={`flex-1 rounded-xl border px-3 py-2 text-sm ${isDarkMode ? "border-slate-600 bg-slate-800 text-slate-100" : "border-pink-200 bg-white text-slate-800"}`}
+                    />
+                    <input
+                      type="time"
+                      value={newItem.reminderAt.split("T")[1] ?? "09:00"}
+                      disabled={!newItem.reminderAt}
+                      onChange={(e) => setNewItem((prev) => ({
+                        ...prev,
+                        reminderAt: `${prev.reminderAt.split("T")[0] || prev.date}T${e.target.value}`
+                      }))}
+                      className={`rounded-xl border px-3 py-2 text-sm transition ${
+                        !newItem.reminderAt
+                          ? isDarkMode ? "border-slate-700 bg-slate-800 text-slate-600 cursor-not-allowed" : "border-pink-100 bg-pink-50 text-slate-400 cursor-not-allowed"
+                          : isDarkMode ? "border-slate-600 bg-slate-800 text-slate-100" : "border-pink-200 bg-white text-slate-800"
+                      }`}
+                    />
+                    {newItem.reminderAt && (
+                      <button
+                        type="button"
+                        onClick={() => setNewItem((prev) => ({ ...prev, reminderAt: "" }))}
+                        className={`text-xs px-3 py-2 rounded-xl border transition ${isDarkMode ? "border-slate-700 text-slate-400 hover:border-pink-500 hover:text-pink-400" : "border-pink-100 text-slate-400 hover:border-pink-300 hover:text-pink-500"}`}
+                      >
+                        Off
+                      </button>
+                    )}
                   </div>
-                  {newItem.reminderAt !== "" && (
-                    <div className="flex gap-2">
-                      <input
-                        type="date"
-                        value={newItem.reminderAt.split("T")[0] ?? ""}
-                        onChange={(e) => setNewItem((prev) => ({
-                          ...prev,
-                          reminderAt: `${e.target.value}T${prev.reminderAt.split("T")[1] || "09:00"}`
-                        }))}
-                        className={`flex-1 rounded-xl border px-3 py-2 text-sm ${isDarkMode ? "border-slate-600 bg-slate-800 text-slate-100" : "border-pink-200 bg-white text-slate-800"}`}
-                      />
-                      <input
-                        type="time"
-                        value={newItem.reminderAt.split("T")[1] ?? "09:00"}
-                        onChange={(e) => setNewItem((prev) => ({
-                          ...prev,
-                          reminderAt: `${prev.reminderAt.split("T")[0] || prev.date}T${e.target.value}`
-                        }))}
-                        className={`rounded-xl border px-3 py-2 text-sm ${isDarkMode ? "border-slate-600 bg-slate-800 text-slate-100" : "border-pink-200 bg-white text-slate-800"}`}
-                      />
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -1761,7 +1735,7 @@ export default function Home() {
                                     pic: item.pic ?? "",
                                     completed: item.completed ?? false,
                                     details: item.details === "A dreamy new memory." ? "" : item.details,
-                                    reminderAt: item.reminderAt ?? (item.reminderDays != null && item.date ? reminderAtFromDaysBefore(item.date, item.reminderDays) : "")
+                                    reminderAt: item.reminderAt ?? (item.reminderDays != null && item.date ? (() => { const [y,m,d] = item.date.split("-").map(Number); const dt = new Date(y, m-1, d - (item.reminderDays ?? 0), 9, 0, 0); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}T09:00`; })() : "")
                                   });
                                   setReturnToNavAfterModal(true);
                                   setIsModalOpen(true);
@@ -1806,7 +1780,7 @@ export default function Home() {
                                           pic: item.pic ?? "",
                                           completed: item.completed ?? false,
                                           details: item.details === "A dreamy new memory." ? "" : item.details,
-                                          reminderAt: item.reminderAt ?? (item.reminderDays != null && item.date ? reminderAtFromDaysBefore(item.date, item.reminderDays) : "")
+                                          reminderAt: item.reminderAt ?? (item.reminderDays != null && item.date ? (() => { const [y,m,d] = item.date.split("-").map(Number); const dt = new Date(y, m-1, d - (item.reminderDays ?? 0), 9, 0, 0); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}T09:00`; })() : "")
                                         });
                                         setReturnToNavAfterModal(true);
                                         setIsModalOpen(true);
