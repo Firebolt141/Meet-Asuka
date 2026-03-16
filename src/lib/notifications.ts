@@ -90,24 +90,31 @@ function buildReminders(items: PlannerItem[]): ScheduledReminder[] {
   const scheduled = getScheduledIds();
 
   for (const item of items) {
-    if (item.reminderDays == null || item.completed) continue;
+    if (item.completed) continue;
     if (!item.date) continue;
 
-    const [y, m, d] = item.date.split("-").map(Number);
-    const itemDate = new Date(y, m - 1, d, 9, 0, 0); // 9 AM on the item date
-    const fireAt = new Date(itemDate.getTime() - item.reminderDays * 24 * 60 * 60 * 1000);
+    let fireAt: Date;
+    let reminderId: string;
+
+    if (item.reminderAt) {
+      fireAt = new Date(item.reminderAt);
+      reminderId = `${item.id}:${item.reminderAt}`;
+    } else if (item.reminderDays != null) {
+      // Legacy format: days before at 9 AM
+      const [y, m, d] = item.date.split("-").map(Number);
+      const itemDate = new Date(y, m - 1, d, 9, 0, 0);
+      fireAt = new Date(itemDate.getTime() - item.reminderDays * 24 * 60 * 60 * 1000);
+      reminderId = `${item.id}:${item.reminderDays}`;
+    } else {
+      continue;
+    }
 
     if (fireAt <= now) continue; // already passed
+    if (scheduled.has(reminderId)) continue;
 
-    const reminderId = `${item.id}:${item.reminderDays}`;
-    if (scheduled.has(reminderId)) continue; // already scheduled this session
-
-    const daysLabel =
-      item.reminderDays === 0
-        ? "Today"
-        : item.reminderDays === 1
-        ? "Tomorrow"
-        : `In ${item.reminderDays} days`;
+    const msUntil = fireAt.getTime() - now.getTime();
+    const daysUntil = Math.floor(msUntil / (24 * 60 * 60 * 1000));
+    const daysLabel = daysUntil === 0 ? "Today" : daysUntil === 1 ? "Tomorrow" : `In ${daysUntil} days`;
 
     const emoji: Record<PlannerItem["category"], string> = {
       trip: "✈️",
@@ -121,7 +128,7 @@ function buildReminders(items: PlannerItem[]): ScheduledReminder[] {
       title: `${emoji[item.category]} ${daysLabel}: ${item.title}`,
       body:
         item.category === "trip"
-          ? `Your trip starts ${item.reminderDays === 0 ? "today" : `on ${item.date}`}!`
+          ? `Your trip starts ${daysUntil === 0 ? "today" : `on ${item.date}`}!`
           : item.category === "event"
           ? `${item.startTime ? `at ${item.startTime}` : ""} ${item.location ? `@ ${item.location}` : ""}`.trim() ||
             `Don't forget your event on ${item.date}`

@@ -26,7 +26,8 @@ export type PlannerItem = {
   tripTodoItems?: TripTodoEntry[];
   parentTripId?: string;
   details: string;
-  reminderDays?: number; // days before item date to fire notification (0 = day of)
+  reminderAt?: string;   // ISO datetime string e.g. "2025-03-15T09:00" for the notification fire time
+  reminderDays?: number; // legacy: days before item date at 9 AM (kept for backward compat)
 };
 
 type CalendarProps = {
