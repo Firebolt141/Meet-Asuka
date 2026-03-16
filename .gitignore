@@ -6,3 +6,4 @@
 .env*.local
 .env
 .DS_Store
+*.tsbuildinfo
