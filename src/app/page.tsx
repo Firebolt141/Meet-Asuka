@@ -10,7 +10,7 @@ import {
   updatePlannerItem
 } from "@/lib/firestore";
 import {
-  notificationPermissionStatus,
+  getNotificationPermissionStatus,
   requestNotificationPermission,
   scheduleReminders
 } from "@/lib/notifications";
@@ -570,7 +570,7 @@ export default function Home() {
   // Initialize notification permission state and schedule reminders
   useEffect(() => {
     if (!hasHydratedPlanner) return;
-    setNotifPermission(notificationPermissionStatus());
+    void getNotificationPermissionStatus().then(setNotifPermission);
   }, [hasHydratedPlanner]);
 
   useEffect(() => {
