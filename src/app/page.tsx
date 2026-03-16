@@ -379,14 +379,25 @@ export default function Home() {
       label: t.trips,
       color: "text-indigo-500",
       icon: "🧳",
-      entries: items.filter((item) => item.category === "trip")
+      // Use endDate (or startDate) so an in-progress trip stays visible until it ends.
+      entries: items.filter((item) => {
+        if (item.category !== "trip") return false;
+        const relevantDate = new Date(item.endDate || item.date);
+        relevantDate.setHours(0, 0, 0, 0);
+        return relevantDate >= normalizedToday;
+      })
     },
     {
       key: "event",
       label: t.events,
       color: "text-emerald-500",
       icon: "🎉",
-      entries: items.filter((item) => item.category === "event")
+      entries: items.filter((item) => {
+        if (item.category !== "event") return false;
+        const eventDate = new Date(item.date);
+        eventDate.setHours(0, 0, 0, 0);
+        return eventDate >= normalizedToday;
+      })
     },
     {
       key: "todo",
