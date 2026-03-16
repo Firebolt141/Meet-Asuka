@@ -769,7 +769,7 @@ export default function Home() {
   return (
     <main className={`min-h-screen px-5 pb-24 pt-6 ${isDarkMode ? "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" : "bg-gradient-to-br from-pink-50 via-blush to-orange-100"}`}>
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-        <header className={`relative z-20 rounded-3xl px-3 py-2 shadow-soft backdrop-blur ${isDarkMode ? "bg-slate-900/85 border border-slate-700" : "bg-white/70"}`}>
+        <header className={`sticky top-4 z-30 rounded-3xl px-3 py-2 shadow-soft backdrop-blur ${isDarkMode ? "bg-slate-900/85 border border-slate-700" : "bg-white/70"}`}>
           <div className="flex items-center justify-between">
             <button
               type="button"
@@ -947,12 +947,12 @@ export default function Home() {
                     }}
                     className={`w-full rounded-2xl border px-4 py-3 text-left transition hover:-translate-y-0.5 ${(item.category === "todo" || item.category === "wishlist") && item.completed ? (isDarkMode ? "border-emerald-700 bg-emerald-900/20" : "border-emerald-200 bg-emerald-50/70") : (isDarkMode ? "border-slate-700 bg-slate-800 hover:border-slate-600 hover:bg-slate-700" : "border-pink-100 bg-white hover:border-pink-200 hover:bg-pink-50/50")}`}
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className={`text-sm font-semibold ${(item.category === "todo" || item.category === "wishlist") && item.completed ? "text-slate-400 line-through" : (isDarkMode ? "text-slate-100" : "text-slate-800")}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className={`min-w-0 text-sm font-semibold ${(item.category === "todo" || item.category === "wishlist") && item.completed ? "text-slate-400 line-through" : (isDarkMode ? "text-slate-100" : "text-slate-800")}`}>
                         {item.title}
                       </p>
                       <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${categoryStyles[item.category].color}`}
+                        className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${categoryStyles[item.category].color}`}
                       >
                         {categoryStyles[item.category].label}
                       </span>

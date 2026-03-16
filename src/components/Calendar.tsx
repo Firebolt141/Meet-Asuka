@@ -103,7 +103,7 @@ export function Calendar({
   }, [items]);
 
   return (
-    <div className={`rounded-3xl p-6 shadow-soft ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"}`}>
+    <div className={`rounded-3xl px-4 py-5 shadow-soft ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"}`}>
       <div className="mb-4 text-center">
         <h3 className={`text-xl font-bold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>{monthLabel}</h3>
       </div>
@@ -112,9 +112,9 @@ export function Calendar({
           <div key={label}>{label}</div>
         ))}
       </div>
-      <div className="mt-4 grid grid-cols-7 gap-x-0 gap-y-2">
+      <div className="mt-4 grid grid-cols-7 gap-x-1 gap-y-2">
         {Array.from({ length: leadingBlanks }).map((_, index) => (
-          <div key={`blank-${index}`} className="h-12" />
+          <div key={`blank-${index}`} className="h-16" />
         ))}
         {days.map((date) => {
           const dateKey = formatDate(date);
@@ -133,7 +133,7 @@ export function Calendar({
               key={dateKey}
               type="button"
               onClick={() => onSelectDate(date)}
-              className={`group relative flex h-14 flex-col items-center justify-start rounded-2xl border px-1 pt-1 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-pink-300 ${
+              className={`group relative flex h-16 flex-col items-center justify-start rounded-2xl border px-1 pt-1.5 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-pink-300 ${
                 isSelected
                   ? isDarkMode
                     ? "border-fuchsia-400 bg-fuchsia-900/40 text-pink-100 shadow"
