@@ -904,15 +904,56 @@ export default function Home() {
           </button>
         </div>
 
-        <Calendar
-          month={new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1)}
-          monthLabel={activeMonthLabel}
-          weekdayLabels={["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]}
-          isDarkMode={isDarkMode}
-          items={items}
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-        />
+        {/* Full-bleed calendar — breaks out of the px-5 gutter */}
+        <div className="-mx-5">
+          <Calendar
+            month={new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1)}
+            monthLabel={activeMonthLabel}
+            weekdayLabels={["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]}
+            isDarkMode={isDarkMode}
+            items={items}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+          />
+        </div>
+
+        {/* Ikaku running card */}
+        <div className={`overflow-hidden rounded-3xl shadow-soft ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"}`}>
+          <div className={`flex items-center gap-2 px-4 pt-3.5 pb-1 ${isDarkMode ? "text-slate-100" : "text-slate-700"}`}>
+            <span className="text-sm font-semibold">Ikaku</span>
+            <span className={`text-xs ${isDarkMode ? "text-pink-400" : "text-pink-400"}`}>· red panda</span>
+          </div>
+          <div className="relative overflow-hidden" style={{ height: "96px" }}>
+            {/* Sky */}
+            <div className={`absolute inset-0 ${isDarkMode ? "bg-gradient-to-b from-slate-900/60 to-slate-800" : "bg-gradient-to-b from-sky-50/70 to-pink-50"}`} />
+            {/* Ground strip */}
+            <div className={`absolute bottom-0 left-0 right-0 h-7 ${isDarkMode ? "bg-slate-900/60" : "bg-pink-100/80"}`} />
+            <div className={`absolute left-0 right-0 h-px ${isDarkMode ? "bg-slate-600/60" : "bg-pink-200"}`} style={{ bottom: "28px" }} />
+            {/* Runner: horizontal scroll + direction flip on same element */}
+            <div
+              className="absolute"
+              style={{
+                bottom: "18px",
+                animation: "panda-hscroll 6s linear infinite, panda-flip 6s linear infinite"
+              }}
+            >
+              {/* Bob layer */}
+              <div style={{ animation: "panda-bob 0.38s ease-in-out infinite" }}>
+                <img
+                  src="/icons/icon-192.png"
+                  alt="Ikaku"
+                  className="h-11 w-11 rounded-xl"
+                  draggable={false}
+                />
+              </div>
+              {/* Ground shadow */}
+              <div
+                className={`mx-auto h-1.5 rounded-full blur-sm ${isDarkMode ? "bg-black/20" : "bg-pink-300/25"}`}
+                style={{ width: "30px", animation: "panda-shadow-pulse 0.38s ease-in-out infinite" }}
+              />
+            </div>
+          </div>
+        </div>
 
         <section className={`rounded-3xl p-6 shadow-soft ${isDarkMode ? "bg-slate-900/80" : "bg-white/80"}`}>
           <h3 className={`text-lg font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>
