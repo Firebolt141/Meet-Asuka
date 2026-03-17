@@ -763,18 +763,6 @@ export default function Home() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setIsDarkMode((prev) => !prev)}
-                className={`inline-flex h-11 w-11 items-center justify-center rounded-full border shadow-sm ${isDarkMode ? "border-slate-500 bg-slate-700 text-slate-100" : "border-slate-300 bg-slate-100 text-slate-700"}`}
-                aria-label={isDarkMode ? "Light mode" : "Dark mode"}
-                title={isDarkMode ? "Light mode" : "Dark mode"}
-              >
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-                  <circle cx="12" cy="12" r="3.2" />
-                  <path strokeLinecap="round" d="M12 2.5v2.2M12 19.3v2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" />
-                </svg>
-              </button>
-              <button
-                type="button"
                 onClick={() => setIsWeatherCardOpen((prev) => !prev)}
                 className={`flex items-center gap-2 rounded-full px-3 py-2 text-xs font-medium shadow ${isDarkMode ? "bg-slate-800 text-slate-100" : "bg-white/90 text-slate-700"}`}
                 aria-label="7-Day weather"
@@ -1577,7 +1565,19 @@ export default function Home() {
       {isNavOpen ? (
         <div className="fixed inset-0 z-40 flex bg-black/40">
           <div className={`flex h-full w-72 flex-col p-6 shadow-soft ${isDarkMode ? "bg-slate-900" : "bg-white"}`}>
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setIsDarkMode((prev) => !prev)}
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition ${isDarkMode ? "bg-slate-700 text-slate-200 hover:bg-slate-600" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+                aria-label={isDarkMode ? "Light mode" : "Dark mode"}
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                  <circle cx="12" cy="12" r="3.2" />
+                  <path strokeLinecap="round" d="M12 2.5v2.2M12 19.3v2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" />
+                </svg>
+                {isDarkMode ? "Light mode" : "Dark mode"}
+              </button>
               <button
                 type="button"
                 onClick={() => setIsNavOpen(false)}
