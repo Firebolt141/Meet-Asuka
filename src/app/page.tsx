@@ -920,11 +920,11 @@ export default function Home() {
         </div>
 
         {/* Ikaku GIF card */}
-        <div className={`flex items-center justify-center overflow-hidden rounded-3xl shadow-soft ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"}`}>
+        <div className={`flex items-center justify-center py-2 overflow-hidden rounded-3xl shadow-soft ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"}`}>
           <img
             src="/ikaku.gif"
             alt="Ikaku"
-            className="h-40 w-auto"
+            className="h-24 w-auto"
             draggable={false}
           />
         </div>
