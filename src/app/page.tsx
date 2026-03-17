@@ -33,10 +33,10 @@ const LOCAL_THEME_KEY = "meet-asuka:theme";
 // is missing.
 const LOGIN_PIN = process.env.NEXT_PUBLIC_LOGIN_PIN ?? "";
 
-// Tokyo coordinates used for the Open-Meteo weather API.
+// Shinjuku, Tokyo coordinates used for the Open-Meteo weather API.
 // Override in .env.local via NEXT_PUBLIC_WEATHER_LAT / NEXT_PUBLIC_WEATHER_LON.
-const WEATHER_LAT = process.env.NEXT_PUBLIC_WEATHER_LAT ?? "35.7082";
-const WEATHER_LON = process.env.NEXT_PUBLIC_WEATHER_LON ?? "139.6984";
+const WEATHER_LAT = process.env.NEXT_PUBLIC_WEATHER_LAT ?? "35.6896";
+const WEATHER_LON = process.env.NEXT_PUBLIC_WEATHER_LON ?? "139.7006";
 
 
 const LOCAL_ITEMS_KEY = "meet-asuka:planner-items";
