@@ -206,6 +206,7 @@ export default function Home() {
   const [newItem, setNewItem] = useState<PlannerFormState>(createEmptyFormState);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [returnToNavAfterModal, setReturnToNavAfterModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Record<NavGroupKey, boolean>>({
     trip: false,
     event: false,
@@ -244,11 +245,11 @@ export default function Home() {
     return `Today: ${todayEntry.max}° / ${todayEntry.min}°`;
   }, [weeklyWeather]);
 
-  const normalizedToday = useMemo(() => {
+  const normalizedToday = (() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return today;
-  }, []);
+  })();
 
   const selectedKey = formatDate(selectedDate);
   const selectedItems = useMemo(() => {
@@ -663,11 +664,15 @@ export default function Home() {
     if (code === 0) return "☀️";
     if (code <= 3) return "⛅";
     if (code === 45 || code === 48) return "🌫️";
-    if (code >= 51 && code <= 67) return "🌧️";
-    if (code >= 71 && code <= 77) return "❄️";
-    if (code >= 80 && code <= 82) return "🌦️";
-    if (code >= 95) return "⛈️";
-    // Fallback for any WMO codes not yet covered above (e.g. future API additions).
+    if (code >= 51 && code <= 55) return "🌦️"; // drizzle
+    if (code >= 56 && code <= 57) return "🌧️"; // freezing drizzle
+    if (code >= 61 && code <= 65) return "🌧️"; // rain
+    if (code >= 66 && code <= 67) return "🌨️"; // freezing rain
+    if (code >= 71 && code <= 77) return "❄️"; // snow / snow grains / ice crystals
+    if (code >= 80 && code <= 82) return "🌦️"; // rain showers
+    if (code === 85 || code === 86) return "🌨️"; // snow showers
+    if (code === 95) return "⛈️"; // thunderstorm
+    if (code >= 96 && code <= 99) return "⛈️"; // thunderstorm with hail
     return "🌤️";
   };
 
@@ -1111,6 +1116,8 @@ export default function Home() {
               className="mt-6 space-y-4"
               onSubmit={async (event) => {
                 event.preventDefault();
+                if (isSubmitting) return;
+                setIsSubmitting(true);
 
                 // Validate trip date range before saving.
                 if (
@@ -1120,6 +1127,7 @@ export default function Home() {
                   newItem.endDate < newItem.date
                 ) {
                   alert("The end date can't be before the start date.");
+                  setIsSubmitting(false);
                   return;
                 }
 
@@ -1166,6 +1174,11 @@ export default function Home() {
                       ? buildTripTodoPlannerItems(editingId, payload.title, payload.date, normalizedTripTodos)
                       : [];
 
+                  // Capture linked todo IDs from current state before setItems mutates it.
+                  const linkedTodoIds = items
+                    .filter((item) => item.parentTripId === editingId)
+                    .map((item) => item.id);
+
                   setItems((prev) => {
                     const withoutLinkedTodos = prev.filter((item) => item.parentTripId !== editingId);
                     return withoutLinkedTodos.map((item) =>
@@ -1175,9 +1188,6 @@ export default function Home() {
 
                   if (isFirebaseConfigured) {
                     try {
-                      const linkedTodoIds = items
-                        .filter((item) => item.parentTripId === editingId)
-                        .map((item) => item.id);
 
                       await updatePlannerItem(editingId, payload);
                       await Promise.all(linkedTodoIds.map((todoId) => deletePlannerItem(todoId)));
@@ -1216,6 +1226,7 @@ export default function Home() {
                     }
                   }
                 }
+                setIsSubmitting(false);
                 closeModalAndRestoreContext();
                 // Preserve the date so the calendar stays on the same day after saving.
                 setNewItem(createEmptyFormState(newItem.date));
@@ -1578,9 +1589,10 @@ export default function Home() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-full bg-pink-500 px-6 py-2 text-sm font-semibold text-white shadow-md shadow-pink-200 hover:bg-pink-400"
+                  disabled={isSubmitting}
+                  className="rounded-full bg-pink-500 px-6 py-2 text-sm font-semibold text-white shadow-md shadow-pink-200 hover:bg-pink-400 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {editingId ? "Save changes" : "Save plan"}
+                  {isSubmitting ? "Saving…" : editingId ? "Save changes" : "Save plan"}
                 </button>
               </div>
             </form>
