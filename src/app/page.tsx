@@ -705,7 +705,9 @@ export default function Home() {
           <p className={`mt-2 text-left text-base ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}>Events • Trips • TODOs • Wishlist</p>
           <div className="mt-7 flex justify-center">
             <div className={`inline-flex items-center justify-center rounded-[28px] p-3 shadow-lg ${isDarkMode ? "bg-slate-700/60 shadow-black/30" : "bg-white/70 shadow-pink-100"}`}>
-              <img src="/icons/icon-512.png" alt="Ikaku" className="h-24 w-24 rounded-2xl" />
+              <div className="h-24 w-24 overflow-hidden rounded-2xl translate-x-px">
+                <img src="/icons/icon-512.png" alt="Ikaku" className="h-full w-full object-cover" />
+              </div>
             </div>
           </div>
           <div className="mt-6 text-center">
@@ -917,42 +919,14 @@ export default function Home() {
           />
         </div>
 
-        {/* Ikaku running card */}
-        <div className={`overflow-hidden rounded-3xl shadow-soft ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"}`}>
-          <div className={`flex items-center gap-2 px-4 pt-3.5 pb-1 ${isDarkMode ? "text-slate-100" : "text-slate-700"}`}>
-            <span className="text-sm font-semibold">Ikaku</span>
-            <span className={`text-xs ${isDarkMode ? "text-pink-400" : "text-pink-400"}`}>· red panda</span>
-          </div>
-          <div className="relative overflow-hidden" style={{ height: "96px" }}>
-            {/* Sky */}
-            <div className={`absolute inset-0 ${isDarkMode ? "bg-gradient-to-b from-slate-900/60 to-slate-800" : "bg-gradient-to-b from-sky-50/70 to-pink-50"}`} />
-            {/* Ground strip */}
-            <div className={`absolute bottom-0 left-0 right-0 h-7 ${isDarkMode ? "bg-slate-900/60" : "bg-pink-100/80"}`} />
-            <div className={`absolute left-0 right-0 h-px ${isDarkMode ? "bg-slate-600/60" : "bg-pink-200"}`} style={{ bottom: "28px" }} />
-            {/* Runner: horizontal scroll + direction flip on same element */}
-            <div
-              className="absolute"
-              style={{
-                bottom: "18px",
-                animation: "panda-hscroll 6s linear infinite, panda-flip 6s linear infinite"
-              }}
-            >
-              {/* Bob layer */}
-              <div style={{ animation: "panda-bob 0.38s ease-in-out infinite" }}>
-                <img
-                  src="/icons/icon-192.png"
-                  alt="Ikaku"
-                  className="h-11 w-11 rounded-xl"
-                  draggable={false}
-                />
-              </div>
-              {/* Ground shadow */}
-              <div
-                className={`mx-auto h-1.5 rounded-full blur-sm ${isDarkMode ? "bg-black/20" : "bg-pink-300/25"}`}
-                style={{ width: "30px", animation: "panda-shadow-pulse 0.38s ease-in-out infinite" }}
-              />
-            </div>
-          </div>
+        {/* Ikaku GIF card */}
+        <div className={`flex items-center justify-center overflow-hidden rounded-3xl shadow-soft ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"}`}>
+          <img
+            src="/ikaku.gif"
+            alt="Ikaku"
+            className="h-40 w-auto"
+            draggable={false}
+          />
         </div>
 
         <section className={`rounded-3xl p-6 shadow-soft ${isDarkMode ? "bg-slate-900/80" : "bg-white/80"}`}>
