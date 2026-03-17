@@ -28,7 +28,6 @@ const categoryStyles: Record<PlannerItem["category"], { label: string; color: st
 };
 
 const LOCAL_THEME_KEY = "meet-asuka:theme";
-const LOCAL_LANGUAGE_KEY = "meet-asuka:language";
 // Read from .env.local (see .env.local.example). Falls back to a placeholder
 // that will always fail so the app doesn't silently stay open if the env var
 // is missing.
@@ -38,69 +37,6 @@ const LOGIN_PIN = process.env.NEXT_PUBLIC_LOGIN_PIN ?? "";
 // Override in .env.local via NEXT_PUBLIC_WEATHER_LAT / NEXT_PUBLIC_WEATHER_LON.
 const WEATHER_LAT = process.env.NEXT_PUBLIC_WEATHER_LAT ?? "35.7082";
 const WEATHER_LON = process.env.NEXT_PUBLIC_WEATHER_LON ?? "139.6984";
-
-const translations = {
-  en: {
-    welcomeBack: "Welcome back",
-    loginSubtitle: "Events • Trips • TODOs • Wishlist",
-    pinLabel: "Enter 4-digit PIN",
-    pinPlaceholder: "0000",
-    loginButton: "Let's go!",
-    pinError: "Invalid PIN. Please try again.",
-    plannerTagline: "Your little planner",
-    logout: "Logout",
-    openNavigation: "Open navigation",
-    darkMode: "Dark mode",
-    lightMode: "Light mode",
-    switchLanguage: "Switch language",
-    prev: "Prev",
-    next: "Next",
-    today: "Today",
-    plansForSelectedDay: "Plans for selected day",
-    noPlans: "No plans yet. Add something sweet with the plus button!",
-    trips: "Trips",
-    events: "Events",
-    todos: "Todos",
-    doneTodos: "Done TODO",
-    wishlist: "Wishlist",
-    pastPlans: "Past plans",
-    navigate: "Navigate",
-    weeklyWeather: "7-Day weather",
-    weatherUnavailable: "Weather unavailable",
-    weatherLoading: "Loading...",
-    weekdays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-  },
-  ja: {
-    welcomeBack: "おかえりなさい",
-    loginSubtitle: "イベント • 旅行 • TODO • ウィッシュリスト",
-    pinLabel: "4桁のPINを入力",
-    pinPlaceholder: "0000",
-    loginButton: "ログイン",
-    pinError: "PINが正しくありません。もう一度お試しください。",
-    plannerTagline: "あなたの小さなプランナー",
-    logout: "ログアウト",
-    openNavigation: "ナビゲーションを開く",
-    darkMode: "ダークモード",
-    lightMode: "ライトモード",
-    switchLanguage: "言語を切り替え",
-    prev: "前へ",
-    next: "次へ",
-    today: "今日",
-    plansForSelectedDay: "選択日の予定",
-    noPlans: "予定がありません。プラスボタンで追加しましょう！",
-    trips: "旅行",
-    events: "イベント",
-    todos: "TODO",
-    doneTodos: "完了TODO",
-    wishlist: "ウィッシュ",
-    pastPlans: "過去の予定",
-    navigate: "ナビゲート",
-    weeklyWeather: "7日間の天気",
-    weatherUnavailable: "天気情報を取得できません",
-    weatherLoading: "読み込み中...",
-    weekdays: ["日", "月", "火", "水", "木", "金", "土"]
-  }
-} as const;
 
 
 const LOCAL_ITEMS_KEY = "meet-asuka:planner-items";
@@ -249,10 +185,8 @@ type PlannerFormState = {
 
 export default function Home() {
   type NavGroupKey = PlannerItem["category"] | "past" | "doneTodo";
-  type Language = keyof typeof translations;
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [language, setLanguage] = useState<Language>("en");
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState("");
@@ -279,11 +213,10 @@ export default function Home() {
     past: false,
     doneTodo: false
   });
-  const [weatherLabel, setWeatherLabel] = useState<string>(translations.en.weatherLoading);
+  const [weatherLabel, setWeatherLabel] = useState<string>("Loading...");
   const [hasHydratedPlanner, setHasHydratedPlanner] = useState(false);
   const [notifPermission, setNotifPermission] = useState<"granted" | "denied" | "default" | "unsupported">("default");
   const [syncError, setSyncError] = useState<string | null>(null);
-  const t = translations[language];
   const addPlanCategoryOptions: Array<{ category: PlannerItem["category"]; title: string; subtitle: string; icon: string }> = [
     { category: "event", title: "Event", subtitle: "meetups", icon: "✈️" },
     { category: "trip", title: "Trip", subtitle: "travel", icon: "🧳" },
@@ -303,12 +236,12 @@ export default function Home() {
     : "mt-2 min-h-[110px] w-full rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-2 text-sm text-slate-700 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-200";
   const todaysWeatherSummary = useMemo(() => {
     if (weeklyWeather.length === 0) {
-      return t.weatherLoading;
+      return "Loading...";
     }
 
     const todayEntry = weeklyWeather.find((day) => day.date === formatDate(new Date())) ?? weeklyWeather[0];
-    return `${t.today}: ${todayEntry.max}° / ${todayEntry.min}°`;
-  }, [t.today, t.weatherLoading, weeklyWeather]);
+    return `Today: ${todayEntry.max}° / ${todayEntry.min}°`;
+  }, [weeklyWeather]);
 
   const normalizedToday = useMemo(() => {
     const today = new Date();
@@ -346,7 +279,7 @@ export default function Home() {
     });
   }, [items, selectedDate, selectedKey]);
 
-  const activeMonthLabel = activeMonth.toLocaleDateString(language === "ja" ? "ja-JP" : "en-US", {
+  const activeMonthLabel = activeMonth.toLocaleDateString("en-US", {
     month: "long",
     year: "numeric"
   });
@@ -389,7 +322,7 @@ export default function Home() {
   }[] = [
     {
       key: "trip",
-      label: t.trips,
+      label: "Trips",
       color: "text-indigo-500",
       icon: "🧳",
       // Use endDate (or startDate) so an in-progress trip stays visible until it ends.
@@ -402,7 +335,7 @@ export default function Home() {
     },
     {
       key: "event",
-      label: t.events,
+      label: "Events",
       color: "text-emerald-500",
       icon: "🎉",
       entries: items.filter((item) => {
@@ -414,14 +347,14 @@ export default function Home() {
     },
     {
       key: "todo",
-      label: t.todos,
+      label: "Todos",
       color: "text-sky-500",
       icon: "📝",
       entries: [...todoItems].sort(byDateAsc)
     },
     {
       key: "wishlist",
-      label: t.wishlist,
+      label: "Wishlist",
       color: "text-amber-500",
       icon: "🌟",
       entries: items
@@ -430,14 +363,14 @@ export default function Home() {
     },
     {
       key: "past",
-      label: t.pastPlans,
+      label: "Past plans",
       color: "text-rose-500",
       icon: "⏳",
       entries: [...allPastItems].sort(byDateDesc)
     },
     {
       key: "doneTodo",
-      label: t.doneTodos,
+      label: "Done TODO",
       color: "text-slate-400",
       icon: "✅",
       entries: [...doneTodoItems].sort(byDateDesc)
@@ -488,10 +421,6 @@ export default function Home() {
       setIsDarkMode(true);
     }
 
-    const storedLanguage = window.localStorage.getItem(LOCAL_LANGUAGE_KEY);
-    if (storedLanguage === "ja" || storedLanguage === "en") {
-      setLanguage(storedLanguage);
-    }
   }, []);
 
   useEffect(() => {
@@ -500,22 +429,6 @@ export default function Home() {
     }
     window.localStorage.setItem(LOCAL_THEME_KEY, isDarkMode ? "dark" : "light");
   }, [isDarkMode]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    window.localStorage.setItem(LOCAL_LANGUAGE_KEY, language);
-  }, [language]);
-
-  useEffect(() => {
-    setWeatherLabel((previous) => {
-      if (previous === "Loading..." || previous === "読み込み中...") {
-        return t.weatherLoading;
-      }
-      return previous;
-    });
-  }, [t.weatherLoading]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -637,9 +550,7 @@ export default function Home() {
         setWeeklyWeather(nextWeek);
       } catch (error) {
         console.error("Failed to load weather", error);
-        // Use the English fallback directly — the label useEffect below
-        // will translate it once the component re-renders with the right language.
-        setWeatherLabel(translations.en.weatherUnavailable);
+        setWeatherLabel("Weather unavailable");
         setWeeklyWeather([]);
       }
     };
@@ -752,7 +663,7 @@ export default function Home() {
 
   const formatWeatherDayCompact = (date: string) => {
     const parsed = new Date(date);
-    const weekday = parsed.toLocaleDateString(language === "ja" ? "ja-JP" : "en-US", {
+    const weekday = parsed.toLocaleDateString("en-US", {
       weekday: "short"
     });
     return `${weekday} ${parsed.getDate()}`;
@@ -765,7 +676,7 @@ export default function Home() {
       return;
     }
 
-    setPinError(t.pinError);
+    setPinError("Invalid PIN. Please try again.");
   };
 
   if (!isLoggedIn) {
@@ -774,19 +685,19 @@ export default function Home() {
         <div className="pointer-events-none absolute -left-16 top-10 h-44 w-44 rounded-full bg-pink-300/30 blur-3xl" />
         <div className="pointer-events-none absolute -right-12 bottom-8 h-52 w-52 rounded-full bg-rose-300/30 blur-3xl" />
         <div className={`w-full max-w-xl rounded-[36px] border p-10 text-center shadow-soft backdrop-blur ${isDarkMode ? "border-slate-700 bg-slate-800/90" : "border-white/60 bg-white/85"}`}>
-          <p className={`text-left text-sm font-medium ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>{t.welcomeBack}</p>
+          <p className={`text-left text-sm font-medium ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>Welcome back</p>
           <h1 className={`mt-1 text-left text-5xl font-bold ${isDarkMode ? "text-white" : "text-slate-800"}`}>Asuka ✨</h1>
-          <p className={`mt-2 text-left text-base ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}>{t.loginSubtitle}</p>
+          <p className={`mt-2 text-left text-base ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}>Events • Trips • TODOs • Wishlist</p>
           <div className="mt-7 flex justify-center">
             <img src="/runcat.gif" alt="RunCat loading" className="h-16 w-auto" />
           </div>
           <div className="mt-6 text-center">
-            <p className={`text-sm font-semibold ${isDarkMode ? "text-slate-200" : "text-slate-600"}`}>{t.pinLabel}</p>
+            <p className={`text-sm font-semibold ${isDarkMode ? "text-slate-200" : "text-slate-600"}`}>Enter 4-digit PIN</p>
             <button
               type="button"
               onClick={() => pinInputRef.current?.focus()}
               className="mx-auto mt-3 grid grid-cols-4 gap-3"
-              aria-label={t.pinLabel}
+              aria-label="Enter 4-digit PIN"
             >
               {Array.from({ length: 4 }).map((_, index) => (
                 <span
@@ -817,7 +728,7 @@ export default function Home() {
                 if (event.key === "Enter") handleLogin();
               }}
               className="sr-only"
-              placeholder={t.pinPlaceholder}
+              placeholder="0000"
             />
           </div>
           {pinError ? <p className="mt-2 text-left text-sm text-rose-400">{pinError}</p> : null}
@@ -826,7 +737,7 @@ export default function Home() {
             onClick={handleLogin}
             className={`mt-8 inline-flex items-center justify-center rounded-full px-9 py-3 text-base font-semibold text-white shadow-lg transition hover:-translate-y-0.5 ${isDarkMode ? "bg-fuchsia-600 shadow-fuchsia-900/50 hover:bg-fuchsia-500" : "bg-pink-500 shadow-pink-200 hover:bg-pink-400"}`}
           >
-            {t.loginButton}
+            {"Let's go!"}
           </button>
         </div>
       </main>
@@ -842,7 +753,7 @@ export default function Home() {
               type="button"
               onClick={() => setIsNavOpen(true)}
               className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl transition hover:-translate-y-0.5 ${isDarkMode ? "bg-slate-800 text-pink-300 shadow-lg shadow-black/20 hover:bg-slate-700" : "bg-white text-pink-500 shadow-lg shadow-pink-100 hover:bg-pink-50"}`}
-              aria-label={t.openNavigation}
+              aria-label="Open navigation"
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
                 <path d="M4 6h16a1 1 0 1 0 0-2H4a1 1 0 1 0 0 2zm16 5H4a1 1 0 1 0 0 2h16a1 1 0 1 0 0-2zm0 7H4a1 1 0 1 0 0 2h16a1 1 0 1 0 0-2z" />
@@ -852,22 +763,10 @@ export default function Home() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setLanguage((prev) => (prev === "en" ? "ja" : "en"))}
-                className={`inline-flex h-11 w-11 items-center justify-center rounded-full border shadow-sm ${isDarkMode ? "border-slate-500 bg-slate-700 text-slate-100" : "border-slate-300 bg-slate-100 text-slate-700"}`}
-                aria-label={t.switchLanguage}
-                title={t.switchLanguage}
-              >
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 5h7m-3.5 0v1.5M6 8h5m-2.5 0c0 2.7-1.7 4.7-4 6m6-2c-1.3-1-2.4-2.3-3.1-4" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M14 8h6m-3 0v11m-4-3h8" />
-                </svg>
-              </button>
-              <button
-                type="button"
                 onClick={() => setIsDarkMode((prev) => !prev)}
                 className={`inline-flex h-11 w-11 items-center justify-center rounded-full border shadow-sm ${isDarkMode ? "border-slate-500 bg-slate-700 text-slate-100" : "border-slate-300 bg-slate-100 text-slate-700"}`}
-                aria-label={isDarkMode ? t.lightMode : t.darkMode}
-                title={isDarkMode ? t.lightMode : t.darkMode}
+                aria-label={isDarkMode ? "Light mode" : "Dark mode"}
+                title={isDarkMode ? "Light mode" : "Dark mode"}
               >
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
                   <circle cx="12" cy="12" r="3.2" />
@@ -878,7 +777,7 @@ export default function Home() {
                 type="button"
                 onClick={() => setIsWeatherCardOpen((prev) => !prev)}
                 className={`flex items-center gap-2 rounded-full px-3 py-2 text-xs font-medium shadow ${isDarkMode ? "bg-slate-800 text-slate-100" : "bg-white/90 text-slate-700"}`}
-                aria-label={t.weeklyWeather}
+                aria-label="7-Day weather"
                 title={weatherLabel}
               >
                 <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${isDarkMode ? "bg-slate-700" : "bg-pink-100"}`}>
@@ -931,9 +830,9 @@ export default function Home() {
 
         {isWeatherCardOpen ? (
           <section className={`rounded-3xl border p-4 shadow-soft ${isDarkMode ? "border-slate-700 bg-slate-900/80" : "border-pink-100 bg-white/85"}`}>
-            <h3 className={`text-xl font-bold ${isDarkMode ? "text-slate-100" : "text-slate-700"}`}>{t.weeklyWeather}</h3>
+            <h3 className={`text-xl font-bold ${isDarkMode ? "text-slate-100" : "text-slate-700"}`}>7-Day weather</h3>
             {weeklyWeather.length === 0 ? (
-              <p className={`mt-3 text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>{t.weatherLoading}</p>
+              <p className={`mt-3 text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>Loading...</p>
             ) : (
               <div className="mt-3 grid grid-cols-7 gap-1">
                 {weeklyWeather.map((day) => (
@@ -960,7 +859,7 @@ export default function Home() {
             className={`flex items-center gap-2 rounded-full px-4 py-2 transition ${isDarkMode ? "bg-slate-700 text-pink-200 hover:bg-slate-600" : "bg-pink-50 text-pink-500 hover:bg-pink-100"}`}
           >
             <span>←</span>
-            {t.prev}
+            Prev
           </button>
           <button
             type="button"
@@ -971,7 +870,7 @@ export default function Home() {
             }}
             className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${isDarkMode ? "border-slate-600 text-pink-200 hover:bg-slate-700" : "border-pink-100 text-pink-500 hover:bg-pink-50"}`}
           >
-            {t.today}
+            Today
           </button>
           <button
             type="button"
@@ -980,7 +879,7 @@ export default function Home() {
             }
             className={`flex items-center gap-2 rounded-full px-4 py-2 transition ${isDarkMode ? "bg-slate-700 text-pink-200 hover:bg-slate-600" : "bg-pink-50 text-pink-500 hover:bg-pink-100"}`}
           >
-            {t.next}
+            Next
             <span>→</span>
           </button>
         </div>
@@ -988,7 +887,7 @@ export default function Home() {
         <Calendar
           month={new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1)}
           monthLabel={activeMonthLabel}
-          weekdayLabels={t.weekdays}
+          weekdayLabels={["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]}
           isDarkMode={isDarkMode}
           items={items}
           selectedDate={selectedDate}
@@ -997,61 +896,86 @@ export default function Home() {
 
         <section className={`rounded-3xl p-6 shadow-soft ${isDarkMode ? "bg-slate-900/80" : "bg-white/80"}`}>
           <h3 className={`text-lg font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>
-            {t.plansForSelectedDay}
+            Plans for selected day
           </h3>
           <div className="mt-4 space-y-3">
             {selectedItems.length === 0 ? (
               <p className={`text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>
-                {t.noPlans}
+                No plans yet. Add something sweet with the plus button!
               </p>
             ) : (
-                selectedItems.map((item) => (
-                  <button
+                selectedItems.map((item) => {
+                  const openEdit = () => {
+                    setEditingId(item.id);
+                    setReturnToNavAfterModal(false);
+                    setNewItem({
+                      title: item.title,
+                      category: item.category,
+                      date: item.date,
+                      endDate: item.endDate ?? "",
+                      startTime: item.startTime ?? "",
+                      endTime: item.endTime ?? "",
+                      location: item.location ?? "",
+                      recurring: item.recurring ?? "none",
+                      tripTodos: item.tripTodos ?? "",
+                      tripTodoItems:
+                        item.tripTodoItems && item.tripTodoItems.length > 0
+                          ? item.tripTodoItems
+                          : item.tripTodos
+                            ? [{ title: "Trip todo", date: item.date, details: item.tripTodos, participants: "" }]
+                            : [createEmptyTripTodo()],
+                      participants: item.participants ?? "",
+                      pic: item.pic ?? "",
+                      completed: item.completed ?? false,
+                      details: item.details === "A dreamy new memory." ? "" : item.details,
+                      reminderAt: item.reminderAt ?? (item.reminderDays != null && item.date ? (() => { const [y,m,d] = item.date.split("-").map(Number); const dt = new Date(y, m-1, d - (item.reminderDays ?? 0), 9, 0, 0); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}T09:00`; })() : "")
+                    });
+                    setIsModalOpen(true);
+                  };
+
+                  return (
+                  <div
                     key={item.id}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => {
                       if (item.category === "todo" || item.category === "wishlist") {
                         void toggleChecklistCompletion(item);
                         return;
                       }
-
-                      setEditingId(item.id);
-                      setReturnToNavAfterModal(false);
-                      setNewItem({
-                        title: item.title,
-                        category: item.category,
-                        date: item.date,
-                        endDate: item.endDate ?? "",
-                        startTime: item.startTime ?? "",
-                        endTime: item.endTime ?? "",
-                        location: item.location ?? "",
-                        recurring: item.recurring ?? "none",
-                        tripTodos: item.tripTodos ?? "",
-                        tripTodoItems:
-                          item.tripTodoItems && item.tripTodoItems.length > 0
-                            ? item.tripTodoItems
-                            : item.tripTodos
-                              ? [{ title: "Trip todo", date: item.date, details: item.tripTodos, participants: "" }]
-                              : [createEmptyTripTodo()],
-                        participants: item.participants ?? "",
-                        pic: item.pic ?? "",
-                        completed: item.completed ?? false,
-                        details: item.details === "A dreamy new memory." ? "" : item.details,
-                        reminderAt: item.reminderAt ?? (item.reminderDays != null && item.date ? (() => { const [y,m,d] = item.date.split("-").map(Number); const dt = new Date(y, m-1, d - (item.reminderDays ?? 0), 9, 0, 0); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}T09:00`; })() : "")
-                      });
-                      setIsModalOpen(true);
+                      openEdit();
                     }}
-                    className={`w-full rounded-2xl border px-4 py-3 text-left transition hover:-translate-y-0.5 ${(item.category === "todo" || item.category === "wishlist") && item.completed ? (isDarkMode ? "border-emerald-700 bg-emerald-900/20" : "border-emerald-200 bg-emerald-50/70") : (isDarkMode ? "border-slate-700 bg-slate-800 hover:border-slate-600 hover:bg-slate-700" : "border-pink-100 bg-white hover:border-pink-200 hover:bg-pink-50/50")}`}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        if (item.category === "todo" || item.category === "wishlist") {
+                          void toggleChecklistCompletion(item);
+                        } else {
+                          openEdit();
+                        }
+                      }
+                    }}
+                    className={`w-full cursor-pointer rounded-2xl border px-4 py-3 text-left transition hover:-translate-y-0.5 ${(item.category === "todo" || item.category === "wishlist") && item.completed ? (isDarkMode ? "border-emerald-700 bg-emerald-900/20" : "border-emerald-200 bg-emerald-50/70") : (isDarkMode ? "border-slate-700 bg-slate-800 hover:border-slate-600 hover:bg-slate-700" : "border-pink-100 bg-white hover:border-pink-200 hover:bg-pink-50/50")}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className={`min-w-0 text-sm font-semibold ${(item.category === "todo" || item.category === "wishlist") && item.completed ? "text-slate-400 line-through" : (isDarkMode ? "text-slate-100" : "text-slate-800")}`}>
                         {item.title}
                       </p>
-                      <span
-                        className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${categoryStyles[item.category].color}`}
-                      >
-                        {categoryStyles[item.category].label}
-                      </span>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${categoryStyles[item.category].color}`}>
+                          {categoryStyles[item.category].label}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); openEdit(); }}
+                          aria-label="Edit"
+                          className={`inline-flex h-7 w-7 items-center justify-center rounded-full transition ${isDarkMode ? "text-slate-400 hover:bg-slate-700 hover:text-pink-300" : "text-slate-400 hover:bg-pink-50 hover:text-pink-500"}`}
+                        >
+                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                     <p className={`mt-2 text-xs font-semibold ${isDarkMode ? "text-pink-300" : "text-pink-400"}`}>
                       {formatMeta(item)}
@@ -1076,8 +1000,9 @@ export default function Home() {
                     ) : item.category === "trip" && item.tripTodos ? (
                       <p className="mt-1 text-xs text-indigo-500">📝 Trip todos: {item.tripTodos}</p>
                     ) : null}
-                  </button>
-                ))
+                  </div>
+                  );
+                })
               )}
           </div>
         </section>
@@ -1089,7 +1014,7 @@ export default function Home() {
             className={`flex w-full items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold shadow-soft transition ${isDarkMode ? "border-slate-700 bg-slate-900/80 text-pink-300 hover:bg-slate-800" : "border-pink-100 bg-white/80 text-pink-600 hover:bg-pink-50"}` }
           >
             <span className="text-lg">👋</span>
-            {t.logout}
+            Logout
           </button>
         </div>
 
@@ -1662,7 +1587,7 @@ export default function Home() {
               </button>
             </div>
             <div className="mt-6 flex-1 overflow-y-auto pr-1">
-              <p className={`text-xs uppercase tracking-[0.2em] ${isDarkMode ? "text-pink-300" : "text-pink-400"}`}>{t.navigate}</p>
+              <p className={`text-xs uppercase tracking-[0.2em] ${isDarkMode ? "text-pink-300" : "text-pink-400"}`}>Navigate</p>
               <div className="mt-4 grid gap-3">
                 {navGroups.map((group) => {
                   const isExpanded = expandedGroups[group.key];
