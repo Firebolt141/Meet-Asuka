@@ -64,6 +64,9 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "Generated tag: $TAG"
 
+      - name: Rename APK
+        run: mv android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/meet-asuka.apk
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -73,5 +76,5 @@ jobs:
             Automated release from commit ${{ github.sha }}
 
             **Commit:** ${{ github.event.head_commit.message }}
-          files: android/app/build/outputs/apk/debug/app-debug.apk
+          files: android/app/build/outputs/apk/debug/meet-asuka.apk
           fail_on_unmatched_files: true

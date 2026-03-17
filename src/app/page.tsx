@@ -193,6 +193,7 @@ export default function Home() {
   const [isWeatherCardOpen, setIsWeatherCardOpen] = useState(false);
   const [weeklyWeather, setWeeklyWeather] = useState<Array<{ date: string; min: number; max: number; code: number }>>([]);
   const pinInputRef = useRef<HTMLInputElement | null>(null);
+  const handledStaleIdsRef = useRef(new Set<string>());
   const [items, setItems] = useState<PlannerItem[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -568,6 +569,11 @@ export default function Home() {
         if (item.category !== "todo" || !item.completed || !item.date) {
           return false;
         }
+        // Skip IDs already handled this session to avoid re-running on the
+        // state update triggered by the setItems call below.
+        if (handledStaleIdsRef.current.has(item.id)) {
+          return false;
+        }
         const itemDate = new Date(item.date);
         itemDate.setHours(0, 0, 0, 0);
         return itemDate < cutoff;
@@ -577,6 +583,8 @@ export default function Home() {
     if (staleDoneTodoIds.length === 0) {
       return;
     }
+
+    staleDoneTodoIds.forEach((id) => handledStaleIdsRef.current.add(id));
 
     // Capture the items before removing so we can restore them if the Firestore
     // delete fails and the next load would otherwise bring them back as ghosts.
@@ -589,6 +597,8 @@ export default function Home() {
 
     Promise.all(staleDoneTodoIds.map((id) => deletePlannerItem(id))).catch((error) => {
       console.error("Failed to delete stale done TODOs from Firestore", error);
+      // Allow retry on next mount by un-marking these IDs.
+      staleDoneTodoIds.forEach((id) => handledStaleIdsRef.current.delete(id));
       // Restore so local state and Firestore stay in sync.
       setItems((prev) => [...prev, ...staleItems]);
     });
@@ -761,6 +771,23 @@ export default function Home() {
             </button>
             <div />
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsDarkMode((prev) => !prev)}
+                className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl transition hover:-translate-y-0.5 ${isDarkMode ? "bg-slate-800 text-pink-300 shadow-lg shadow-black/20 hover:bg-slate-700" : "bg-white text-pink-500 shadow-lg shadow-pink-100 hover:bg-pink-50"}`}
+                aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+              >
+                {isDarkMode ? (
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                    <circle cx="12" cy="12" r="4" />
+                    <path strokeLinecap="round" d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                  </svg>
+                )}
+              </button>
               <button
                 type="button"
                 onClick={() => setIsWeatherCardOpen((prev) => !prev)}
@@ -1566,22 +1593,12 @@ export default function Home() {
         <div className="fixed inset-0 z-40 flex bg-black/40">
           <div className={`flex h-full w-72 flex-col p-6 shadow-soft ${isDarkMode ? "bg-slate-900" : "bg-white"}`}>
             <div className="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setIsDarkMode((prev) => !prev)}
-                className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition ${isDarkMode ? "bg-slate-700 text-slate-200 hover:bg-slate-600" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
-                aria-label={isDarkMode ? "Light mode" : "Dark mode"}
-              >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-                  <circle cx="12" cy="12" r="3.2" />
-                  <path strokeLinecap="round" d="M12 2.5v2.2M12 19.3v2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" />
-                </svg>
-                {isDarkMode ? "Light mode" : "Dark mode"}
-              </button>
+              <p className={`text-sm font-semibold ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>Menu</p>
               <button
                 type="button"
                 onClick={() => setIsNavOpen(false)}
-                className={`text-slate-400 ${isDarkMode ? "hover:text-slate-200" : "hover:text-slate-600"}`}
+                className={`inline-flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition ${isDarkMode ? "hover:bg-slate-800 hover:text-slate-200" : "hover:bg-slate-100 hover:text-slate-600"}`}
+                aria-label="Close menu"
               >
                 ✕
               </button>
