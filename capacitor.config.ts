@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "com.asuka.planner",
-  appName: "Asuka Planner",
+  appId: "com.meetasuka",
+  appName: "Meet Asuka",
   webDir: "out",
   server: {
     androidScheme: "https"

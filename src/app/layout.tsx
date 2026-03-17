@@ -2,7 +2,7 @@ import "./globals.css";
 import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
-  title: "Asuka Planner",
+  title: "Meet Asuka",
   description: "Your sweet travel & life planner",
   manifest: "/manifest.json",
   appleWebApp: {

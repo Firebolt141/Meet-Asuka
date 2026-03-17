@@ -1,4 +1,4 @@
-package com.asuka.planner;
+package com.meetasuka;
 
 import com.getcapacitor.BridgeActivity;
 
