@@ -734,26 +734,24 @@ export default function Home() {
               maxLength={4}
               value={pinInput}
               onChange={(event) => {
-                setPinInput(event.target.value.replace(/\D/g, "").slice(0, 4));
-                if (pinError) {
-                  setPinError("");
+                const value = event.target.value.replace(/\D/g, "").slice(0, 4);
+                setPinInput(value);
+                if (pinError) setPinError("");
+                if (value.length === 4) {
+                  if (value === LOGIN_PIN) {
+                    setIsLoggedIn(true);
+                    setPinError("");
+                  } else {
+                    setPinError("Invalid PIN. Please try again.");
+                    setTimeout(() => setPinInput(""), 500);
+                  }
                 }
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") handleLogin();
               }}
               className="sr-only"
               placeholder="0000"
             />
           </div>
-          {pinError ? <p className="mt-2 text-left text-sm text-rose-400">{pinError}</p> : null}
-          <button
-            type="button"
-            onClick={handleLogin}
-            className={`mt-8 inline-flex items-center justify-center rounded-full px-9 py-3 text-base font-semibold text-white shadow-lg transition hover:-translate-y-0.5 ${isDarkMode ? "bg-fuchsia-600 shadow-fuchsia-900/50 hover:bg-fuchsia-500" : "bg-pink-500 shadow-pink-200 hover:bg-pink-400"}`}
-          >
-            {"Let's go!"}
-          </button>
+          {pinError ? <p className="mt-3 text-center text-sm text-rose-400">{pinError}</p> : null}
         </div>
       </main>
     );
