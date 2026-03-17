@@ -54,6 +54,11 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
+      - name: Inject consistent debug keystore
+        run: |
+          mkdir -p ~/.android
+          echo "${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}" | base64 -d > ~/.android/debug.keystore
+
       - name: Build debug APK
         run: cd android && ./gradlew assembleDebug --no-daemon
 
