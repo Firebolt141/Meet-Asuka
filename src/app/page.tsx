@@ -705,7 +705,9 @@ export default function Home() {
           <p className={`mt-2 text-left text-base ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}>Events • Trips • TODOs • Wishlist</p>
           <div className="mt-7 flex justify-center">
             <div className={`inline-flex items-center justify-center rounded-[28px] p-3 shadow-lg ${isDarkMode ? "bg-slate-700/60 shadow-black/30" : "bg-white/70 shadow-pink-100"}`}>
-              <img src="/icons/icon-512.png" alt="Ikaku" className="h-24 w-24 rounded-2xl" />
+              <div className="h-24 w-24 overflow-hidden rounded-2xl translate-x-px">
+                <img src="/icons/icon-512.png" alt="Ikaku" className="h-full w-full object-cover" />
+              </div>
             </div>
           </div>
           <div className="mt-6 text-center">
@@ -904,15 +906,28 @@ export default function Home() {
           </button>
         </div>
 
-        <Calendar
-          month={new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1)}
-          monthLabel={activeMonthLabel}
-          weekdayLabels={["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]}
-          isDarkMode={isDarkMode}
-          items={items}
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-        />
+        {/* Full-bleed calendar — breaks out of the px-5 gutter */}
+        <div className="-mx-5">
+          <Calendar
+            month={new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1)}
+            monthLabel={activeMonthLabel}
+            weekdayLabels={["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]}
+            isDarkMode={isDarkMode}
+            items={items}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+          />
+        </div>
+
+        {/* Ikaku GIF card */}
+        <div className={`flex items-center justify-center overflow-hidden rounded-3xl shadow-soft ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"}`}>
+          <img
+            src="/ikaku.gif"
+            alt="Ikaku"
+            className="h-40 w-auto"
+            draggable={false}
+          />
+        </div>
 
         <section className={`rounded-3xl p-6 shadow-soft ${isDarkMode ? "bg-slate-900/80" : "bg-white/80"}`}>
           <h3 className={`text-lg font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>

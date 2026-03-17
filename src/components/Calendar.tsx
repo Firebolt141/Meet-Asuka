@@ -105,7 +105,7 @@ export function Calendar({
   }, [items]);
 
   return (
-    <div className={`rounded-3xl px-4 py-5 shadow-soft ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"}`}>
+    <div className={`rounded-2xl px-2 py-4 shadow-soft ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"}`}>
       <div className="mb-4 text-center">
         <h3 className={`text-xl font-bold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>{monthLabel}</h3>
       </div>
