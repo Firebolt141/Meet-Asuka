@@ -1,4 +1,4 @@
-// Custom service worker extension for Asuka Planner
+// Custom service worker extension for Meet Asuka
 // next-pwa merges this with the generated service worker
 
 self.addEventListener("message", (event) => {

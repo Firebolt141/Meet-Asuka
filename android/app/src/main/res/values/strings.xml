@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Asuka Planner</string>
-    <string name="title_activity_main">Asuka Planner</string>
-    <string name="package_name">com.asuka.planner</string>
-    <string name="custom_url_scheme">com.asuka.planner</string>
+    <string name="app_name">Meet Asuka</string>
+    <string name="title_activity_main">Meet Asuka</string>
+    <string name="package_name">com.meetasuka</string>
+    <string name="custom_url_scheme">com.meetasuka</string>
 </resources>
