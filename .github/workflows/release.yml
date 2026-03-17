@@ -54,6 +54,11 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
+      - name: Install debug keystore
+        run: |
+          mkdir -p ~/.android
+          cp android/app/meet-asuka-debug.keystore ~/.android/debug.keystore
+
       - name: Build debug APK
         run: cd android && ./gradlew assembleDebug --no-daemon
 
