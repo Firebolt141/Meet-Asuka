@@ -120,6 +120,11 @@ export function Calendar({
         ))}
         {days.map((date) => {
           const dateKey = formatDate(date);
+          const today = new Date();
+          const isToday =
+            date.getFullYear() === today.getFullYear() &&
+            date.getMonth() === today.getMonth() &&
+            date.getDate() === today.getDate();
           const isSelected =
             date.getFullYear() === selectedDate.getFullYear() &&
             date.getMonth() === selectedDate.getMonth() &&
@@ -140,13 +145,20 @@ export function Calendar({
                   ? isDarkMode
                     ? "border-fuchsia-400 bg-fuchsia-900/40 text-pink-100 shadow"
                     : "border-pink-300 bg-pink-100 text-pink-700 shadow"
-                  : isDarkMode
-                    ? "border-transparent bg-slate-700 text-slate-200 hover:border-pink-300 hover:bg-slate-600"
-                    : "border-transparent bg-white text-slate-700 hover:border-pink-200 hover:bg-pink-50"
+                  : isToday
+                    ? isDarkMode
+                      ? "border-pink-400 bg-slate-700 text-pink-300 hover:bg-slate-600"
+                      : "border-pink-400 bg-white text-pink-600 hover:bg-pink-50"
+                    : isDarkMode
+                      ? "border-transparent bg-slate-700 text-slate-200 hover:border-pink-300 hover:bg-slate-600"
+                      : "border-transparent bg-white text-slate-700 hover:border-pink-200 hover:bg-pink-50"
               }`}
             >
-              <span className={`relative z-10 ${tripSpan && !isSelected ? isDarkMode ? "text-indigo-300" : "text-indigo-700" : ""}`}>
+              <span className={`relative z-10 flex flex-col items-center ${tripSpan && !isSelected ? isDarkMode ? "text-indigo-300" : "text-indigo-700" : ""}`}>
                 {date.getDate()}
+                {isToday && !isSelected && (
+                  <span className={`mt-0.5 h-1 w-1 rounded-full ${isDarkMode ? "bg-pink-400" : "bg-pink-500"}`} />
+                )}
               </span>
               <span className="pointer-events-none absolute bottom-4 z-10 flex gap-1">
                 {indicatorItems.slice(0, 3).map((item) => (
