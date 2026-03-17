@@ -142,12 +142,11 @@ function buildReminders(items: PlannerItem[]): ScheduledReminder[] {
 
 async function scheduleCapacitorReminders(reminders: ScheduledReminder[]): Promise<void> {
   const { LocalNotifications } = await import("@capacitor/local-notifications");
-  const notifications = reminders.map((r, i) => ({
+  const notifications = reminders.map((r) => ({
     id: Math.abs(hashCode(r.id)) % 2147483647,
     title: r.title,
     body: r.body,
     schedule: { at: r.fireAt },
-    sound: undefined,
     actionTypeId: "",
     extra: null
   }));
