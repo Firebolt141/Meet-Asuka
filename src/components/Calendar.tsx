@@ -109,12 +109,10 @@ export function Calendar({
       <div className="mb-4 text-center">
         <h3 className={`text-xl font-bold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>{monthLabel}</h3>
       </div>
-      <div className={`grid grid-cols-7 gap-x-1 text-center text-xs font-semibold uppercase tracking-wide ${isDarkMode ? "text-pink-300" : "text-pink-500"}`}>
+      <div className="grid grid-cols-7 gap-x-1 gap-y-1.5">
         {weekdayLabels.map((label) => (
-          <div key={label}>{label}</div>
+          <div key={label} className={`pb-1 text-center text-xs font-semibold uppercase tracking-wide ${isDarkMode ? "text-pink-300" : "text-pink-500"}`}>{label}</div>
         ))}
-      </div>
-      <div className="mt-2 grid grid-cols-7 gap-x-1 gap-y-1.5">
         {Array.from({ length: leadingBlanks }).map((_, index) => (
           <div key={`blank-${index}`} className="h-16" />
         ))}
