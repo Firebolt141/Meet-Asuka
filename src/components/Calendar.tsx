@@ -109,20 +109,21 @@ export function Calendar({
       <div className="mb-4 text-center">
         <h3 className={`text-xl font-bold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>{monthLabel}</h3>
       </div>
-      <div className={`grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase tracking-wide ${isDarkMode ? "text-pink-300" : "text-pink-500"}`}>
+      <div className={`grid grid-cols-7 gap-x-1 text-center text-xs font-semibold uppercase tracking-wide ${isDarkMode ? "text-pink-300" : "text-pink-500"}`}>
         {weekdayLabels.map((label) => (
           <div key={label}>{label}</div>
         ))}
       </div>
-      <div className="mt-4 grid grid-cols-7 gap-x-1 gap-y-2">
+      <div className="mt-2 grid grid-cols-7 gap-x-1 gap-y-1.5">
         {Array.from({ length: leadingBlanks }).map((_, index) => (
           <div key={`blank-${index}`} className="h-16" />
         ))}
-        {days.map((date) => {
-          const dateKey = formatDate(date);
+        {(() => {
           const today = new Date();
-          const isToday =
-            date.getFullYear() === today.getFullYear() &&
+          today.setHours(0, 0, 0, 0);
+          return days.map((date) => {
+          const dateKey = formatDate(date);
+          const isToday = date.getFullYear() === today.getFullYear() &&
             date.getMonth() === today.getMonth() &&
             date.getDate() === today.getDate();
           const isSelected =
@@ -148,17 +149,14 @@ export function Calendar({
                   : isToday
                     ? isDarkMode
                       ? "border-pink-400 bg-slate-700 text-pink-300 hover:bg-slate-600"
-                      : "border-pink-400 bg-white text-pink-600 hover:bg-pink-50"
+                      : "border-pink-400 bg-pink-50 text-pink-600 font-semibold hover:bg-pink-100"
                     : isDarkMode
                       ? "border-transparent bg-slate-700 text-slate-200 hover:border-pink-300 hover:bg-slate-600"
-                      : "border-transparent bg-white text-slate-700 hover:border-pink-200 hover:bg-pink-50"
+                      : "border-pink-100 bg-pink-50/40 text-slate-700 hover:border-pink-200 hover:bg-pink-50"
               }`}
             >
-              <span className={`relative z-10 flex flex-col items-center ${tripSpan && !isSelected ? isDarkMode ? "text-indigo-300" : "text-indigo-700" : ""}`}>
+              <span className={`relative z-10 ${tripSpan && !isSelected ? isDarkMode ? "text-indigo-300" : "text-indigo-700" : ""}`}>
                 {date.getDate()}
-                {isToday && !isSelected && (
-                  <span className={`mt-0.5 h-1 w-1 rounded-full ${isDarkMode ? "bg-pink-400" : "bg-pink-500"}`} />
-                )}
               </span>
               <span className="pointer-events-none absolute bottom-4 z-10 flex gap-1">
                 {indicatorItems.slice(0, 3).map((item) => (
@@ -189,7 +187,8 @@ export function Calendar({
               ) : null}
             </button>
           );
-        })}
+        });
+        })()}
       </div>
     </div>
   );
