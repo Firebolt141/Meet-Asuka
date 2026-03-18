@@ -907,14 +907,14 @@ export default function Home() {
         </div>
 
         {/* Full-bleed calendar with panda resting on its top edge */}
-        <div className="relative -mx-5">
+        <div className="-mx-5">
+          <div className="relative pt-[21px]">
           <img
-            src="/stat_panda_bg-removebg-preview.png"
+            src={isDarkMode ? "/stat_panda.png" : "/stat_panda_bg-removebg-preview.png"}
             alt=""
             className="absolute left-1/2 top-0 z-10 h-[42px] w-auto -translate-x-1/2 -translate-y-1/2"
             draggable={false}
           />
-          <div className="pt-8">
           <Calendar
             month={new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1)}
             monthLabel={activeMonthLabel}
@@ -926,7 +926,6 @@ export default function Home() {
           />
           </div>
         </div>
-
 
         <section className={`rounded-3xl p-6 shadow-soft ${isDarkMode ? "bg-slate-900/80" : "bg-white/80"}`}>
           <h3 className={`text-lg font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>
