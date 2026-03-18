@@ -921,7 +921,7 @@ export default function Home() {
           <img
             src="/low res pan.gif"
             alt=""
-            className="pointer-events-none absolute right-3 top-2 h-12 w-auto rounded-lg"
+            className="pointer-events-none absolute right-3 top-2 h-12 w-auto mix-blend-multiply"
             draggable={false}
           />
         </div>
