@@ -927,7 +927,7 @@ export default function Home() {
           </div>
         </div>
 
-        <section className={`rounded-3xl p-6 shadow-soft ${isDarkMode ? "bg-slate-900/80" : "bg-white/80"}`}>
+        <section className={`rounded-3xl px-6 pt-6 pb-2 shadow-soft ${isDarkMode ? "bg-slate-900/80" : "bg-white/80"}`}>
           <h3 className={`text-lg font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>
             Plans for selected day
           </h3>
@@ -1041,11 +1041,11 @@ export default function Home() {
         </section>
 
         {/* Bounce panda */}
-        <div className="flex items-center justify-center">
+        <div className="flex items-center justify-center my-0">
           <img
             src="/bounce_panda.gif"
             alt=""
-            className="h-48 w-auto"
+            className="h-48 w-auto block"
             draggable={false}
           />
         </div>
