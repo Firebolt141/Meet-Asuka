@@ -1,7 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Calendar, PlannerItem, type TripTodoEntry } from "@/components/Calendar";
+
+type ChangeEntry = {
+  entryId: string;
+  itemId: string;
+  action: "added" | "modified" | "deleted";
+  timestamp: number;
+  snapshot: PlannerItem;
+};
 import {
   addPlannerItem,
   deletePlannerItem,
@@ -42,6 +50,10 @@ const WEATHER_LON = process.env.NEXT_PUBLIC_WEATHER_LON ?? "139.7006";
 const LOCAL_ITEMS_KEY = "meet-asuka:planner-items";
 const LOCAL_USER_NAME_KEY = "meet-asuka:user-name";
 const LOCAL_ZOOM_KEY = "meet-asuka:zoom-level";
+const LOCAL_CHANGELOG_KEY = "meet-asuka:change-log";
+const LOCAL_SECRET_LAST_LOGIN_KEY = "meet-asuka:secret-last-login";
+
+const SECRET_PIN = "0109";
 
 const validCategories: PlannerItem["category"][] = ["trip", "event", "todo", "wishlist"];
 const validRecurring: NonNullable<PlannerItem["recurring"]>[] = ["none", "daily", "weekly", "monthly"];
@@ -208,6 +220,11 @@ export default function Home() {
   const [calendarSlide, setCalendarSlide] = useState<"next" | "prev" | null>(null);
   const [calendarKey, setCalendarKey] = useState(0);
   const calendarSwipeStart = useRef({ x: 0, y: 0, active: false });
+  const [isSecretUser, setIsSecretUser] = useState(false);
+  const [changeLog, setChangeLog] = useState<ChangeEntry[]>([]);
+  const [secretWindowStart, setSecretWindowStart] = useState(0);
+  const [dismissedChanges, setDismissedChanges] = useState<Set<string>>(new Set());
+  const [expandedChangeId, setExpandedChangeId] = useState<string | null>(null);
   const [newItem, setNewItem] = useState<PlannerFormState>(createEmptyFormState);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [returnToNavAfterModal, setReturnToNavAfterModal] = useState(false);
@@ -445,6 +462,14 @@ export default function Home() {
       if (!isNaN(parsed) && parsed >= 1.0 && parsed <= 1.5) {
         setZoomLevel(parsed);
       }
+    }
+
+    const storedLog = window.localStorage.getItem(LOCAL_CHANGELOG_KEY);
+    if (storedLog) {
+      try {
+        const parsed = JSON.parse(storedLog);
+        if (Array.isArray(parsed)) setChangeLog(parsed as ChangeEntry[]);
+      } catch { /* ignore */ }
     }
   }, []);
 
@@ -714,6 +739,7 @@ export default function Home() {
 
   const handleDeleteItem = async (id: string) => {
     const target = items.find((item) => item.id === id);
+    if (target) logChange("deleted", target);
     const linkedTodoIds =
       target?.category === "trip"
         ? items.filter((item) => item.parentTripId === id).map((item) => item.id)
@@ -780,12 +806,37 @@ export default function Home() {
     return `${weekday} ${parsed.getDate()}`;
   };
 
+  const logChange = useCallback((action: ChangeEntry["action"], item: PlannerItem) => {
+    const entry: ChangeEntry = {
+      entryId: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      itemId: item.id,
+      action,
+      timestamp: Date.now(),
+      snapshot: { ...item },
+    };
+    setChangeLog((prev) => {
+      const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+      const next = [...prev.filter((e) => e.timestamp > cutoff), entry];
+      window.localStorage.setItem(LOCAL_CHANGELOG_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const navigateMonth = (dir: "next" | "prev") => {
     setCalendarSlide(dir);
     setCalendarKey((k) => k + 1);
     setActiveMonth((prev) =>
       new Date(prev.getFullYear(), prev.getMonth() + (dir === "next" ? 1 : -1), 1)
     );
+  };
+
+  const doSecretLogin = () => {
+    const prev = Number(window.localStorage.getItem(LOCAL_SECRET_LAST_LOGIN_KEY) ?? "0");
+    window.localStorage.setItem(LOCAL_SECRET_LAST_LOGIN_KEY, String(Date.now()));
+    setSecretWindowStart(prev);
+    setIsSecretUser(true);
+    setIsLoggedIn(true);
+    setPinError("");
   };
 
   const handleLogin = () => {
@@ -797,6 +848,11 @@ export default function Home() {
         setNameModalShouldLogout(true);
         setShowNameModal(true);
       }
+      return;
+    }
+
+    if (pinInput === SECRET_PIN) {
+      doSecretLogin();
       return;
     }
 
@@ -859,6 +915,8 @@ export default function Home() {
                       setNameModalShouldLogout(true);
                       setShowNameModal(true);
                     }
+                  } else if (value === SECRET_PIN) {
+                    doSecretLogin();
                   } else {
                     setPinError("Invalid PIN. Please try again.");
                     setTimeout(() => setPinInput(""), 500);
@@ -986,38 +1044,6 @@ export default function Home() {
           </section>
         ) : null}
 
-        <div className={`flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-semibold shadow ${isDarkMode ? "bg-slate-900/80 text-slate-100" : "bg-white/80 text-slate-700"}`}>
-          <button
-            type="button"
-            onClick={() => navigateMonth("prev")}
-            className={`flex items-center gap-2 rounded-full px-4 py-2 transition ${isDarkMode ? "bg-slate-700 text-pink-200 hover:bg-slate-600" : "bg-pink-50 text-pink-500 hover:bg-pink-100"}`}
-          >
-            <span>←</span>
-            Prev
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const today = new Date();
-              setSelectedDate(today);
-              setCalendarSlide(null);
-              setCalendarKey((k) => k + 1);
-              setActiveMonth(new Date(today.getFullYear(), today.getMonth(), 1));
-            }}
-            className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${isDarkMode ? "border-slate-600 text-pink-200 hover:bg-slate-700" : "border-pink-100 text-pink-500 hover:bg-pink-50"}`}
-          >
-            Today
-          </button>
-          <button
-            type="button"
-            onClick={() => navigateMonth("next")}
-            className={`flex items-center gap-2 rounded-full px-4 py-2 transition ${isDarkMode ? "bg-slate-700 text-pink-200 hover:bg-slate-600" : "bg-pink-50 text-pink-500 hover:bg-pink-100"}`}
-          >
-            Next
-            <span>→</span>
-          </button>
-        </div>
-
         {/* Full-bleed calendar with panda resting on its top edge */}
         <div
           className="-mx-5 overflow-hidden"
@@ -1060,11 +1086,18 @@ export default function Home() {
                 setCalendarKey((k) => k + 1);
                 setActiveMonth(new Date(year, month, 1));
               }}
+              onGoToToday={() => {
+                const today = new Date();
+                setSelectedDate(today);
+                setCalendarSlide(null);
+                setCalendarKey((k) => k + 1);
+                setActiveMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+              }}
             />
           </div>
         </div>
 
-        <section className={`relative rounded-3xl px-6 pt-6 pb-2 shadow-soft ${isDarkMode ? "bg-slate-900/80" : "bg-white/80"}`}>
+        <section className={`-mx-5 relative rounded-none px-6 pt-6 pb-2 shadow-soft ${isDarkMode ? "bg-slate-900/80" : "bg-white/80"}`}>
           <h3 className={`text-lg font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>
             Plans for selected day
           </h3>
@@ -1187,7 +1220,7 @@ export default function Home() {
           />
         </div>
 
-        <div className="pb-2">
+        <div className="-mx-5 px-5 pb-2">
           <button
             type="button"
             onClick={() => {
@@ -1343,6 +1376,7 @@ export default function Home() {
                     .filter((item) => item.parentTripId === editingId)
                     .map((item) => item.id);
 
+                  logChange("modified", { id: editingId, ...payload } as PlannerItem);
                   setItems((prev) => {
                     const withoutLinkedTodos = prev.filter((item) => item.parentTripId !== editingId);
                     return withoutLinkedTodos.map((item) =>
@@ -1368,6 +1402,7 @@ export default function Home() {
                       ? buildTripTodoPlannerItems(id, payload.title, payload.date, normalizedTripTodos)
                       : [];
 
+                  logChange("added", { id, ...payload } as PlannerItem);
                   setItems((prev) => [
                     ...prev,
                     {
@@ -1780,6 +1815,82 @@ export default function Home() {
               </button>
             </div>
             <div className="mt-6 flex-1 overflow-y-auto pr-1">
+              {isSecretUser ? (() => {
+                const recentChanges = changeLog
+                  .filter((e) => e.timestamp > secretWindowStart && !dismissedChanges.has(e.entryId))
+                  .sort((a, b) => b.timestamp - a.timestamp);
+                return (
+                  <div className="mb-6">
+                    <p className="text-xs uppercase tracking-[0.2em] text-violet-400">Recent Changes</p>
+                    {recentChanges.length === 0 ? (
+                      <p className={`mt-3 rounded-2xl px-3 py-3 text-xs ${isDarkMode ? "bg-slate-800 text-slate-400" : "bg-violet-50 text-slate-500"}`}>
+                        No changes since your last visit.
+                      </p>
+                    ) : (
+                      <div className="mt-3 space-y-2">
+                        {recentChanges.map((entry) => {
+                          const isExpanded = expandedChangeId === entry.entryId;
+                          const item = entry.snapshot;
+                          const actionColor =
+                            entry.action === "added"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : entry.action === "modified"
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-rose-100 text-rose-700";
+                          const actionLabel = entry.action === "added" ? "Added" : entry.action === "modified" ? "Modified" : "Deleted";
+                          return (
+                            <div
+                              key={entry.entryId}
+                              className={`rounded-2xl border ${isDarkMode ? "border-slate-700 bg-slate-800/80" : "border-violet-100 bg-white/90"}`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => setExpandedChangeId(isExpanded ? null : entry.entryId)}
+                                className="w-full px-3 py-2.5 text-left"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${actionColor}`}>{actionLabel}</span>
+                                  <p className={`min-w-0 flex-1 truncate text-xs font-semibold ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>{item.title}</p>
+                                  <svg className={`h-3 w-3 shrink-0 transition text-slate-400 ${isExpanded ? "rotate-180" : ""}`} viewBox="0 0 10 10" fill="none" aria-hidden>
+                                    <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
+                                </div>
+                                <p className="mt-0.5 text-[10px] text-slate-400">
+                                  {new Date(entry.timestamp).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                </p>
+                              </button>
+                              {isExpanded ? (
+                                <div className={`border-t px-3 pb-3 pt-2 ${isDarkMode ? "border-slate-700" : "border-violet-100"}`}>
+                                  <div className="space-y-1 text-xs">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${categoryStyles[item.category].color}`}>{categoryStyles[item.category].label}</span>
+                                      {item.date ? <span className={isDarkMode ? "text-slate-400" : "text-slate-500"}>{item.date}{item.endDate && item.endDate !== item.date ? ` → ${item.endDate}` : ""}</span> : null}
+                                    </div>
+                                    {item.details ? <p className={isDarkMode ? "text-slate-300" : "text-slate-600"}>{item.details}</p> : null}
+                                    {item.location ? <p className={isDarkMode ? "text-slate-400" : "text-slate-500"}>📍 {item.location}</p> : null}
+                                    {item.participants ? <p className={isDarkMode ? "text-slate-400" : "text-slate-500"}>👥 {item.participants}</p> : null}
+                                    {item.pic ? <p className={isDarkMode ? "text-slate-400" : "text-slate-500"}>👤 PIC: {item.pic}</p> : null}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setDismissedChanges((prev) => new Set([...prev, entry.entryId]));
+                                      setExpandedChangeId(null);
+                                    }}
+                                    className={`mt-3 w-full rounded-full py-1.5 text-xs font-semibold transition ${isDarkMode ? "bg-slate-700 text-slate-200 hover:bg-slate-600" : "bg-violet-100 text-violet-700 hover:bg-violet-200"}`}
+                                  >
+                                    Done
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })() : null}
               <p className={`text-xs uppercase tracking-[0.2em] ${isDarkMode ? "text-pink-300" : "text-pink-400"}`}>Navigate</p>
               <div className="mt-4 grid gap-3">
                 {navGroups.map((group) => {
