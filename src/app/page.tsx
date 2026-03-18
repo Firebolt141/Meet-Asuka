@@ -908,7 +908,7 @@ export default function Home() {
 
         {/* Full-bleed calendar with panda resting on its top edge */}
         <div className="-mx-5">
-          <div className="relative pt-[28px]">
+          <div className="relative pt-[32px]">
           <img
             src={isDarkMode ? "/stat_panda.png" : "/stat_panda_bg-removebg-preview.png"}
             alt=""
