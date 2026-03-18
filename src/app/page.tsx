@@ -906,18 +906,15 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Stat panda — rests on top of the calendar */}
-        <div className="relative z-10 flex items-end justify-center mb-[-28px]">
+        {/* Full-bleed calendar with panda resting on its top edge */}
+        <div className="relative -mx-5">
           <img
             src="/stat_panda.jpg"
             alt=""
-            className="h-32 w-auto"
+            className="absolute left-1/2 top-0 z-10 h-32 w-auto -translate-x-1/2 -translate-y-1/2"
             draggable={false}
           />
-        </div>
-
-        {/* Full-bleed calendar — breaks out of the px-5 gutter */}
-        <div className="-mx-5 pt-7">
+          <div className="pt-16">
           <Calendar
             month={new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1)}
             monthLabel={activeMonthLabel}
@@ -927,6 +924,7 @@ export default function Home() {
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
           />
+          </div>
         </div>
 
 
