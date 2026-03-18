@@ -223,8 +223,10 @@ export default function Home() {
   const [syncError, setSyncError] = useState<string | null>(null);
   const [userName, setUserName] = useState("");
   const [showNameModal, setShowNameModal] = useState(false);
+  const [nameModalShouldLogout, setNameModalShouldLogout] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [zoomLevel, setZoomLevel] = useState(1.0);
+  const zoomLevelRef = useRef(1.0);
   const addPlanCategoryOptions: Array<{ category: PlannerItem["category"]; title: string; subtitle: string; icon: string }> = [
     { category: "event", title: "Event", subtitle: "meetups", icon: "✈️" },
     { category: "trip", title: "Trip", subtitle: "travel", icon: "🧳" },
@@ -453,7 +455,45 @@ export default function Home() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(LOCAL_ZOOM_KEY, String(zoomLevel));
+    zoomLevelRef.current = zoomLevel;
   }, [zoomLevel]);
+
+  // Pinch-to-zoom: uses non-passive listeners so we can preventDefault on two-finger moves
+  useEffect(() => {
+    let startDist = 0;
+    let startZoom = 1.0;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        startDist = Math.hypot(dx, dy);
+        startZoom = zoomLevelRef.current;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length < 2 || startDist === 0) return;
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      const next = Math.min(1.5, Math.max(0.7, startZoom * (dist / startDist)));
+      setZoomLevel(parseFloat(next.toFixed(2)));
+    };
+
+    const onTouchEnd = () => { startDist = 0; };
+
+    document.addEventListener("touchstart", onTouchStart, { passive: false });
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+    document.addEventListener("touchend", onTouchEnd);
+
+    return () => {
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("touchend", onTouchEnd);
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -743,6 +783,7 @@ export default function Home() {
       setPinError("");
       if (!window.localStorage.getItem(LOCAL_USER_NAME_KEY)) {
         setNameInput("");
+        setNameModalShouldLogout(true);
         setShowNameModal(true);
       }
       return;
@@ -804,6 +845,7 @@ export default function Home() {
                     setPinError("");
                     if (!window.localStorage.getItem(LOCAL_USER_NAME_KEY)) {
                       setNameInput("");
+                      setNameModalShouldLogout(true);
                       setShowNameModal(true);
                     }
                   } else {
@@ -1137,7 +1179,11 @@ export default function Home() {
         <div className="pb-2">
           <button
             type="button"
-            onClick={() => setIsLoggedIn(false)}
+            onClick={() => {
+              setNameInput(userName);
+              setNameModalShouldLogout(true);
+              setShowNameModal(true);
+            }}
             className={`flex w-full items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold shadow-soft transition ${isDarkMode ? "border-slate-700 bg-slate-900/80 text-pink-300 hover:bg-slate-800" : "border-pink-100 bg-white/80 text-pink-600 hover:bg-pink-50"}` }
           >
             <span className="text-lg">👋</span>
@@ -1913,28 +1959,35 @@ export default function Home() {
           <div className={`w-full max-w-sm rounded-[32px] border p-8 text-center shadow-soft ${isDarkMode ? "border-slate-700 bg-slate-800" : "border-white/60 bg-white"}`}>
             <div className="mb-5 flex justify-center">
               <span className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-400 to-rose-400 text-3xl shadow-lg">
-                👋
+                {userName ? "✏️" : "👋"}
               </span>
             </div>
             <h2 className={`text-2xl font-bold ${isDarkMode ? "text-white" : "text-slate-800"}`}>
-              Hey there!
+              {userName ? "Update your name" : "Hey there!"}
             </h2>
             <p className={`mt-2 text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>
-              Who's using this app? I'll remember you next time.
+              {userName
+                ? "Change your name below or keep it as-is."
+                : "Who's using this app? I'll remember you next time."}
             </p>
             <input
               type="text"
               value={nameInput}
               onChange={(e) => setNameInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && nameInput.trim()) {
-                  const name = nameInput.trim();
+                if (e.key === "Enter") {
+                  const name = nameInput.trim() || userName || "Asuka";
                   setUserName(name);
                   window.localStorage.setItem(LOCAL_USER_NAME_KEY, name);
                   setShowNameModal(false);
+                  if (nameModalShouldLogout) {
+                    setNameModalShouldLogout(false);
+                    setIsLoggedIn(false);
+                    setPinInput("");
+                  }
                 }
               }}
-              placeholder="Your name..."
+              placeholder={userName || "Your name..."}
               maxLength={32}
               autoFocus
               className={`mt-5 w-full rounded-2xl border px-4 py-3 text-center text-base font-medium placeholder:font-normal focus:outline-none focus:ring-2 ${isDarkMode ? "border-slate-600 bg-slate-700 text-white placeholder:text-slate-400 focus:border-pink-400 focus:ring-pink-500/30" : "border-pink-200 bg-pink-50 text-slate-800 placeholder:text-slate-400 focus:border-pink-400 focus:ring-pink-200"}`}
@@ -1943,12 +1996,19 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => {
-                  setUserName("Asuka");
+                  const name = nameInput.trim() || userName || "Asuka";
+                  setUserName(name);
+                  window.localStorage.setItem(LOCAL_USER_NAME_KEY, name);
                   setShowNameModal(false);
+                  if (nameModalShouldLogout) {
+                    setNameModalShouldLogout(false);
+                    setIsLoggedIn(false);
+                    setPinInput("");
+                  }
                 }}
                 className={`flex-1 rounded-full border py-2.5 text-sm font-medium transition ${isDarkMode ? "border-slate-600 text-slate-300 hover:bg-slate-700" : "border-pink-100 text-slate-500 hover:bg-pink-50"}`}
               >
-                Skip
+                {userName ? "Keep name" : "Skip"}
               </button>
               <button
                 type="button"
@@ -1959,10 +2019,15 @@ export default function Home() {
                   setUserName(name);
                   window.localStorage.setItem(LOCAL_USER_NAME_KEY, name);
                   setShowNameModal(false);
+                  if (nameModalShouldLogout) {
+                    setNameModalShouldLogout(false);
+                    setIsLoggedIn(false);
+                    setPinInput("");
+                  }
                 }}
                 className={`flex-1 rounded-full py-2.5 text-sm font-semibold text-white transition disabled:opacity-40 ${isDarkMode ? "bg-fuchsia-600 hover:bg-fuchsia-500" : "bg-pink-500 hover:bg-pink-400"}`}
               >
-                Let's go ✨
+                {userName ? "Save ✨" : "Let's go ✨"}
               </button>
             </div>
           </div>
