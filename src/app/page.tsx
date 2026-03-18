@@ -40,6 +40,8 @@ const WEATHER_LON = process.env.NEXT_PUBLIC_WEATHER_LON ?? "139.7006";
 
 
 const LOCAL_ITEMS_KEY = "meet-asuka:planner-items";
+const LOCAL_USER_NAME_KEY = "meet-asuka:user-name";
+const LOCAL_ZOOM_KEY = "meet-asuka:zoom-level";
 
 const validCategories: PlannerItem["category"][] = ["trip", "event", "todo", "wishlist"];
 const validRecurring: NonNullable<PlannerItem["recurring"]>[] = ["none", "daily", "weekly", "monthly"];
@@ -219,6 +221,12 @@ export default function Home() {
   const [hasHydratedPlanner, setHasHydratedPlanner] = useState(false);
   const [notifPermission, setNotifPermission] = useState<"granted" | "denied" | "default" | "unsupported">("default");
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [userName, setUserName] = useState("");
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [nameModalShouldLogout, setNameModalShouldLogout] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [zoomLevel, setZoomLevel] = useState(1.0);
+  const zoomLevelRef = useRef(1.0);
   const addPlanCategoryOptions: Array<{ category: PlannerItem["category"]; title: string; subtitle: string; icon: string }> = [
     { category: "event", title: "Event", subtitle: "meetups", icon: "✈️" },
     { category: "trip", title: "Trip", subtitle: "travel", icon: "🧳" },
@@ -423,6 +431,18 @@ export default function Home() {
       setIsDarkMode(true);
     }
 
+    const storedName = window.localStorage.getItem(LOCAL_USER_NAME_KEY);
+    if (storedName) {
+      setUserName(storedName);
+    }
+
+    const storedZoom = window.localStorage.getItem(LOCAL_ZOOM_KEY);
+    if (storedZoom) {
+      const parsed = parseFloat(storedZoom);
+      if (!isNaN(parsed) && parsed >= 0.7 && parsed <= 1.5) {
+        setZoomLevel(parsed);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -431,6 +451,56 @@ export default function Home() {
     }
     window.localStorage.setItem(LOCAL_THEME_KEY, isDarkMode ? "dark" : "light");
   }, [isDarkMode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(LOCAL_ZOOM_KEY, String(zoomLevel));
+    zoomLevelRef.current = zoomLevel;
+  }, [zoomLevel]);
+
+  // Pinch-to-zoom: uses non-passive listeners so we can preventDefault on two-finger moves
+  useEffect(() => {
+    let startDist = 0;
+    let startZoom = 1.0;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        startDist = Math.hypot(dx, dy);
+        startZoom = zoomLevelRef.current;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length < 2 || startDist === 0) return;
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      const next = Math.min(1.5, Math.max(0.7, startZoom * (dist / startDist)));
+      setZoomLevel(parseFloat(next.toFixed(2)));
+    };
+
+    const onTouchEnd = () => { startDist = 0; };
+
+    document.addEventListener("touchstart", onTouchStart, { passive: false });
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+    document.addEventListener("touchend", onTouchEnd);
+
+    return () => {
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("touchend", onTouchEnd);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (userName) {
+      window.localStorage.setItem(LOCAL_USER_NAME_KEY, userName);
+    }
+  }, [userName]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -497,6 +567,29 @@ export default function Home() {
     if (notifPermission !== "granted") return;
     void scheduleReminders(items);
   }, [hasHydratedPlanner, items, notifPermission]);
+
+  // App badge: count overdue incomplete todos + today's events
+  const urgentCount = useMemo(() => {
+    const today = formatDate(new Date());
+    return items.filter((item) => {
+      if (item.completed) return false;
+      if (item.category === "todo") return !!item.date && item.date <= today;
+      if (item.category === "event") return item.date === today;
+      return false;
+    }).length;
+  }, [items]);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+    const nav = navigator as Navigator & { setAppBadge?: (count?: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
+    if (typeof nav.setAppBadge === "function") {
+      if (urgentCount > 0) {
+        void nav.setAppBadge(urgentCount);
+      } else if (typeof nav.clearAppBadge === "function") {
+        void nav.clearAppBadge();
+      }
+    }
+  }, [urgentCount]);
 
   useEffect(() => {
     const loadWeather = async () => {
@@ -688,6 +781,11 @@ export default function Home() {
     if (pinInput === LOGIN_PIN) {
       setIsLoggedIn(true);
       setPinError("");
+      if (!window.localStorage.getItem(LOCAL_USER_NAME_KEY)) {
+        setNameInput("");
+        setNameModalShouldLogout(true);
+        setShowNameModal(true);
+      }
       return;
     }
 
@@ -701,7 +799,7 @@ export default function Home() {
         <div className="pointer-events-none absolute -right-12 bottom-8 h-52 w-52 rounded-full bg-rose-300/30 blur-3xl" />
         <div className={`w-full max-w-xl rounded-[36px] border p-10 text-center shadow-soft backdrop-blur ${isDarkMode ? "border-slate-700 bg-slate-800/90" : "border-white/60 bg-white/85"}`}>
           <p className={`text-left text-sm font-medium ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>Welcome back</p>
-          <h1 className={`mt-1 text-left text-5xl font-bold ${isDarkMode ? "text-white" : "text-slate-800"}`}>Asuka ✨</h1>
+          <h1 className={`mt-1 text-left text-5xl font-bold ${isDarkMode ? "text-white" : "text-slate-800"}`}>{userName || "Asuka"} ✨</h1>
           <p className={`mt-2 text-left text-base ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}>Events • Trips • TODOs • Wishlist</p>
           <div className="mt-7 flex justify-center">
             <div className={`inline-flex items-center justify-center rounded-[28px] p-3 shadow-lg ${isDarkMode ? "bg-slate-700/60 shadow-black/30" : "bg-white/70 shadow-pink-100"}`}>
@@ -745,6 +843,11 @@ export default function Home() {
                   if (value === LOGIN_PIN) {
                     setIsLoggedIn(true);
                     setPinError("");
+                    if (!window.localStorage.getItem(LOCAL_USER_NAME_KEY)) {
+                      setNameInput("");
+                      setNameModalShouldLogout(true);
+                      setShowNameModal(true);
+                    }
                   } else {
                     setPinError("Invalid PIN. Please try again.");
                     setTimeout(() => setPinInput(""), 500);
@@ -763,7 +866,7 @@ export default function Home() {
 
   return (
     <main className={`min-h-screen px-5 pb-24 pt-6 ${isDarkMode ? "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" : "bg-gradient-to-br from-pink-50 via-blush to-orange-100"}`}>
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6" style={{ zoom: zoomLevel }}>
         <header className={`sticky top-4 z-30 rounded-3xl px-3 py-2 shadow-soft backdrop-blur ${isDarkMode ? "bg-slate-900/85 border border-slate-700" : "bg-white/70"}`}>
           <div className="flex items-center justify-between">
             <button
@@ -1053,7 +1156,11 @@ export default function Home() {
         <div className="pb-2">
           <button
             type="button"
-            onClick={() => setIsLoggedIn(false)}
+            onClick={() => {
+              setNameInput(userName);
+              setNameModalShouldLogout(true);
+              setShowNameModal(true);
+            }}
             className={`flex w-full items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold shadow-soft transition ${isDarkMode ? "border-slate-700 bg-slate-900/80 text-pink-300 hover:bg-slate-800" : "border-pink-100 bg-white/80 text-pink-600 hover:bg-pink-50"}` }
           >
             <span className="text-lg">👋</span>
@@ -1821,6 +1928,86 @@ export default function Home() {
             onClick={() => setIsNavOpen(false)}
             aria-label="Close navigation"
           />
+        </div>
+      ) : null}
+
+      {showNameModal ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-6 backdrop-blur-sm">
+          <div className={`w-full max-w-sm rounded-[32px] border p-8 text-center shadow-soft ${isDarkMode ? "border-slate-700 bg-slate-800" : "border-white/60 bg-white"}`}>
+            <div className="mb-5 flex justify-center">
+              <span className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-400 to-rose-400 text-3xl shadow-lg">
+                {userName ? "✏️" : "👋"}
+              </span>
+            </div>
+            <h2 className={`text-2xl font-bold ${isDarkMode ? "text-white" : "text-slate-800"}`}>
+              {userName ? "Update your name" : "Hey there!"}
+            </h2>
+            <p className={`mt-2 text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>
+              {userName
+                ? "Change your name below or keep it as-is."
+                : "Who's using this app? I'll remember you next time."}
+            </p>
+            <input
+              type="text"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const name = nameInput.trim() || userName || "Asuka";
+                  setUserName(name);
+                  window.localStorage.setItem(LOCAL_USER_NAME_KEY, name);
+                  setShowNameModal(false);
+                  if (nameModalShouldLogout) {
+                    setNameModalShouldLogout(false);
+                    setIsLoggedIn(false);
+                    setPinInput("");
+                  }
+                }
+              }}
+              placeholder={userName || "Your name..."}
+              maxLength={32}
+              autoFocus
+              className={`mt-5 w-full rounded-2xl border px-4 py-3 text-center text-base font-medium placeholder:font-normal focus:outline-none focus:ring-2 ${isDarkMode ? "border-slate-600 bg-slate-700 text-white placeholder:text-slate-400 focus:border-pink-400 focus:ring-pink-500/30" : "border-pink-200 bg-pink-50 text-slate-800 placeholder:text-slate-400 focus:border-pink-400 focus:ring-pink-200"}`}
+            />
+            <div className="mt-4 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const name = nameInput.trim() || userName || "Asuka";
+                  setUserName(name);
+                  window.localStorage.setItem(LOCAL_USER_NAME_KEY, name);
+                  setShowNameModal(false);
+                  if (nameModalShouldLogout) {
+                    setNameModalShouldLogout(false);
+                    setIsLoggedIn(false);
+                    setPinInput("");
+                  }
+                }}
+                className={`flex-1 rounded-full border py-2.5 text-sm font-medium transition ${isDarkMode ? "border-slate-600 text-slate-300 hover:bg-slate-700" : "border-pink-100 text-slate-500 hover:bg-pink-50"}`}
+              >
+                {userName ? "Keep name" : "Skip"}
+              </button>
+              <button
+                type="button"
+                disabled={!nameInput.trim()}
+                onClick={() => {
+                  const name = nameInput.trim();
+                  if (!name) return;
+                  setUserName(name);
+                  window.localStorage.setItem(LOCAL_USER_NAME_KEY, name);
+                  setShowNameModal(false);
+                  if (nameModalShouldLogout) {
+                    setNameModalShouldLogout(false);
+                    setIsLoggedIn(false);
+                    setPinInput("");
+                  }
+                }}
+                className={`flex-1 rounded-full py-2.5 text-sm font-semibold text-white transition disabled:opacity-40 ${isDarkMode ? "bg-fuchsia-600 hover:bg-fuchsia-500" : "bg-pink-500 hover:bg-pink-400"}`}
+              >
+                {userName ? "Save ✨" : "Let's go ✨"}
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </main>
