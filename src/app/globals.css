@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes cal-slide-from-right {
+  from { transform: translateX(110%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes cal-slide-from-left {
+  from { transform: translateX(-110%); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+.cal-slide-next {
+  animation: cal-slide-from-right 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.cal-slide-prev {
+  animation: cal-slide-from-left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 :root {
   color-scheme: light;
 }

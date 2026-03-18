@@ -205,6 +205,9 @@ export default function Home() {
     PlannerItem["category"] | "past" | "doneTodo"
   >("event");
   const [activeMonth, setActiveMonth] = useState(() => new Date());
+  const [calendarSlide, setCalendarSlide] = useState<"next" | "prev" | null>(null);
+  const [calendarKey, setCalendarKey] = useState(0);
+  const calendarSwipeStart = useRef({ x: 0, y: 0, active: false });
   const [newItem, setNewItem] = useState<PlannerFormState>(createEmptyFormState);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [returnToNavAfterModal, setReturnToNavAfterModal] = useState(false);
@@ -439,7 +442,7 @@ export default function Home() {
     const storedZoom = window.localStorage.getItem(LOCAL_ZOOM_KEY);
     if (storedZoom) {
       const parsed = parseFloat(storedZoom);
-      if (!isNaN(parsed) && parsed >= 0.7 && parsed <= 1.5) {
+      if (!isNaN(parsed) && parsed >= 1.0 && parsed <= 1.5) {
         setZoomLevel(parsed);
       }
     }
@@ -478,7 +481,7 @@ export default function Home() {
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const dist = Math.hypot(dx, dy);
-      const next = Math.min(1.5, Math.max(0.7, startZoom * (dist / startDist)));
+      const next = Math.min(1.5, Math.max(1.0, startZoom * (dist / startDist)));
       setZoomLevel(parseFloat(next.toFixed(2)));
     };
 
@@ -777,6 +780,14 @@ export default function Home() {
     return `${weekday} ${parsed.getDate()}`;
   };
 
+  const navigateMonth = (dir: "next" | "prev") => {
+    setCalendarSlide(dir);
+    setCalendarKey((k) => k + 1);
+    setActiveMonth((prev) =>
+      new Date(prev.getFullYear(), prev.getMonth() + (dir === "next" ? 1 : -1), 1)
+    );
+  };
+
   const handleLogin = () => {
     if (pinInput === LOGIN_PIN) {
       setIsLoggedIn(true);
@@ -978,9 +989,7 @@ export default function Home() {
         <div className={`flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-semibold shadow ${isDarkMode ? "bg-slate-900/80 text-slate-100" : "bg-white/80 text-slate-700"}`}>
           <button
             type="button"
-            onClick={() =>
-              setActiveMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
-            }
+            onClick={() => navigateMonth("prev")}
             className={`flex items-center gap-2 rounded-full px-4 py-2 transition ${isDarkMode ? "bg-slate-700 text-pink-200 hover:bg-slate-600" : "bg-pink-50 text-pink-500 hover:bg-pink-100"}`}
           >
             <span>←</span>
@@ -991,6 +1000,8 @@ export default function Home() {
             onClick={() => {
               const today = new Date();
               setSelectedDate(today);
+              setCalendarSlide(null);
+              setCalendarKey((k) => k + 1);
               setActiveMonth(new Date(today.getFullYear(), today.getMonth(), 1));
             }}
             className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${isDarkMode ? "border-slate-600 text-pink-200 hover:bg-slate-700" : "border-pink-100 text-pink-500 hover:bg-pink-50"}`}
@@ -999,9 +1010,7 @@ export default function Home() {
           </button>
           <button
             type="button"
-            onClick={() =>
-              setActiveMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
-            }
+            onClick={() => navigateMonth("next")}
             className={`flex items-center gap-2 rounded-full px-4 py-2 transition ${isDarkMode ? "bg-slate-700 text-pink-200 hover:bg-slate-600" : "bg-pink-50 text-pink-500 hover:bg-pink-100"}`}
           >
             Next
@@ -1010,23 +1019,48 @@ export default function Home() {
         </div>
 
         {/* Full-bleed calendar with panda resting on its top edge */}
-        <div className="-mx-5">
+        <div
+          className="-mx-5 overflow-hidden"
+          onTouchStart={(e) => {
+            if (e.touches.length === 1) {
+              calendarSwipeStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, active: true };
+            }
+          }}
+          onTouchEnd={(e) => {
+            if (!calendarSwipeStart.current.active || e.changedTouches.length !== 1) return;
+            calendarSwipeStart.current.active = false;
+            const dx = e.changedTouches[0].clientX - calendarSwipeStart.current.x;
+            const dy = e.changedTouches[0].clientY - calendarSwipeStart.current.y;
+            if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+              navigateMonth(dx < 0 ? "next" : "prev");
+            }
+          }}
+        >
           <div className="relative pt-[36px]">
-          <img
-            src={isDarkMode ? "/stat_panda.png" : "/stat_panda_bg-removebg-preview.png"}
-            alt=""
-            className="absolute left-1/2 top-0 z-10 h-[42px] w-auto -translate-x-1/2"
-            draggable={false}
-          />
-          <Calendar
-            month={new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1)}
-            monthLabel={activeMonthLabel}
-            weekdayLabels={["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]}
-            isDarkMode={isDarkMode}
-            items={items}
-            selectedDate={selectedDate}
-            onSelectDate={setSelectedDate}
-          />
+            <img
+              src={isDarkMode ? "/stat_panda.png" : "/stat_panda_bg-removebg-preview.png"}
+              alt=""
+              className="absolute left-1/2 top-0 z-10 h-[42px] w-auto -translate-x-1/2"
+              draggable={false}
+            />
+            <Calendar
+              key={calendarKey}
+              slideClass={calendarSlide === "next" ? "cal-slide-next" : calendarSlide === "prev" ? "cal-slide-prev" : undefined}
+              month={new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1)}
+              monthLabel={activeMonthLabel}
+              weekdayLabels={["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]}
+              isDarkMode={isDarkMode}
+              items={items}
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+              onNavigate={(year, month) => {
+                const cur = activeMonth;
+                const dir = year > cur.getFullYear() || (year === cur.getFullYear() && month > cur.getMonth()) ? "next" : "prev";
+                setCalendarSlide(dir);
+                setCalendarKey((k) => k + 1);
+                setActiveMonth(new Date(year, month, 1));
+              }}
+            />
           </div>
         </div>
 

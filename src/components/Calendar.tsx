@@ -38,21 +38,42 @@ type CalendarProps = {
   onSelectDate: (date: Date) => void;
   weekdayLabels: readonly string[];
   isDarkMode: boolean;
+  slideClass?: string;
+  onNavigate?: (year: number, month: number) => void;
 };
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
 
 const pad = (value: number) => value.toString().padStart(2, "0");
 
 const formatDate = (date: Date) =>
   `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 
+// Small chevron SVG used inside the select wrappers
+function Chevron({ isDarkMode }: { isDarkMode: boolean }) {
+  return (
+    <svg
+      className={`pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 ${isDarkMode ? "text-slate-400" : "text-slate-400"}`}
+      width="10" height="10" viewBox="0 0 10 10" fill="none"
+      aria-hidden
+    >
+      <path d="M2 3.5 L5 6.5 L8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function Calendar({
   month,
-  monthLabel,
   items,
   selectedDate,
   onSelectDate,
   weekdayLabels,
-  isDarkMode
+  isDarkMode,
+  slideClass,
+  onNavigate,
 }: CalendarProps) {
   const { days, leadingBlanks } = useMemo(() => {
     const year = month.getFullYear();
@@ -104,11 +125,52 @@ export function Calendar({
     }, {});
   }, [items]);
 
+  const currentYear = month.getFullYear();
+  const currentMonth = month.getMonth();
+  const yearRange = useMemo(() => {
+    const base = new Date().getFullYear();
+    return Array.from({ length: 12 }, (_, i) => base - 3 + i);
+  }, []);
+
+  const selectBase = `appearance-none cursor-pointer bg-transparent font-bold focus:outline-none pr-4 ${
+    isDarkMode ? "text-slate-100" : "text-slate-800"
+  }`;
+
   return (
-    <div className={`rounded-2xl px-2 py-4 shadow-soft ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"}`}>
-      <div className="mb-4 text-center">
-        <h3 className={`text-xl font-bold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>{monthLabel}</h3>
+    <div className={`rounded-2xl px-2 py-4 shadow-soft ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"} ${slideClass ?? ""}`}>
+      {/* Month + Year header with dropdowns */}
+      <div className="mb-4 flex items-center justify-center gap-1.5">
+        {/* Month select */}
+        <div className="relative inline-flex items-center">
+          <select
+            value={currentMonth}
+            onChange={(e) => onNavigate?.(currentYear, Number(e.target.value))}
+            className={`${selectBase} text-xl`}
+            aria-label="Select month"
+          >
+            {MONTH_NAMES.map((name, i) => (
+              <option key={i} value={i}>{name}</option>
+            ))}
+          </select>
+          <Chevron isDarkMode={isDarkMode} />
+        </div>
+
+        {/* Year select */}
+        <div className="relative inline-flex items-center">
+          <select
+            value={currentYear}
+            onChange={(e) => onNavigate?.(Number(e.target.value), currentMonth)}
+            className={`${selectBase} text-xl`}
+            aria-label="Select year"
+          >
+            {yearRange.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+          <Chevron isDarkMode={isDarkMode} />
+        </div>
       </div>
+
       <div className="grid grid-cols-7 gap-x-1 gap-y-1.5">
         {weekdayLabels.map((label) => (
           <div key={label} className={`pb-1 text-center text-xs font-semibold uppercase tracking-wide ${isDarkMode ? "text-pink-300" : "text-pink-500"}`}>{label}</div>
