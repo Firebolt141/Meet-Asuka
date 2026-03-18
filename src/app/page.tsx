@@ -927,7 +927,7 @@ export default function Home() {
           </div>
         </div>
 
-        <section className={`rounded-3xl px-6 pt-6 pb-2 shadow-soft ${isDarkMode ? "bg-slate-900/80" : "bg-white/80"}`}>
+        <section className={`relative rounded-3xl px-6 pt-6 pb-2 shadow-soft ${isDarkMode ? "bg-slate-900/80" : "bg-white/80"}`}>
           <h3 className={`text-lg font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>
             Plans for selected day
           </h3>
@@ -1041,7 +1041,7 @@ export default function Home() {
         </section>
 
         {/* Bounce panda */}
-        <div className="flex items-center justify-center overflow-hidden" style={{marginTop: "-45px", marginBottom: "-32px"}}>
+        <div className="relative z-10 flex items-center justify-center overflow-hidden" style={{marginTop: "-65px", marginBottom: "-32px"}}>
           <img
             src="/bounce_panda.gif"
             alt=""
