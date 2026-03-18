@@ -917,11 +917,28 @@ export default function Home() {
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
           />
+          {/* SVG filter: makes near-white pixels transparent, keeps panda colours */}
+          <svg width="0" height="0" aria-hidden className="absolute">
+            <defs>
+              <filter id="gif-no-white" colorInterpolationFilters="sRGB">
+                <feColorMatrix
+                  type="matrix"
+                  values="1 0 0 0 0
+                          0 1 0 0 0
+                          0 0 1 0 0
+                         -1 -1 -1 3 -0.1"
+                />
+              </filter>
+            </defs>
+          </svg>
           {/* Low-res panda badge — top-right corner of calendar */}
           <img
             src="/low res pan.gif"
             alt=""
-            className="pointer-events-none absolute right-3 top-2 h-12 w-auto mix-blend-multiply"
+            className="pointer-events-none absolute right-3 top-2 h-12 w-auto"
+            style={isDarkMode
+              ? { filter: "url(#gif-no-white)" }
+              : { mixBlendMode: "multiply" }}
             draggable={false}
           />
         </div>
