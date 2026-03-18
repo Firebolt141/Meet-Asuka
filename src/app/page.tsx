@@ -1041,7 +1041,7 @@ export default function Home() {
         </section>
 
         {/* Bounce panda */}
-        <div className="flex items-center justify-center my-0">
+        <div className="flex items-center justify-center overflow-hidden" style={{marginTop: "-45px", marginBottom: "-32px"}}>
           <img
             src="/bounce_panda.gif"
             alt=""
