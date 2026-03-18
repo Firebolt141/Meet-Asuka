@@ -907,7 +907,7 @@ export default function Home() {
         </div>
 
         {/* Full-bleed calendar — breaks out of the px-5 gutter */}
-        <div className="-mx-5 relative">
+        <div className="-mx-5">
           <Calendar
             month={new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1)}
             monthLabel={activeMonthLabel}
@@ -917,71 +917,8 @@ export default function Home() {
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
           />
-          {/* SVG filter: makes near-white pixels transparent, keeps panda colours */}
-          <svg width="0" height="0" aria-hidden className="absolute">
-            <defs>
-              <filter id="gif-no-white" colorInterpolationFilters="sRGB">
-                <feColorMatrix
-                  type="matrix"
-                  values="1 0 0 0 0
-                          0 1 0 0 0
-                          0 0 1 0 0
-                         -1 -1 -1 3 -0.1"
-                />
-              </filter>
-            </defs>
-          </svg>
-          {/* Low-res panda badge — top-right corner of calendar */}
-          <img
-            src="/low res pan.gif"
-            alt=""
-            className="pointer-events-none absolute right-3 top-2 h-12 w-auto"
-            style={isDarkMode
-              ? { filter: "url(#gif-no-white)" }
-              : { mixBlendMode: "multiply" }}
-            draggable={false}
-          />
         </div>
 
-        {/* Ikaku GIF card */}
-        <div className={`flex items-center justify-center py-2 overflow-hidden rounded-3xl shadow-soft ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"}`}>
-          <img
-            src="/ikaku.gif"
-            alt="Ikaku"
-            className="h-24 w-auto"
-            draggable={false}
-          />
-        </div>
-
-        {/* Red panda slow walk */}
-        <div className="overflow-hidden rounded-3xl bg-white shadow-soft">
-          <img
-            src="/red pan slow walk.gif"
-            alt=""
-            className="h-24 w-full object-cover object-center"
-            draggable={false}
-          />
-        </div>
-
-        {/* Red panda run */}
-        <div className="overflow-hidden rounded-3xl bg-white shadow-soft">
-          <img
-            src="/red pan run.gif"
-            alt=""
-            className="h-24 w-full object-cover object-center"
-            draggable={false}
-          />
-        </div>
-
-        {/* Lesser panda walk */}
-        <div className="overflow-hidden rounded-3xl shadow-soft">
-          <img
-            src="/less pan walk.gif"
-            alt=""
-            className="h-24 w-full object-cover object-center"
-            draggable={false}
-          />
-        </div>
 
         <section className={`rounded-3xl p-6 shadow-soft ${isDarkMode ? "bg-slate-900/80" : "bg-white/80"}`}>
           <h3 className={`text-lg font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>
