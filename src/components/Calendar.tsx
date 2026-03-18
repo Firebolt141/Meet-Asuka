@@ -140,36 +140,39 @@ export function Calendar({
 
   return (
     <div className={`rounded-2xl px-2 py-4 shadow-soft ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"} ${slideClass ?? ""}`}>
-      {/* Header: Year (left) | Month (center) | Today (right) */}
+      {/* Header: [spacer] | Year · Month (center) | Today */}
       <div className="mb-4 grid grid-cols-[1fr_auto_1fr] items-center px-3">
-        {/* Left: Year dropdown */}
-        <div className="relative inline-flex items-center justify-self-start">
-          <select
-            value={currentYear}
-            onChange={(e) => onNavigate?.(Number(e.target.value), currentMonth)}
-            className={`${selectBase} text-base font-semibold`}
-            aria-label="Select year"
-          >
-            {yearRange.map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
-          <Chevron isDarkMode={isDarkMode} />
-        </div>
+        {/* Left spacer — mirrors Today button width so the pair stays centred */}
+        <div />
 
-        {/* Center: Month dropdown */}
-        <div className="relative inline-flex items-center justify-self-center">
-          <select
-            value={currentMonth}
-            onChange={(e) => onNavigate?.(currentYear, Number(e.target.value))}
-            className={`${selectBase} text-xl font-bold`}
-            aria-label="Select month"
-          >
-            {MONTH_NAMES.map((name, i) => (
-              <option key={i} value={i}>{name}</option>
-            ))}
-          </select>
-          <Chevron isDarkMode={isDarkMode} />
+        {/* Center: Year + Month side by side, same size */}
+        <div className="flex items-center gap-1.5">
+          <div className="relative inline-flex items-center">
+            <select
+              value={currentYear}
+              onChange={(e) => onNavigate?.(Number(e.target.value), currentMonth)}
+              className={`${selectBase} text-lg`}
+              aria-label="Select year"
+            >
+              {yearRange.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+            <Chevron isDarkMode={isDarkMode} />
+          </div>
+          <div className="relative inline-flex items-center">
+            <select
+              value={currentMonth}
+              onChange={(e) => onNavigate?.(currentYear, Number(e.target.value))}
+              className={`${selectBase} text-lg`}
+              aria-label="Select month"
+            >
+              {MONTH_NAMES.map((name, i) => (
+                <option key={i} value={i}>{name}</option>
+              ))}
+            </select>
+            <Chevron isDarkMode={isDarkMode} />
+          </div>
         </div>
 
         {/* Right: Today button */}
