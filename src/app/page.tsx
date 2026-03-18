@@ -898,29 +898,6 @@ export default function Home() {
                   </svg>
                 )}
               </button>
-              <div className={`flex items-center gap-0.5 rounded-full px-1 py-1 ${isDarkMode ? "bg-slate-800" : "bg-white/90"} shadow`}>
-                <button
-                  type="button"
-                  onClick={() => setZoomLevel((prev) => Math.max(0.7, parseFloat((prev - 0.1).toFixed(1))))}
-                  className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold transition ${isDarkMode ? "text-pink-300 hover:bg-slate-700" : "text-pink-500 hover:bg-pink-50"}`}
-                  aria-label="Zoom out"
-                  disabled={zoomLevel <= 0.7}
-                >
-                  −
-                </button>
-                <span className={`min-w-[2.2rem] text-center text-[10px] font-semibold ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>
-                  {Math.round(zoomLevel * 100)}%
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setZoomLevel((prev) => Math.min(1.5, parseFloat((prev + 0.1).toFixed(1))))}
-                  className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold transition ${isDarkMode ? "text-pink-300 hover:bg-slate-700" : "text-pink-500 hover:bg-pink-50"}`}
-                  aria-label="Zoom in"
-                  disabled={zoomLevel >= 1.5}
-                >
-                  ＋
-                </button>
-              </div>
               <button
                 type="button"
                 onClick={() => setIsWeatherCardOpen((prev) => !prev)}
