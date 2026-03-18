@@ -40,6 +40,7 @@ type CalendarProps = {
   isDarkMode: boolean;
   slideClass?: string;
   onNavigate?: (year: number, month: number) => void;
+  onGoToToday?: () => void;
 };
 
 const MONTH_NAMES = [
@@ -74,6 +75,7 @@ export function Calendar({
   isDarkMode,
   slideClass,
   onNavigate,
+  onGoToToday,
 }: CalendarProps) {
   const { days, leadingBlanks } = useMemo(() => {
     const year = month.getFullYear();
@@ -138,14 +140,29 @@ export function Calendar({
 
   return (
     <div className={`rounded-2xl px-2 py-4 shadow-soft ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"} ${slideClass ?? ""}`}>
-      {/* Month + Year header with dropdowns */}
-      <div className="mb-4 flex items-center justify-center gap-1.5">
-        {/* Month select */}
+      {/* Header: Year (left) | Month (center) | Today (right) */}
+      <div className="mb-4 flex items-center justify-between px-1">
+        {/* Left: Year dropdown */}
+        <div className="relative inline-flex items-center">
+          <select
+            value={currentYear}
+            onChange={(e) => onNavigate?.(Number(e.target.value), currentMonth)}
+            className={`${selectBase} text-base font-semibold`}
+            aria-label="Select year"
+          >
+            {yearRange.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+          <Chevron isDarkMode={isDarkMode} />
+        </div>
+
+        {/* Center: Month dropdown */}
         <div className="relative inline-flex items-center">
           <select
             value={currentMonth}
             onChange={(e) => onNavigate?.(currentYear, Number(e.target.value))}
-            className={`${selectBase} text-xl`}
+            className={`${selectBase} text-xl font-bold`}
             aria-label="Select month"
           >
             {MONTH_NAMES.map((name, i) => (
@@ -155,20 +172,18 @@ export function Calendar({
           <Chevron isDarkMode={isDarkMode} />
         </div>
 
-        {/* Year select */}
-        <div className="relative inline-flex items-center">
-          <select
-            value={currentYear}
-            onChange={(e) => onNavigate?.(Number(e.target.value), currentMonth)}
-            className={`${selectBase} text-xl`}
-            aria-label="Select year"
-          >
-            {yearRange.map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
-          <Chevron isDarkMode={isDarkMode} />
-        </div>
+        {/* Right: Today button */}
+        <button
+          type="button"
+          onClick={onGoToToday}
+          className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+            isDarkMode
+              ? "border-slate-600 text-pink-300 hover:bg-slate-700"
+              : "border-pink-200 text-pink-500 hover:bg-pink-50"
+          }`}
+        >
+          Today
+        </button>
       </div>
 
       <div className="grid grid-cols-7 gap-x-1 gap-y-1.5">
