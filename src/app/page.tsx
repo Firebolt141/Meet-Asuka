@@ -909,7 +909,7 @@ export default function Home() {
         {/* Full-bleed calendar with panda resting on its top edge */}
         <div className="relative -mx-5">
           <img
-            src="/stat_panda.jpg"
+            src="/stat_panda.png"
             alt=""
             className="absolute left-1/2 top-0 z-10 h-32 w-auto -translate-x-1/2 -translate-y-1/2"
             draggable={false}
