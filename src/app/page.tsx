@@ -906,8 +906,8 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Stat panda */}
-        <div className="flex items-center justify-center">
+        {/* Stat panda — rests on top of the calendar */}
+        <div className="relative z-10 flex items-end justify-center mb-[-28px]">
           <img
             src="/stat_panda.jpg"
             alt=""
@@ -917,7 +917,7 @@ export default function Home() {
         </div>
 
         {/* Full-bleed calendar — breaks out of the px-5 gutter */}
-        <div className="-mx-5">
+        <div className="-mx-5 pt-7">
           <Calendar
             month={new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1)}
             monthLabel={activeMonthLabel}
@@ -1048,7 +1048,7 @@ export default function Home() {
           <img
             src="/bounce_panda.gif"
             alt=""
-            className="h-24 w-auto"
+            className="h-48 w-auto"
             draggable={false}
           />
         </div>
