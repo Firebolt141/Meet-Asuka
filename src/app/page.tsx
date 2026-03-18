@@ -911,10 +911,10 @@ export default function Home() {
           <img
             src="/stat_panda.png"
             alt=""
-            className="absolute left-1/2 top-0 z-10 h-32 w-auto -translate-x-1/2 -translate-y-1/2"
+            className="absolute left-1/2 top-0 z-10 h-16 w-auto -translate-x-1/2 -translate-y-1/2"
             draggable={false}
           />
-          <div className="pt-16">
+          <div className="pt-8">
           <Calendar
             month={new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1)}
             monthLabel={activeMonthLabel}
