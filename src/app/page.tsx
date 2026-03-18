@@ -936,7 +936,7 @@ export default function Home() {
   return (
     <main className={`min-h-screen px-5 pb-24 pt-6 ${isDarkMode ? "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" : "bg-gradient-to-br from-pink-50 via-blush to-orange-100"}`}>
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6" style={{ zoom: zoomLevel }}>
-        <header className={`sticky top-4 z-30 rounded-3xl px-3 py-2 shadow-soft backdrop-blur ${isDarkMode ? "bg-slate-900/85 border border-slate-700" : "bg-white/70"}`}>
+        <header className={`-mx-5 sticky top-0 z-30 rounded-b-2xl px-5 py-2 shadow-soft backdrop-blur ${isDarkMode ? "bg-slate-900/85 border-b border-slate-700" : "bg-white/80"}`}>
           <div className="flex items-center justify-between">
             <button
               type="button"
