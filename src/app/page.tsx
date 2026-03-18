@@ -906,6 +906,16 @@ export default function Home() {
           </button>
         </div>
 
+        {/* Stat panda */}
+        <div className="flex items-center justify-center">
+          <img
+            src="/stat_panda.png"
+            alt=""
+            className="h-32 w-auto"
+            draggable={false}
+          />
+        </div>
+
         {/* Full-bleed calendar — breaks out of the px-5 gutter */}
         <div className="-mx-5">
           <Calendar
@@ -1032,6 +1042,16 @@ export default function Home() {
               )}
           </div>
         </section>
+
+        {/* Bounce panda */}
+        <div className="flex items-center justify-center">
+          <img
+            src="/bounce_panda.gif"
+            alt=""
+            className="h-24 w-auto"
+            draggable={false}
+          />
+        </div>
 
         <div className="pb-2">
           <button
