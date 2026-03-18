@@ -141,9 +141,9 @@ export function Calendar({
   return (
     <div className={`rounded-2xl px-2 py-4 shadow-soft ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"} ${slideClass ?? ""}`}>
       {/* Header: Year (left) | Month (center) | Today (right) */}
-      <div className="mb-4 flex items-center justify-between px-1">
+      <div className="mb-4 grid grid-cols-[1fr_auto_1fr] items-center px-3">
         {/* Left: Year dropdown */}
-        <div className="relative inline-flex items-center">
+        <div className="relative inline-flex items-center justify-self-start">
           <select
             value={currentYear}
             onChange={(e) => onNavigate?.(Number(e.target.value), currentMonth)}
@@ -158,7 +158,7 @@ export function Calendar({
         </div>
 
         {/* Center: Month dropdown */}
-        <div className="relative inline-flex items-center">
+        <div className="relative inline-flex items-center justify-self-center">
           <select
             value={currentMonth}
             onChange={(e) => onNavigate?.(currentYear, Number(e.target.value))}
@@ -173,17 +173,19 @@ export function Calendar({
         </div>
 
         {/* Right: Today button */}
-        <button
-          type="button"
-          onClick={onGoToToday}
-          className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-            isDarkMode
-              ? "border-slate-600 text-pink-300 hover:bg-slate-700"
-              : "border-pink-200 text-pink-500 hover:bg-pink-50"
-          }`}
-        >
-          Today
-        </button>
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={onGoToToday}
+            className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+              isDarkMode
+                ? "border-slate-600 text-pink-300 hover:bg-slate-700"
+                : "border-pink-200 text-pink-500 hover:bg-pink-50"
+            }`}
+          >
+            Today
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-7 gap-x-1 gap-y-1.5">
