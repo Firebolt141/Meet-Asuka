@@ -909,7 +909,7 @@ export default function Home() {
         {/* Stat panda */}
         <div className="flex items-center justify-center">
           <img
-            src="/stat_panda.png"
+            src="/stat_panda.jpg"
             alt=""
             className="h-32 w-auto"
             draggable={false}
