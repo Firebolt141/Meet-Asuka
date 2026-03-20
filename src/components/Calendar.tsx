@@ -24,6 +24,7 @@ export type PlannerItem = {
   completed?: boolean;
   tripTodos?: string;
   tripTodoItems?: TripTodoEntry[];
+  eventTodoItems?: TripTodoEntry[];
   parentTripId?: string;
   details: string;
   reminderAt?: string;   // ISO datetime string e.g. "2025-03-15T09:00" for the notification fire time
