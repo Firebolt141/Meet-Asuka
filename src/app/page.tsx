@@ -115,6 +115,7 @@ const normalizePlannerItem = (item: unknown): PlannerItem | null => {
     recurring: normalizedRecurring,
     tripTodos: typeof raw.tripTodos === "string" ? raw.tripTodos : undefined,
     tripTodoItems: normalizeTripTodoItems(raw.tripTodoItems),
+    eventTodoItems: normalizeTripTodoItems(raw.eventTodoItems),
     participants: typeof raw.participants === "string" ? raw.participants : undefined,
     pic: typeof raw.pic === "string" ? raw.pic : undefined,
     completed: typeof raw.completed === "boolean" ? raw.completed : undefined,
@@ -153,6 +154,7 @@ const createEmptyFormState = (date?: string): PlannerFormState => ({
   recurring: "none",
   tripTodos: "",
   tripTodoItems: [createEmptyTripTodo()],
+  eventTodoItems: [createEmptyTripTodo()],
   participants: "",
   pic: "",
   completed: false,
@@ -190,6 +192,7 @@ type PlannerFormState = {
   recurring: PlannerItem["recurring"];
   tripTodos: string;
   tripTodoItems: TripTodoEntry[];
+  eventTodoItems: TripTodoEntry[];
   participants: string;
   pic: string;
   completed: boolean;
@@ -1127,6 +1130,10 @@ export default function Home() {
                           : item.tripTodos
                             ? [{ title: "Trip todo", date: item.date, details: item.tripTodos, participants: "" }]
                             : [createEmptyTripTodo()],
+                      eventTodoItems:
+                        item.eventTodoItems && item.eventTodoItems.length > 0
+                          ? item.eventTodoItems
+                          : [createEmptyTripTodo()],
                       participants: item.participants ?? "",
                       pic: item.pic ?? "",
                       completed: item.completed ?? false,
@@ -1202,6 +1209,18 @@ export default function Home() {
                       </div>
                     ) : item.category === "trip" && item.tripTodos ? (
                       <p className="mt-1 text-xs text-indigo-500">📝 Trip todos: {item.tripTodos}</p>
+                    ) : null}
+                    {item.category === "event" && item.eventTodoItems && item.eventTodoItems.length > 0 ? (
+                      <div className="mt-2 space-y-1">
+                        {item.eventTodoItems.slice(0, 2).map((todo, index) => (
+                          <p key={`${item.id}-event-todo-${index}`} className="text-xs text-pink-500">
+                            📝 {todo.title || "Event todo"}{todo.date ? ` • ${todo.date}` : ""}
+                          </p>
+                        ))}
+                        {item.eventTodoItems.length > 2 ? (
+                          <p className="text-xs text-pink-400">+{item.eventTodoItems.length - 2} more</p>
+                        ) : null}
+                      </div>
                     ) : null}
                   </div>
                   );
@@ -1340,6 +1359,18 @@ export default function Home() {
                         .filter((todo) => todo.title || todo.details || todo.participants)
                     : undefined;
 
+                const normalizedEventTodos =
+                  newItem.category === "event"
+                    ? newItem.eventTodoItems
+                        .map((todo) => ({
+                          title: todo.title.trim(),
+                          date: todo.date,
+                          details: todo.details.trim(),
+                          participants: todo.participants?.trim() || undefined
+                        }))
+                        .filter((todo) => todo.title || todo.details || todo.participants)
+                    : undefined;
+
                 const payload = {
                   title: newItem.title.trim() || "Untitled plan",
                   category: newItem.category as PlannerItem["category"],
@@ -1354,6 +1385,7 @@ export default function Home() {
                       : undefined,
                   tripTodos: newItem.category === "trip" ? newItem.tripTodos.trim() : undefined,
                   tripTodoItems: normalizedTripTodos,
+                  eventTodoItems: normalizedEventTodos,
                   participants:
                     newItem.category !== "todo" ? newItem.participants.trim() || undefined : undefined,
                   pic: newItem.category === "todo" ? newItem.pic.trim() || undefined : undefined,
@@ -1370,6 +1402,10 @@ export default function Home() {
                     payload.category === "trip" && normalizedTripTodos
                       ? buildTripTodoPlannerItems(editingId, payload.title, payload.date, normalizedTripTodos)
                       : [];
+                  const generatedEventTodos =
+                    payload.category === "event" && normalizedEventTodos
+                      ? buildTripTodoPlannerItems(editingId, payload.title, payload.date, normalizedEventTodos)
+                      : [];
 
                   // Capture linked todo IDs from current state before setItems mutates it.
                   const linkedTodoIds = items
@@ -1381,7 +1417,7 @@ export default function Home() {
                     const withoutLinkedTodos = prev.filter((item) => item.parentTripId !== editingId);
                     return withoutLinkedTodos.map((item) =>
                       item.id === editingId ? { ...item, ...payload } : item
-                    ).concat(generatedTripTodos);
+                    ).concat(generatedTripTodos).concat(generatedEventTodos);
                   });
 
                   if (isFirebaseConfigured) {
@@ -1390,6 +1426,7 @@ export default function Home() {
                       await updatePlannerItem(editingId, payload);
                       await Promise.all(linkedTodoIds.map((todoId) => deletePlannerItem(todoId)));
                       await Promise.all(generatedTripTodos.map((todo) => addPlannerItem(todo)));
+                      await Promise.all(generatedEventTodos.map((todo) => addPlannerItem(todo)));
                     } catch (error) {
                       console.error("Failed to update planner item in Firestore", error);
                       setSyncError("Saved locally but couldn't sync to cloud. Changes may be lost if you clear local storage.");
@@ -1401,6 +1438,10 @@ export default function Home() {
                     payload.category === "trip" && normalizedTripTodos
                       ? buildTripTodoPlannerItems(id, payload.title, payload.date, normalizedTripTodos)
                       : [];
+                  const generatedEventTodos =
+                    payload.category === "event" && normalizedEventTodos
+                      ? buildTripTodoPlannerItems(id, payload.title, payload.date, normalizedEventTodos)
+                      : [];
 
                   logChange("added", { id, ...payload } as PlannerItem);
                   setItems((prev) => [
@@ -1409,7 +1450,8 @@ export default function Home() {
                       id,
                       ...payload
                     },
-                    ...generatedTripTodos
+                    ...generatedTripTodos,
+                    ...generatedEventTodos
                   ]);
 
                   if (isFirebaseConfigured) {
@@ -1419,6 +1461,7 @@ export default function Home() {
                         ...payload
                       });
                       await Promise.all(generatedTripTodos.map((todo) => addPlannerItem(todo)));
+                      await Promise.all(generatedEventTodos.map((todo) => addPlannerItem(todo)));
                     } catch (error) {
                       console.error("Failed to add planner item to Firestore", error);
                       setSyncError("Saved locally but couldn't sync to cloud. Changes may be lost if you clear local storage.");
@@ -1685,6 +1728,104 @@ export default function Home() {
                         <option value="monthly">Monthly</option>
                       </select>
                     </label>
+                  </div>
+                  <div className={`space-y-3 rounded-2xl border p-3 ${isDarkMode ? "border-slate-600 bg-slate-700/40" : "border-pink-100 bg-pink-50/40"}`}>
+                    <div className="flex items-center justify-between">
+                      <p className={`text-sm font-semibold ${isDarkMode ? "text-pink-300" : "text-pink-700"}`}>Event todos</p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setNewItem((prev) => ({
+                            ...prev,
+                            eventTodoItems: [...prev.eventTodoItems, createEmptyTripTodo()]
+                          }))
+                        }
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${isDarkMode ? "border-pink-400/40 text-pink-300 hover:bg-slate-700" : "border-pink-200 text-pink-600 hover:bg-pink-100"}`}
+                      >
+                        + Add todo
+                      </button>
+                    </div>
+                    {newItem.eventTodoItems.map((todo, todoIndex) => (
+                      <div key={`event-todo-${todoIndex}`} className={`space-y-2 rounded-xl border p-3 ${isDarkMode ? "border-slate-600 bg-slate-800" : "border-pink-100 bg-white"}`}>
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <label className={`block text-xs font-medium ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
+                            Todo title
+                            <input
+                              value={todo.title}
+                              onChange={(event) =>
+                                setNewItem((prev) => ({
+                                  ...prev,
+                                  eventTodoItems: prev.eventTodoItems.map((entry, index) =>
+                                    index === todoIndex ? { ...entry, title: event.target.value } : entry
+                                  )
+                                }))
+                              }
+                              className={modalInputCompactClass}
+                            />
+                          </label>
+                          <label className={`block text-xs font-medium ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
+                            Due date
+                            <input
+                              type="date"
+                              value={todo.date}
+                              onChange={(event) =>
+                                setNewItem((prev) => ({
+                                  ...prev,
+                                  eventTodoItems: prev.eventTodoItems.map((entry, index) =>
+                                    index === todoIndex ? { ...entry, date: event.target.value } : entry
+                                  )
+                                }))
+                              }
+                              className={modalInputCompactClass}
+                            />
+                          </label>
+                        </div>
+                        <label className={`block text-xs font-medium ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
+                          PIC
+                          <input
+                            value={todo.participants ?? ""}
+                            onChange={(event) =>
+                              setNewItem((prev) => ({
+                                ...prev,
+                                eventTodoItems: prev.eventTodoItems.map((entry, index) =>
+                                  index === todoIndex ? { ...entry, participants: event.target.value } : entry
+                                )
+                              }))
+                            }
+                            className={modalInputCompactClass}
+                          />
+                        </label>
+                        <label className={`block text-xs font-medium ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
+                          Details
+                          <textarea
+                            value={todo.details}
+                            onChange={(event) =>
+                              setNewItem((prev) => ({
+                                ...prev,
+                                eventTodoItems: prev.eventTodoItems.map((entry, index) =>
+                                  index === todoIndex ? { ...entry, details: event.target.value } : entry
+                                )
+                              }))
+                            }
+                            className={`min-h-[70px] ${modalInputCompactClass}`}
+                          />
+                        </label>
+                        {newItem.eventTodoItems.length > 1 ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setNewItem((prev) => ({
+                                ...prev,
+                                eventTodoItems: prev.eventTodoItems.filter((_, index) => index !== todoIndex)
+                              }))
+                            }
+                            className="text-xs font-semibold text-rose-500 hover:text-rose-600"
+                          >
+                            Remove todo
+                          </button>
+                        ) : null}
+                      </div>
+                    ))}
                   </div>
                 </div>
               ) : null}
@@ -1964,6 +2105,10 @@ export default function Home() {
                                         : item.tripTodos
                                           ? [{ title: "Trip todo", date: item.date, details: item.tripTodos, participants: "" }]
                                           : [createEmptyTripTodo()],
+                                    eventTodoItems:
+                                      item.eventTodoItems && item.eventTodoItems.length > 0
+                                        ? item.eventTodoItems
+                                        : [createEmptyTripTodo()],
                                     participants: item.participants ?? "",
                                     pic: item.pic ?? "",
                                     completed: item.completed ?? false,
@@ -2009,6 +2154,10 @@ export default function Home() {
                                               : item.tripTodos
                                                 ? [{ title: "Trip todo", date: item.date, details: item.tripTodos, participants: "" }]
                                                 : [createEmptyTripTodo()],
+                                          eventTodoItems:
+                                            item.eventTodoItems && item.eventTodoItems.length > 0
+                                              ? item.eventTodoItems
+                                              : [createEmptyTripTodo()],
                                           participants: item.participants ?? "",
                                           pic: item.pic ?? "",
                                           completed: item.completed ?? false,
@@ -2055,6 +2204,18 @@ export default function Home() {
                                   </div>
                                 ) : item.category === "trip" && item.tripTodos ? (
                                   <p className="mt-1 text-[11px] text-indigo-500">📝 {item.tripTodos}</p>
+                                ) : null}
+                                {item.category === "event" && item.eventTodoItems && item.eventTodoItems.length > 0 ? (
+                                  <div className="mt-1 space-y-1">
+                                    {item.eventTodoItems.slice(0, 2).map((todo, index) => (
+                                      <p key={`${item.id}-nav-event-todo-${index}`} className="text-[11px] text-pink-500">
+                                        📝 {todo.title || todo.details || "Event todo"}
+                                      </p>
+                                    ))}
+                                    {item.eventTodoItems.length > 2 ? (
+                                      <p className="text-[11px] text-pink-400">+{item.eventTodoItems.length - 2} more</p>
+                                    ) : null}
+                                  </div>
                                 ) : null}
                               </button>
                             ))
