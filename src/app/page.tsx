@@ -1100,11 +1100,11 @@ export default function Home() {
           </div>
         </div>
 
-        <section className={`w-screen ml-[50%] -translate-x-1/2 overflow-hidden px-6 pt-6 pb-2 ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"}`}>
-          <h3 className={`text-lg font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>
+        <section className={`w-screen ml-[50%] -translate-x-1/2 overflow-hidden pt-6 pb-2 ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"}`}>
+          <h3 className={`px-6 text-lg font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>
             Plans for selected day
           </h3>
-          <div className="mt-4 space-y-3">
+          <div className="mt-4">
             {selectedItems.length === 0 ? (
               <p className={`text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>
                 No plans yet. Add something sweet with the plus button!
@@ -1165,7 +1165,7 @@ export default function Home() {
                         }
                       }
                     }}
-                    className={`w-full cursor-pointer rounded-2xl border px-4 py-3 text-left transition hover:-translate-y-0.5 ${(item.category === "todo" || item.category === "wishlist") && item.completed ? (isDarkMode ? "border-emerald-700 bg-emerald-900/20" : "border-emerald-200 bg-emerald-50/70") : (isDarkMode ? "border-slate-700 bg-slate-800 hover:border-slate-600 hover:bg-slate-700" : "border-pink-100 bg-white hover:border-pink-200 hover:bg-pink-50/50")}`}
+                    className={`w-full cursor-pointer border-b px-6 py-4 text-left transition ${(item.category === "todo" || item.category === "wishlist") && item.completed ? (isDarkMode ? "border-emerald-800 bg-emerald-900/20 hover:bg-emerald-900/30" : "border-emerald-100 bg-emerald-50/70 hover:bg-emerald-50") : (isDarkMode ? "border-slate-700 hover:bg-slate-700/60" : "border-pink-100 hover:bg-pink-50/50")}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className={`min-w-0 text-sm font-semibold ${(item.category === "todo" || item.category === "wishlist") && item.completed ? "text-slate-400 line-through" : (isDarkMode ? "text-slate-100" : "text-slate-800")}`}>
