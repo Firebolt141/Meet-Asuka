@@ -1100,7 +1100,7 @@ export default function Home() {
           </div>
         </div>
 
-        <section className={`w-screen ml-[50%] -translate-x-1/2 px-6 pt-6 pb-2 shadow-soft ${isDarkMode ? "bg-slate-900/80" : "bg-white/80"}`}>
+        <section className={`w-screen ml-[50%] -translate-x-1/2 overflow-hidden px-6 pt-6 pb-2 ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"}`}>
           <h3 className={`text-lg font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>
             Plans for selected day
           </h3>
@@ -1239,7 +1239,7 @@ export default function Home() {
           />
         </div>
 
-        <div className="w-screen ml-[50%] -translate-x-1/2 px-5 pb-2">
+        <div className={`w-screen ml-[50%] -translate-x-1/2 overflow-hidden ${isDarkMode ? "bg-slate-800/80" : "bg-white/80"}`}>
           <button
             type="button"
             onClick={() => {
@@ -1247,7 +1247,7 @@ export default function Home() {
               setNameModalShouldLogout(true);
               setShowNameModal(true);
             }}
-            className={`flex w-full items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold shadow-soft transition ${isDarkMode ? "border-slate-700 bg-slate-900/80 text-pink-300 hover:bg-slate-800" : "border-pink-100 bg-white/80 text-pink-600 hover:bg-pink-50"}` }
+            className={`flex w-full items-center justify-center gap-2 px-4 py-4 text-sm font-semibold transition ${isDarkMode ? "text-pink-300 hover:bg-slate-700" : "text-pink-600 hover:bg-pink-50"}`}
           >
             <span className="text-lg">👋</span>
             Logout
