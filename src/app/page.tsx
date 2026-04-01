@@ -591,7 +591,12 @@ export default function Home() {
                 prev.endDate !== item.endDate ||
                 prev.location !== item.location ||
                 prev.participants !== item.participants ||
-                prev.completed !== item.completed;
+                prev.completed !== item.completed ||
+                prev.startTime !== item.startTime ||
+                prev.endTime !== item.endTime ||
+                prev.recurring !== item.recurring ||
+                prev.pic !== item.pic ||
+                prev.reminderAt !== item.reminderAt;
               if (changed) logChange("modified", item);
             }
           }
@@ -805,6 +810,9 @@ export default function Home() {
 
   const toggleChecklistCompletion = async (item: PlannerItem) => {
     const nextCompleted = !item.completed;
+    const updated = { ...item, completed: nextCompleted };
+
+    logChange("modified", updated);
 
     setItems((prev) =>
       prev.map((existing) =>
