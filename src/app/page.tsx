@@ -11,9 +11,11 @@ type ChangeEntry = {
   snapshot: PlannerItem;
 };
 import {
+  addChangeEntry,
   addPlannerItem,
   deletePlannerItem,
   isFirebaseConfigured,
+  subscribeChangeLog,
   subscribePlannerItems,
   updatePlannerItem
 } from "@/lib/firestore";
@@ -212,9 +214,7 @@ export default function Home() {
   const pinInputRef = useRef<HTMLInputElement | null>(null);
   const handledStaleIdsRef = useRef(new Set<string>());
   // Tracks IDs that were changed locally so the Firebase listener doesn't double-log them.
-  const localChangedIdsRef = useRef(new Set<string>());
   // Tracks the last items snapshot seen from Firebase, used to diff for remote changes.
-  const prevFirebaseItemsRef = useRef<PlannerItem[]>([]);
   const [items, setItems] = useState<PlannerItem[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -560,50 +560,10 @@ export default function Home() {
     }
 
     let hasMigrated = false;
-    let firstSnapshotDone = false;
 
     const unsubscribe = subscribePlannerItems(
       (remoteItems) => {
         const normalized = normalizePlannerItems(remoteItems);
-
-        // After the initial snapshot, diff against the previous snapshot to detect
-        // changes made by other browsers/users and log them for the secret hamburger.
-        if (firstSnapshotDone) {
-          const prevMap = new Map(prevFirebaseItemsRef.current.map((i) => [i.id, i]));
-          const newMap = new Map(normalized.map((i) => [i.id, i]));
-          for (const [id, item] of newMap) {
-            if (!prevMap.has(id) && !localChangedIdsRef.current.has(id)) {
-              logChange("added", item);
-            }
-          }
-          for (const [id, item] of prevMap) {
-            if (!newMap.has(id) && !localChangedIdsRef.current.has(id)) {
-              logChange("deleted", item);
-            }
-          }
-          for (const [id, item] of newMap) {
-            const prev = prevMap.get(id);
-            if (prev && !localChangedIdsRef.current.has(id)) {
-              const changed =
-                prev.title !== item.title ||
-                prev.details !== item.details ||
-                prev.date !== item.date ||
-                prev.endDate !== item.endDate ||
-                prev.location !== item.location ||
-                prev.participants !== item.participants ||
-                prev.completed !== item.completed ||
-                prev.startTime !== item.startTime ||
-                prev.endTime !== item.endTime ||
-                prev.recurring !== item.recurring ||
-                prev.pic !== item.pic ||
-                prev.reminderAt !== item.reminderAt;
-              if (changed) logChange("modified", item);
-            }
-          }
-        }
-
-        firstSnapshotDone = true;
-        prevFirebaseItemsRef.current = normalized;
 
         // Migrate legacy local-only data only on the first snapshot when remote is empty.
         if (!hasMigrated && normalized.length === 0 && localItems.length > 0) {
@@ -623,6 +583,21 @@ export default function Home() {
       }
     );
 
+    return unsubscribe;
+  }, []);
+
+  // Subscribe to the shared Firestore changelog so all devices see every change.
+  useEffect(() => {
+    if (!isFirebaseConfigured) return;
+    const unsubscribe = subscribeChangeLog(
+      (entries) => {
+        const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+        setChangeLog((entries as ChangeEntry[]).filter((e) => e.timestamp > cutoff));
+      },
+      (error) => {
+        console.error("Failed to sync change log with Firestore", error);
+      }
+    );
     return unsubscribe;
   }, []);
 
@@ -858,9 +833,6 @@ export default function Home() {
   };
 
   const logChange = useCallback((action: ChangeEntry["action"], item: PlannerItem) => {
-    // Mark this ID as locally changed so the Firebase subscriber skips it.
-    localChangedIdsRef.current.add(item.id);
-    setTimeout(() => { localChangedIdsRef.current.delete(item.id); }, 15000);
     const entry: ChangeEntry = {
       entryId: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       itemId: item.id,
@@ -868,12 +840,16 @@ export default function Home() {
       timestamp: Date.now(),
       snapshot: { ...item },
     };
-    setChangeLog((prev) => {
-      const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
-      const next = [...prev.filter((e) => e.timestamp > cutoff), entry];
-      window.localStorage.setItem(LOCAL_CHANGELOG_KEY, JSON.stringify(next));
-      return next;
-    });
+    if (isFirebaseConfigured) {
+      void addChangeEntry(entry as Parameters<typeof addChangeEntry>[0]);
+    } else {
+      setChangeLog((prev) => {
+        const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+        const next = [...prev.filter((e) => e.timestamp > cutoff), entry];
+        window.localStorage.setItem(LOCAL_CHANGELOG_KEY, JSON.stringify(next));
+        return next;
+      });
+    }
   }, []);
 
   const navigateMonth = (dir: "next" | "prev") => {

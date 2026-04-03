@@ -1,4 +1,4 @@
-import { collection, deleteDoc, doc, getDocs, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs, onSnapshot, orderBy, query, setDoc, updateDoc } from "firebase/firestore";
 
 import { db, firebaseProjectId, hasFirebaseConfig, missingFirebaseEnvVars } from "@/lib/firebase";
 import type { PlannerItem } from "@/components/Calendar";
@@ -88,4 +88,38 @@ export const deletePlannerItem = async (id: string): Promise<void> => {
   }
   const plannerCollection = collection(db, "plannerItems");
   await deleteDoc(doc(plannerCollection, id));
+};
+
+type ChangeEntryRecord = {
+  entryId: string;
+  itemId: string;
+  action: "added" | "modified" | "deleted";
+  timestamp: number;
+  snapshot: Record<string, unknown>;
+};
+
+export const addChangeEntry = async (entry: ChangeEntryRecord): Promise<void> => {
+  if (!db) {
+    return;
+  }
+  const changeLogCollection = collection(db, "changeLog");
+  await setDoc(doc(changeLogCollection, entry.entryId), stripUndefinedDeep(entry));
+};
+
+export const subscribeChangeLog = (
+  onUpdate: (entries: ChangeEntryRecord[]) => void,
+  onError: (error: Error) => void
+): (() => void) => {
+  if (!db) {
+    return () => {};
+  }
+  const changeLogCollection = collection(db, "changeLog");
+  return onSnapshot(
+    query(changeLogCollection, orderBy("timestamp", "asc")),
+    (snapshot) => {
+      const entries = snapshot.docs.map((docSnap) => docSnap.data() as ChangeEntryRecord);
+      onUpdate(entries);
+    },
+    (error) => onError(error)
+  );
 };
