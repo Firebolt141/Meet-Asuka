@@ -1112,11 +1112,11 @@ export default function Home() {
             }
           }}
         >
-          <div className="relative pt-[36px]">
+          <div className="relative pt-[23px]">
             <img
               src={isDarkMode ? "/stat_panda.png" : "/stat_panda_bg-removebg-preview.png"}
               alt=""
-              className="absolute left-1/2 top-0 z-10 h-[42px] w-auto -translate-x-1/2"
+              className="absolute left-1/2 top-0 z-10 h-[26px] w-auto -translate-x-1/2"
               draggable={false}
             />
             <Calendar
@@ -1290,12 +1290,11 @@ export default function Home() {
         </section>
 
         {/* Bounce panda */}
-        <div className="relative z-10 flex items-center justify-center overflow-hidden" style={{marginTop: "-41px", marginBottom: "-32px"}}>
+        <div className="relative z-10 flex items-center justify-center overflow-hidden" style={{marginTop: "-65px", marginBottom: "-32px"}}>
           <img
             src="/bounce_panda.gif"
             alt=""
-            className="w-auto block"
-            style={{height: "123px"}}
+            className="h-48 w-auto block"
             draggable={false}
           />
         </div>
