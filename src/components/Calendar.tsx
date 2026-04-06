@@ -12,7 +12,7 @@ export type TripTodoEntry = {
 export type PlannerItem = {
   id: string;
   title: string;
-  category: "trip" | "event" | "todo" | "wishlist";
+  category: "trip" | "event" | "todo" | "wishlist" | "birthday";
   date: string; // YYYY-MM-DD
   endDate?: string;
   startTime?: string;
@@ -248,6 +248,8 @@ export function Calendar({
                         ? "bg-indigo-400"
                         : item.category === "event"
                         ? "bg-cyan-500"
+                        : item.category === "birthday"
+                        ? "bg-fuchsia-400"
                         : item.category === "todo"
                         ? item.completed
                           ? "bg-emerald-500"
