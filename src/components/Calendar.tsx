@@ -18,7 +18,7 @@ export type PlannerItem = {
   startTime?: string;
   endTime?: string;
   location?: string;
-  recurring?: "none" | "daily" | "weekly" | "monthly";
+  recurring?: "none" | "daily" | "weekly" | "monthly" | "yearly";
   participants?: string;
   pic?: string;
   completed?: boolean;
