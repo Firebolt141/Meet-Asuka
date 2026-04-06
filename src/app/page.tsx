@@ -1226,9 +1226,9 @@ export default function Home() {
                           type="button"
                           onClick={(e) => { e.stopPropagation(); openEdit(); }}
                           aria-label="Edit"
-                          className={`inline-flex h-7 w-7 items-center justify-center rounded-full transition ${isDarkMode ? "text-slate-400 hover:bg-slate-700 hover:text-pink-300" : "text-slate-400 hover:bg-pink-50 hover:text-pink-500"}`}
+                          className={`inline-flex h-9 w-9 items-center justify-center rounded-full transition ${isDarkMode ? "text-slate-400 hover:bg-slate-700 hover:text-pink-300" : "text-slate-400 hover:bg-pink-50 hover:text-pink-500"}`}
                         >
-                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                         </button>
@@ -1290,11 +1290,12 @@ export default function Home() {
         </section>
 
         {/* Bounce panda */}
-        <div className="relative z-10 flex items-center justify-center overflow-hidden" style={{marginTop: "-58px", marginBottom: "-32px"}}>
+        <div className="relative z-10 flex items-center justify-center overflow-hidden" style={{marginTop: "-41px", marginBottom: "-32px"}}>
           <img
             src="/bounce_panda.gif"
             alt=""
-            className="h-44 w-auto block"
+            className="w-auto block"
+            style={{height: "123px"}}
             draggable={false}
           />
         </div>
