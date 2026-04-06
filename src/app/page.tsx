@@ -59,7 +59,7 @@ const LOCAL_SECRET_LAST_LOGIN_KEY = "meet-asuka:secret-last-login";
 const SECRET_PIN = "0109";
 
 const validCategories: PlannerItem["category"][] = ["trip", "event", "todo", "wishlist", "birthday"];
-const validRecurring: NonNullable<PlannerItem["recurring"]>[] = ["none", "daily", "weekly", "monthly"];
+const validRecurring: NonNullable<PlannerItem["recurring"]>[] = ["none", "daily", "weekly", "monthly", "yearly"];
 
 const normalizeTripTodoItems = (tripTodoItems: unknown): TripTodoEntry[] | undefined => {
   if (!Array.isArray(tripTodoItems)) {
@@ -457,9 +457,8 @@ export default function Home() {
       return `When: ${item.date} • ${time}${locationLabel}${participantsLabel}${recurringLabel}`;
     }
     if (item.category === "birthday") {
-      const todoCount = item.eventTodoItems?.length ?? 0;
-      const todoLabel = todoCount > 0 ? ` • ${todoCount} todo${todoCount > 1 ? "s" : ""}` : "";
-      return `Date: ${item.date}${todoLabel}`;
+      const recurringLabel = item.recurring && item.recurring !== "none" ? ` • Repeats ${item.recurring}` : "";
+      return `Date: ${item.date}${recurringLabel}`;
     }
     if (item.category === "todo") {
       const picLabel = item.pic ? ` • PIC: ${item.pic}` : "";
@@ -1112,11 +1111,11 @@ export default function Home() {
             }
           }}
         >
-          <div className="relative pt-[23px]">
+          <div className="relative pt-[25px]">
             <img
               src={isDarkMode ? "/stat_panda.png" : "/stat_panda_bg-removebg-preview.png"}
               alt=""
-              className="absolute left-1/2 top-0 z-10 h-[26px] w-auto -translate-x-1/2"
+              className="absolute left-1/2 top-0 z-10 h-[29px] w-auto -translate-x-1/2"
               draggable={false}
             />
             <Calendar
@@ -1290,11 +1289,11 @@ export default function Home() {
         </section>
 
         {/* Bounce panda */}
-        <div className="relative z-10 flex items-center justify-center overflow-hidden" style={{marginTop: "-65px", marginBottom: "-32px"}}>
+        <div className="relative z-10 flex items-center justify-center overflow-hidden" style={{marginTop: "-58px", marginBottom: "-32px"}}>
           <img
             src="/bounce_panda.gif"
             alt=""
-            className="h-48 w-auto block"
+            className="h-44 w-auto block"
             draggable={false}
           />
         </div>
@@ -1323,12 +1322,7 @@ export default function Home() {
           setEditingId(null);
           setReturnToNavAfterModal(false);
           setIsChoosingCategory(true);
-          setNewItem((prev) => ({
-            ...prev,
-            date: defaultStartDate,
-            endDate: defaultStartDate,
-            tripTodoItems: prev.tripTodoItems.map((todo) => ({ ...todo, date: todo.date || defaultStartDate }))
-          }));
+          setNewItem(createEmptyFormState(defaultStartDate));
           setIsModalOpen(true);
         }}
         className={`fixed bottom-8 left-1/2 z-40 flex -translate-x-1/2 items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-1 ${isDarkMode ? "bg-fuchsia-600 shadow-fuchsia-900/60 hover:bg-fuchsia-500" : "bg-pink-500 shadow-pink-300 hover:bg-pink-400"}`}
@@ -1420,7 +1414,7 @@ export default function Home() {
                     : undefined;
 
                 const normalizedEventTodos =
-                  newItem.category === "event" || newItem.category === "birthday"
+                  newItem.category === "event"
                     ? newItem.eventTodoItems
                         .map((todo) => ({
                           title: todo.title.trim(),
@@ -1440,7 +1434,7 @@ export default function Home() {
                   endTime: newItem.category === "event" ? newItem.endTime : undefined,
                   location: newItem.category === "event" ? newItem.location.trim() : undefined,
                   recurring:
-                    newItem.category === "event"
+                    newItem.category === "event" || newItem.category === "birthday"
                       ? newItem.recurring
                       : undefined,
                   tripTodos: newItem.category === "trip" ? newItem.tripTodos.trim() : undefined,
@@ -1465,7 +1459,7 @@ export default function Home() {
                       ? buildTripTodoPlannerItems(editingId, payload.title, payload.date, normalizedTripTodos)
                       : [];
                   const generatedEventTodos =
-                    (payload.category === "event" || payload.category === "birthday") && normalizedEventTodos
+                    payload.category === "event" && normalizedEventTodos
                       ? buildTripTodoPlannerItems(editingId, payload.title, payload.date, normalizedEventTodos)
                       : [];
 
@@ -1501,7 +1495,7 @@ export default function Home() {
                       ? buildTripTodoPlannerItems(id, payload.title, payload.date, normalizedTripTodos)
                       : [];
                   const generatedEventTodos =
-                    (payload.category === "event" || payload.category === "birthday") && normalizedEventTodos
+                    payload.category === "event" && normalizedEventTodos
                       ? buildTripTodoPlannerItems(id, payload.title, payload.date, normalizedEventTodos)
                       : [];
 
@@ -1570,7 +1564,7 @@ export default function Home() {
                           startTime: category === "event" ? prev.startTime : "",
                           endTime: category === "event" ? prev.endTime : "",
                           location: category === "event" ? prev.location : "",
-                          recurring: category === "event" ? prev.recurring : "none",
+                          recurring: category === "event" ? prev.recurring : category === "birthday" ? "yearly" : "none",
                           tripTodos: category === "trip" ? prev.tripTodos : "",
                           tripTodoItems:
                             category === "trip"
@@ -1915,89 +1909,23 @@ export default function Home() {
               ) : null}
 
               {newItem.category === "birthday" ? (
-                <div className={`space-y-3 rounded-2xl border p-3 ${isDarkMode ? "border-slate-600 bg-slate-700/40" : "border-fuchsia-100 bg-fuchsia-50/40"}`}>
-                  <div className="flex items-center justify-between">
-                    <p className={`text-sm font-semibold ${isDarkMode ? "text-fuchsia-300" : "text-fuchsia-700"}`}>Birthday todos</p>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setNewItem((prev) => ({
-                          ...prev,
-                          eventTodoItems: [...prev.eventTodoItems, createEmptyTripTodo()]
-                        }))
-                      }
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${isDarkMode ? "border-fuchsia-400/40 text-fuchsia-300 hover:bg-slate-700" : "border-fuchsia-200 text-fuchsia-600 hover:bg-fuchsia-100"}`}
-                    >
-                      + Add todo
-                    </button>
-                  </div>
-                  {newItem.eventTodoItems.map((todo, todoIndex) => (
-                    <div key={`birthday-todo-${todoIndex}`} className={`space-y-2 rounded-xl border p-3 ${isDarkMode ? "border-slate-600 bg-slate-800" : "border-fuchsia-100 bg-white"}`}>
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <label className={`block text-xs font-medium ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
-                          Todo title
-                          <input
-                            value={todo.title}
-                            onChange={(event) =>
-                              setNewItem((prev) => ({
-                                ...prev,
-                                eventTodoItems: prev.eventTodoItems.map((entry, index) =>
-                                  index === todoIndex ? { ...entry, title: event.target.value } : entry
-                                )
-                              }))
-                            }
-                            className={modalInputCompactClass}
-                          />
-                        </label>
-                        <label className={`block text-xs font-medium ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
-                          Due date
-                          <input
-                            type="date"
-                            value={todo.date}
-                            onChange={(event) =>
-                              setNewItem((prev) => ({
-                                ...prev,
-                                eventTodoItems: prev.eventTodoItems.map((entry, index) =>
-                                  index === todoIndex ? { ...entry, date: event.target.value } : entry
-                                )
-                              }))
-                            }
-                            className={modalInputCompactClass}
-                          />
-                        </label>
-                      </div>
-                      <label className={`block text-xs font-medium ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
-                        Details
-                        <textarea
-                          value={todo.details}
-                          onChange={(event) =>
-                            setNewItem((prev) => ({
-                              ...prev,
-                              eventTodoItems: prev.eventTodoItems.map((entry, index) =>
-                                index === todoIndex ? { ...entry, details: event.target.value } : entry
-                              )
-                            }))
-                          }
-                          className={`min-h-[70px] ${modalInputCompactClass}`}
-                        />
-                      </label>
-                      {newItem.eventTodoItems.length > 1 ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewItem((prev) => ({
-                              ...prev,
-                              eventTodoItems: prev.eventTodoItems.filter((_, index) => index !== todoIndex)
-                            }))
-                          }
-                          className="text-xs font-semibold text-rose-500 hover:text-rose-600"
-                        >
-                          Remove todo
-                        </button>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
+                <label className={modalLabelClass}>
+                  Recurring
+                  <select
+                    value={newItem.recurring}
+                    onChange={(event) => {
+                      const v = event.target.value;
+                      const recurring = validRecurring.includes(v as NonNullable<PlannerItem["recurring"]>)
+                        ? (v as NonNullable<PlannerItem["recurring"]>)
+                        : "yearly";
+                      setNewItem((prev) => ({ ...prev, recurring }));
+                    }}
+                    className={modalInputClass}
+                  >
+                    <option value="yearly">Every year</option>
+                    <option value="none">Does not repeat</option>
+                  </select>
+                </label>
               ) : null}
 
               {newItem.category !== "birthday" ? (
@@ -2028,7 +1956,7 @@ export default function Home() {
                 />
               </label>
 
-              {newItem.category !== "wishlist" && (
+              {newItem.category !== "wishlist" && newItem.category !== "birthday" && (
                 <div>
                   <p className={`mb-2 text-sm font-medium ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
                     🔔 Reminder
