@@ -1363,12 +1363,14 @@ export default function Home() {
                     type="button"
                     onClick={() => {
                       const defaultStartDate = formatDate(selectedDate);
-                      setNewItem((prev) => ({
-                        ...prev,
+                      const emptyForm = createEmptyFormState(defaultStartDate);
+                      setNewItem({
+                        ...emptyForm,
                         category: option.category,
                         date: option.category === "wishlist" ? "" : defaultStartDate,
-                        endDate: option.category === "trip" ? (prev.endDate || defaultStartDate) : ""
-                      }));
+                        endDate: option.category === "trip" ? defaultStartDate : "",
+                        recurring: option.category === "birthday" ? "yearly" : "none"
+                      });
                       setIsChoosingCategory(false);
                     }}
                     className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${isDarkMode ? "border-slate-600 bg-slate-800 hover:bg-slate-700" : "border-pink-100 bg-pink-50/70 hover:bg-pink-100"}`}
