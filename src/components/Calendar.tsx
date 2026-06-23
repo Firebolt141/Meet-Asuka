@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import holiday_jp from "@holiday-jp/holiday_jp";
 
 export type TripTodoEntry = {
   title: string;
@@ -128,6 +129,17 @@ export function Calendar({
     }, {});
   }, [items]);
 
+  const holidaysByDate = useMemo(() => {
+    const year = month.getFullYear();
+    const monthIndex = month.getMonth();
+    const rangeStart = new Date(year, monthIndex, 1);
+    const rangeEnd = new Date(year, monthIndex + 1, 0);
+    return holiday_jp.between(rangeStart, rangeEnd).reduce<Record<string, string>>((acc, holiday) => {
+      acc[formatDate(holiday.date)] = holiday.name;
+      return acc;
+    }, {});
+  }, [month]);
+
   const currentYear = month.getFullYear();
   const currentMonth = month.getMonth();
   const yearRange = useMemo(() => {
@@ -214,6 +226,7 @@ export function Calendar({
           const dayItems = itemsByDate[dateKey] ?? [];
           const indicatorItems = dayItems.filter((item) => !(item.category === "todo" && item.completed));
           const tripSpan = tripSpansByDate[dateKey];
+          const holidayName = holidaysByDate[dateKey];
           const hasTripLeftConnector = Boolean(tripSpan && !tripSpan.isStart);
           const hasTripRightConnector = Boolean(tripSpan && !tripSpan.isEnd);
 
@@ -222,6 +235,7 @@ export function Calendar({
               key={dateKey}
               type="button"
               onClick={() => onSelectDate(date)}
+              title={holidayName}
               className={`group relative flex h-16 flex-col items-center justify-start rounded-2xl border px-1 pt-1.5 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-pink-300 ${
                 isSelected
                   ? isDarkMode
@@ -236,7 +250,15 @@ export function Calendar({
                       : "border-pink-100 bg-pink-50/40 text-slate-700 hover:border-pink-200 hover:bg-pink-50"
               }`}
             >
-              <span className={`relative z-10 ${tripSpan && !isSelected ? isDarkMode ? "text-indigo-300" : "text-indigo-700" : ""}`}>
+              <span
+                className={`relative z-10 ${
+                  holidayName && !isSelected
+                    ? isDarkMode ? "text-red-400" : "text-red-500"
+                    : tripSpan && !isSelected
+                      ? isDarkMode ? "text-indigo-300" : "text-indigo-700"
+                      : ""
+                }`}
+              >
                 {date.getDate()}
               </span>
               <span className="pointer-events-none absolute bottom-4 z-10 flex gap-1">
