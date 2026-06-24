@@ -59,6 +59,12 @@ export const OWNER_DOT_COLOR: Record<PlannerOwner, string> = {
   partner: "bg-violet-400"
 };
 
+export const OWNER_ICON: Record<PlannerOwner, string> = {
+  shared: "💗",
+  mine: "💙",
+  partner: "💜"
+};
+
 export const OWNER_LABEL: Record<PlannerOwner, string> = {
   shared: "共有",
   mine: "自分",
@@ -275,9 +281,11 @@ export function Calendar({
               }`}
             >
               {dayOwners.length > 0 ? (
-                <span className="pointer-events-none absolute right-1.5 top-1.5 z-10 flex h-1.5 w-3.5 overflow-hidden rounded-full">
+                <span className="pointer-events-none absolute right-1 top-0.5 z-10 flex -space-x-1.5">
                   {dayOwners.slice(0, 3).map((owner) => (
-                    <span key={owner} className={`flex-1 ${OWNER_DOT_COLOR[owner]}`} />
+                    <span key={owner} className="text-[10px] leading-none drop-shadow-sm">
+                      {OWNER_ICON[owner]}
+                    </span>
                   ))}
                 </span>
               ) : null}
