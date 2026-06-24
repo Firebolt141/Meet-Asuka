@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Calendar, PlannerItem, type TripTodoEntry } from "@/components/Calendar";
+import holiday_jp from "@holiday-jp/holiday_jp";
 
 type ChangeEntry = {
   entryId: string;
@@ -290,6 +291,14 @@ export default function Home() {
   })();
 
   const selectedKey = formatDate(selectedDate);
+  const selectedHolidayName = useMemo(() => {
+    const dayStart = new Date(selectedDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setHours(23, 59, 59, 999);
+    const holidays = holiday_jp.between(dayStart, dayEnd);
+    return holidays[0]?.name ?? null;
+  }, [selectedDate]);
   const selectedItems = useMemo(() => {
     const selectedDateOnly = new Date(selectedDate);
     selectedDateOnly.setHours(0, 0, 0, 0);
@@ -1150,6 +1159,11 @@ export default function Home() {
           <h3 className={`px-6 text-lg font-semibold ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>
             Plans for selected day
           </h3>
+          {selectedHolidayName ? (
+            <p className={`mt-1 px-6 text-sm font-semibold ${isDarkMode ? "text-red-400" : "text-red-500"}`}>
+              🎌 {selectedHolidayName}
+            </p>
+          ) : null}
           <div className="mt-4">
             {selectedItems.length === 0 ? (
               <p className={`text-sm ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>
