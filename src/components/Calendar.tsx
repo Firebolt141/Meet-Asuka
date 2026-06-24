@@ -59,16 +59,10 @@ export const OWNER_DOT_COLOR: Record<PlannerOwner, string> = {
   partner: "bg-violet-400"
 };
 
-export const OWNER_ICON: Record<PlannerOwner, string> = {
-  shared: "💗",
-  mine: "💙",
-  partner: "💜"
-};
-
 export const OWNER_LABEL: Record<PlannerOwner, string> = {
-  shared: "共有",
-  mine: "自分",
-  partner: "相手"
+  shared: "Both",
+  mine: "Asuka",
+  partner: "Shota"
 };
 
 export const OWNER_STYLES: Record<PlannerOwner, { badge: string; card: string; active: string }> = {
@@ -252,9 +246,7 @@ export function Calendar({
             date.getDate() === selectedDate.getDate();
           const dayItems = itemsByDate[dateKey] ?? [];
           const indicatorItems = dayItems.filter((item) => !(item.category === "todo" && item.completed));
-          const dayOwners = Array.from(
-            new Set(indicatorItems.map((item) => item.owner).filter((owner): owner is PlannerOwner => Boolean(owner)))
-          );
+          const hasShared = indicatorItems.some((item) => item.owner === "shared");
           const tripSpan = tripSpansByDate[dateKey];
           const holidayName = holidaysByDate[dateKey];
           const hasTripLeftConnector = Boolean(tripSpan && !tripSpan.isStart);
@@ -280,25 +272,21 @@ export function Calendar({
                       : "border-pink-100 bg-pink-50/40 text-slate-700 hover:border-pink-200 hover:bg-pink-50"
               }`}
             >
-              {dayOwners.length > 0 ? (
-                <span className="pointer-events-none absolute right-1 top-0.5 z-10 flex -space-x-1.5">
-                  {dayOwners.slice(0, 3).map((owner) => (
-                    <span key={owner} className="text-[10px] leading-none drop-shadow-sm">
-                      {OWNER_ICON[owner]}
-                    </span>
-                  ))}
+              <span className="relative z-10 flex items-center gap-0.5">
+                <span
+                  className={
+                    holidayName && !isSelected
+                      ? isDarkMode ? "text-red-400" : "text-red-500"
+                      : tripSpan && !isSelected
+                        ? isDarkMode ? "text-indigo-300" : "text-indigo-700"
+                        : ""
+                  }
+                >
+                  {date.getDate()}
                 </span>
-              ) : null}
-              <span
-                className={`relative z-10 ${
-                  holidayName && !isSelected
-                    ? isDarkMode ? "text-red-400" : "text-red-500"
-                    : tripSpan && !isSelected
-                      ? isDarkMode ? "text-indigo-300" : "text-indigo-700"
-                      : ""
-                }`}
-              >
-                {date.getDate()}
+                {hasShared ? (
+                  <span className="text-[10px] font-bold leading-none text-red-500" aria-label="Shared plan">✓</span>
+                ) : null}
               </span>
               <span className="pointer-events-none absolute bottom-4 z-10 flex gap-1">
                 {indicatorItems.slice(0, 3).map((item) => (
