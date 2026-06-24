@@ -272,7 +272,7 @@ export function Calendar({
                   className={
                     hasShared
                       ? `flex h-7 w-7 items-center justify-center rounded-lg border-2 ${
-                          isDarkMode ? "border-pink-500" : "border-pink-600"
+                          isDarkMode ? "border-slate-400" : "border-slate-500"
                         }`
                       : holidayName && !isSelected
                         ? isDarkMode ? "text-red-400" : "text-red-500"
