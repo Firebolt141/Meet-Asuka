@@ -10,10 +10,13 @@ export type TripTodoEntry = {
   participants?: string;
 };
 
+export type PlannerOwner = "shared" | "mine" | "partner";
+
 export type PlannerItem = {
   id: string;
   title: string;
   category: "trip" | "event" | "todo" | "wishlist" | "birthday";
+  owner?: PlannerOwner;
   date: string; // YYYY-MM-DD
   endDate?: string;
   startTime?: string;
@@ -49,6 +52,24 @@ const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
 ];
+
+export const OWNER_DOT_COLOR: Record<PlannerOwner, string> = {
+  shared: "bg-amber-400",
+  mine: "bg-sky-400",
+  partner: "bg-violet-400"
+};
+
+export const OWNER_LABEL: Record<PlannerOwner, string> = {
+  shared: "共有",
+  mine: "自分",
+  partner: "相手"
+};
+
+export const OWNER_STYLES: Record<PlannerOwner, { badge: string; card: string; active: string }> = {
+  shared: { badge: "bg-amber-200 text-amber-700", card: "border-amber-400 bg-amber-50", active: "border-amber-400 bg-amber-50 text-amber-700" },
+  mine: { badge: "bg-sky-200 text-sky-700", card: "border-sky-400 bg-sky-50", active: "border-sky-400 bg-sky-50 text-sky-700" },
+  partner: { badge: "bg-violet-200 text-violet-700", card: "border-violet-400 bg-violet-50", active: "border-violet-400 bg-violet-50 text-violet-700" }
+};
 
 const pad = (value: number) => value.toString().padStart(2, "0");
 
@@ -225,6 +246,9 @@ export function Calendar({
             date.getDate() === selectedDate.getDate();
           const dayItems = itemsByDate[dateKey] ?? [];
           const indicatorItems = dayItems.filter((item) => !(item.category === "todo" && item.completed));
+          const dayOwners = Array.from(
+            new Set(indicatorItems.map((item) => item.owner).filter((owner): owner is PlannerOwner => Boolean(owner)))
+          );
           const tripSpan = tripSpansByDate[dateKey];
           const holidayName = holidaysByDate[dateKey];
           const hasTripLeftConnector = Boolean(tripSpan && !tripSpan.isStart);
@@ -250,6 +274,13 @@ export function Calendar({
                       : "border-pink-100 bg-pink-50/40 text-slate-700 hover:border-pink-200 hover:bg-pink-50"
               }`}
             >
+              {dayOwners.length > 0 ? (
+                <span className="pointer-events-none absolute right-1 top-1 z-10 flex gap-0.5">
+                  {dayOwners.slice(0, 3).map((owner) => (
+                    <span key={owner} className={`h-1.5 w-1.5 rounded-full ${OWNER_DOT_COLOR[owner]}`} />
+                  ))}
+                </span>
+              ) : null}
               <span
                 className={`relative z-10 ${
                   holidayName && !isSelected
@@ -294,6 +325,15 @@ export function Calendar({
           );
         });
         })()}
+      </div>
+
+      <div className={`mt-3 flex justify-center gap-3 text-[11px] ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+        {(Object.keys(OWNER_LABEL) as PlannerOwner[]).map((owner) => (
+          <span key={owner} className="flex items-center gap-1">
+            <span className={`h-2 w-2 rounded-full ${OWNER_DOT_COLOR[owner]}`} />
+            {OWNER_LABEL[owner]}
+          </span>
+        ))}
       </div>
     </div>
   );

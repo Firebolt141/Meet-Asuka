@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Calendar, PlannerItem, type TripTodoEntry } from "@/components/Calendar";
+import { Calendar, PlannerItem, OWNER_LABEL, OWNER_STYLES, type PlannerOwner, type TripTodoEntry } from "@/components/Calendar";
 import holiday_jp from "@holiday-jp/holiday_jp";
 
 type ChangeEntry = {
@@ -60,6 +60,7 @@ const LOCAL_SECRET_LAST_LOGIN_KEY = "meet-asuka:secret-last-login";
 const SECRET_PIN = "0109";
 
 const validCategories: PlannerItem["category"][] = ["trip", "event", "todo", "wishlist", "birthday"];
+const validOwners: PlannerOwner[] = ["shared", "mine", "partner"];
 const validRecurring: NonNullable<PlannerItem["recurring"]>[] = ["none", "daily", "weekly", "monthly", "yearly"];
 
 const normalizeTripTodoItems = (tripTodoItems: unknown): TripTodoEntry[] | undefined => {
@@ -111,6 +112,10 @@ const normalizePlannerItem = (item: unknown): PlannerItem | null => {
     id: raw.id,
     title: typeof raw.title === "string" && raw.title.trim() ? raw.title : "Untitled plan",
     category: normalizedCategory,
+    owner:
+      typeof raw.owner === "string" && validOwners.includes(raw.owner as PlannerOwner)
+        ? (raw.owner as PlannerOwner)
+        : "shared",
     date: normalizedDate,
     endDate: typeof raw.endDate === "string" ? raw.endDate : undefined,
     startTime: typeof raw.startTime === "string" ? raw.startTime : undefined,
@@ -150,6 +155,7 @@ const createEmptyTripTodo = (): TripTodoEntry => ({
 const createEmptyFormState = (date?: string): PlannerFormState => ({
   title: "",
   category: "trip",
+  owner: "shared",
   date: date ?? formatDate(new Date()),
   endDate: "",
   startTime: "",
@@ -188,6 +194,7 @@ const buildTripTodoPlannerItems = (tripId: string, tripTitle: string, tripDate: 
 type PlannerFormState = {
   title: string;
   category: PlannerItem["category"];
+  owner: PlannerOwner;
   date: string;
   endDate: string;
   startTime: string;
@@ -1177,6 +1184,7 @@ export default function Home() {
                     setNewItem({
                       title: item.title,
                       category: item.category,
+                      owner: item.owner ?? "shared",
                       date: item.date,
                       endDate: item.endDate ?? "",
                       startTime: item.startTime ?? "",
@@ -1225,13 +1233,18 @@ export default function Home() {
                         }
                       }
                     }}
-                    className={`w-full cursor-pointer border-b px-6 py-4 text-left transition ${(item.category === "todo" || item.category === "wishlist") && item.completed ? (isDarkMode ? "border-emerald-800 bg-emerald-900/20 hover:bg-emerald-900/30" : "border-emerald-100 bg-emerald-50/70 hover:bg-emerald-50") : (isDarkMode ? "border-slate-700 hover:bg-slate-700/60" : "border-pink-100 hover:bg-pink-50/50")}`}
+                    className={`w-full cursor-pointer border-b border-l-4 px-6 py-4 text-left transition ${item.owner ? OWNER_STYLES[item.owner].card.split(" ")[0] : isDarkMode ? "border-l-slate-700" : "border-l-pink-100"} ${(item.category === "todo" || item.category === "wishlist") && item.completed ? (isDarkMode ? "border-emerald-800 bg-emerald-900/20 hover:bg-emerald-900/30" : "border-emerald-100 bg-emerald-50/70 hover:bg-emerald-50") : (isDarkMode ? "border-slate-700 hover:bg-slate-700/60" : "border-pink-100 hover:bg-pink-50/50")}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className={`min-w-0 text-sm font-semibold ${(item.category === "todo" || item.category === "wishlist") && item.completed ? "text-slate-400 line-through" : (isDarkMode ? "text-slate-100" : "text-slate-800")}`}>
                         {item.title}
                       </p>
                       <div className="flex shrink-0 items-center gap-1.5">
+                        {item.owner ? (
+                          <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${OWNER_STYLES[item.owner].badge}`}>
+                            {OWNER_LABEL[item.owner]}
+                          </span>
+                        ) : null}
                         <span className={`rounded-full px-3 py-1 text-xs font-semibold ${categoryStyles[item.category].color}`}>
                           {categoryStyles[item.category].label}
                         </span>
@@ -1444,6 +1457,7 @@ export default function Home() {
                 const payload = {
                   title: newItem.title.trim() || "Untitled plan",
                   category: newItem.category as PlannerItem["category"],
+                  owner: newItem.owner,
                   date: newItem.category === "wishlist" ? "" : newItem.date,
                   endDate: newItem.category === "trip" ? newItem.endDate || newItem.date : undefined,
                   startTime: newItem.category === "event" ? newItem.startTime : undefined,
@@ -1635,6 +1649,31 @@ export default function Home() {
                     />
                   </label>
                 ) : null}
+              </div>
+
+              <div>
+                <p className={modalLabelClass}>Who&apos;s this for?</p>
+                <div className="mt-2 flex gap-2">
+                  {validOwners.map((owner) => {
+                    const isActive = newItem.owner === owner;
+                    return (
+                      <button
+                        key={owner}
+                        type="button"
+                        onClick={() => setNewItem((prev) => ({ ...prev, owner }))}
+                        className={`flex-1 rounded-full border-2 px-3 py-1.5 text-sm font-semibold transition ${
+                          isActive
+                            ? OWNER_STYLES[owner].active
+                            : isDarkMode
+                              ? "border-slate-600 bg-slate-800 text-slate-400"
+                              : "border-slate-200 bg-white text-slate-400"
+                        }`}
+                      >
+                        {OWNER_LABEL[owner]}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {newItem.category === "trip" ? (
@@ -2208,6 +2247,7 @@ export default function Home() {
                                   setNewItem({
                                     title: item.title,
                                     category: item.category,
+                                    owner: item.owner ?? "shared",
                                     date: item.date,
                                     endDate: item.endDate ?? "",
                                     startTime: item.startTime ?? "",
@@ -2239,11 +2279,18 @@ export default function Home() {
                               >
                                 <div className="flex items-start justify-between gap-2">
                                   <p className={`min-w-0 flex-1 text-xs font-semibold break-words ${group.key === "doneTodo" ? "text-slate-500 line-through" : "text-slate-800"}`}>{item.title}</p>
-                                  <span
-                                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${categoryStyles[item.category].color}`}
-                                  >
-                                    {categoryStyles[item.category].label}
-                                  </span>
+                                  <div className="flex shrink-0 items-center gap-1">
+                                    {item.owner ? (
+                                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${OWNER_STYLES[item.owner].badge}`}>
+                                        {OWNER_LABEL[item.owner]}
+                                      </span>
+                                    ) : null}
+                                    <span
+                                      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${categoryStyles[item.category].color}`}
+                                    >
+                                      {categoryStyles[item.category].label}
+                                    </span>
+                                  </div>
                                 </div>
                                 <p className={`mt-1 text-[11px] ${group.key === "doneTodo" ? "text-slate-400" : "text-slate-500"}`}>{formatMeta(item)}</p>
                                 {group.key === "todo" && item.category === "todo" ? (
@@ -2257,6 +2304,7 @@ export default function Home() {
                                         setNewItem({
                                           title: item.title,
                                           category: item.category,
+                                          owner: item.owner ?? "shared",
                                           date: item.date,
                                           endDate: item.endDate ?? "",
                                           startTime: item.startTime ?? "",
