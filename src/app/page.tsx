@@ -35,8 +35,7 @@ const categoryStyles: Record<PlannerItem["category"], { label: string; color: st
   trip: { label: "Trip", color: "bg-indigo-100 text-indigo-600" },
   event: { label: "Event", color: "bg-cyan-100 text-cyan-700" },
   todo: { label: "Todo", color: "bg-rose-100 text-rose-600" },
-  wishlist: { label: "Wishlist", color: "bg-violet-100 text-violet-600" },
-  birthday: { label: "Birthday", color: "bg-fuchsia-100 text-fuchsia-600" }
+  wishlist: { label: "Wishlist", color: "bg-violet-100 text-violet-600" }
 };
 
 const LOCAL_THEME_KEY = "meet-asuka:theme";
@@ -59,7 +58,7 @@ const LOCAL_SECRET_LAST_LOGIN_KEY = "meet-asuka:secret-last-login";
 
 const SECRET_PIN = "0109";
 
-const validCategories: PlannerItem["category"][] = ["trip", "event", "todo", "wishlist", "birthday"];
+const validCategories: PlannerItem["category"][] = ["trip", "event", "todo", "wishlist"];
 const validOwners: PlannerOwner[] = ["shared", "mine", "partner"];
 const validRecurring: NonNullable<PlannerItem["recurring"]>[] = ["none", "daily", "weekly", "monthly", "yearly"];
 
@@ -250,7 +249,6 @@ export default function Home() {
     event: false,
     todo: false,
     wishlist: false,
-    birthday: false,
     past: false,
     doneTodo: false
   });
@@ -268,8 +266,7 @@ export default function Home() {
     { category: "event", title: "Event", subtitle: "meetups", icon: "✈️" },
     { category: "trip", title: "Trip", subtitle: "travel", icon: "🧳" },
     { category: "todo", title: "TODO", subtitle: "deadline", icon: "✅" },
-    { category: "wishlist", title: "Wishlist", subtitle: "someday", icon: "♡" },
-    { category: "birthday", title: "Birthday", subtitle: "celebrate", icon: "🎂" }
+    { category: "wishlist", title: "Wishlist", subtitle: "someday", icon: "♡" }
   ];
   const modalTitleClass = isDarkMode ? "text-slate-100" : "text-slate-800";
   const modalLabelClass = isDarkMode ? "block text-sm font-medium text-slate-200" : "block text-sm font-medium text-slate-700";
@@ -353,7 +350,7 @@ export default function Home() {
   const allPastItems = useMemo(
     () =>
       items.filter((item) => {
-        if (item.category !== "trip" && item.category !== "event" && item.category !== "birthday") {
+        if (item.category !== "trip" && item.category !== "event") {
           return false;
         }
         if (!item.date) {
@@ -418,18 +415,6 @@ export default function Home() {
         .sort((a, b) => a.title.localeCompare(b.title))
     },
     {
-      key: "birthday",
-      label: "Birthdays",
-      color: "text-fuchsia-500",
-      icon: "🎂",
-      entries: items.filter((item) => {
-        if (item.category !== "birthday") return false;
-        const d = new Date(item.date);
-        d.setHours(0, 0, 0, 0);
-        return d >= normalizedToday;
-      }).sort(byDateAsc)
-    },
-    {
       key: "past",
       label: "Past plans",
       color: "text-rose-500",
@@ -471,10 +456,6 @@ export default function Home() {
       const locationLabel = item.location ? ` • ${item.location}` : "";
       const participantsLabel = item.participants ? ` • With: ${item.participants}` : "";
       return `When: ${item.date} • ${time}${locationLabel}${participantsLabel}${recurringLabel}`;
-    }
-    if (item.category === "birthday") {
-      const recurringLabel = item.recurring && item.recurring !== "none" ? ` • Repeats ${item.recurring}` : "";
-      return `Date: ${item.date}${recurringLabel}`;
     }
     if (item.category === "todo") {
       const picLabel = item.pic ? ` • PIC: ${item.pic}` : "";
@@ -1278,7 +1259,7 @@ export default function Home() {
                     {item.category === "todo" && item.parentTripId ? (() => {
                       const parent = items.find((p) => p.id === item.parentTripId);
                       if (!parent) return null;
-                      const parentIcon = parent.category === "trip" ? "🧳" : parent.category === "birthday" ? "🎂" : "📅";
+                      const parentIcon = parent.category === "trip" ? "🧳" : "📅";
                       const parentDate = parent.endDate && parent.endDate !== parent.date
                         ? `${parent.date} → ${parent.endDate}`
                         : parent.date;
@@ -1402,7 +1383,7 @@ export default function Home() {
                         category: option.category,
                         date: option.category === "wishlist" ? "" : defaultStartDate,
                         endDate: option.category === "trip" ? defaultStartDate : "",
-                        recurring: option.category === "birthday" ? "yearly" : "none"
+                        recurring: "none"
                       });
                       setIsChoosingCategory(false);
                     }}
@@ -1470,14 +1451,14 @@ export default function Home() {
                   endTime: newItem.category === "event" ? newItem.endTime : undefined,
                   location: newItem.category === "event" ? newItem.location.trim() : undefined,
                   recurring:
-                    newItem.category === "event" || newItem.category === "birthday"
+                    newItem.category === "event"
                       ? newItem.recurring
                       : undefined,
                   tripTodos: newItem.category === "trip" ? newItem.tripTodos.trim() : undefined,
                   tripTodoItems: normalizedTripTodos,
                   eventTodoItems: normalizedEventTodos,
                   participants:
-                    newItem.category !== "todo" && newItem.category !== "birthday"
+                    newItem.category !== "todo"
                       ? newItem.participants.trim() || undefined
                       : undefined,
                   pic: newItem.category === "todo" ? newItem.pic.trim() || undefined : undefined,
@@ -1574,7 +1555,7 @@ export default function Home() {
                 if (!editingItem?.parentTripId) return null;
                 const parent = items.find((i) => i.id === editingItem.parentTripId);
                 if (!parent) return null;
-                const parentIcon = parent.category === "trip" ? "🧳" : parent.category === "birthday" ? "🎂" : "📅";
+                const parentIcon = parent.category === "trip" ? "🧳" : "📅";
                 const parentDate = parent.endDate && parent.endDate !== parent.date
                   ? `${parent.date} → ${parent.endDate}`
                   : parent.date;
@@ -1600,7 +1581,7 @@ export default function Home() {
                           startTime: category === "event" ? prev.startTime : "",
                           endTime: category === "event" ? prev.endTime : "",
                           location: category === "event" ? prev.location : "",
-                          recurring: category === "event" ? prev.recurring : category === "birthday" ? "yearly" : "none",
+                          recurring: category === "event" ? prev.recurring : "none",
                           tripTodos: category === "trip" ? prev.tripTodos : "",
                           tripTodoItems:
                             category === "trip"
@@ -1609,12 +1590,12 @@ export default function Home() {
                                 : [createEmptyTripTodo()]
                               : [createEmptyTripTodo()],
                           eventTodoItems:
-                            category === "event" || category === "birthday"
+                            category === "event"
                               ? prev.eventTodoItems.length > 0
                                 ? prev.eventTodoItems
                                 : [createEmptyTripTodo()]
                               : [createEmptyTripTodo()],
-                          participants: category === "todo" || category === "birthday" ? "" : prev.participants,
+                          participants: category === "todo" ? "" : prev.participants,
                           pic: category === "todo" ? prev.pic : "",
                           completed: category === "todo" || category === "wishlist" ? prev.completed : false
                         };
@@ -1626,7 +1607,6 @@ export default function Home() {
                     <option value="event">Event</option>
                     <option value="todo">Todo</option>
                     <option value="wishlist">Wishlist</option>
-                    <option value="birthday">Birthday</option>
                   </select>
                 </label>
 
@@ -1642,7 +1622,7 @@ export default function Home() {
                   />
                 </label>
 
-                {newItem.category === "event" || newItem.category === "todo" || newItem.category === "birthday" ? (
+                {newItem.category === "event" || newItem.category === "todo" ? (
                   <label className={modalLabelClass}>
                     Date
                     <input
@@ -1969,27 +1949,6 @@ export default function Home() {
                 </div>
               ) : null}
 
-              {newItem.category === "birthday" ? (
-                <label className={modalLabelClass}>
-                  Recurring
-                  <select
-                    value={newItem.recurring}
-                    onChange={(event) => {
-                      const v = event.target.value;
-                      const recurring = validRecurring.includes(v as NonNullable<PlannerItem["recurring"]>)
-                        ? (v as NonNullable<PlannerItem["recurring"]>)
-                        : "yearly";
-                      setNewItem((prev) => ({ ...prev, recurring }));
-                    }}
-                    className={modalInputClass}
-                  >
-                    <option value="yearly">Every year</option>
-                    <option value="none">Does not repeat</option>
-                  </select>
-                </label>
-              ) : null}
-
-              {newItem.category !== "birthday" ? (
               <label className={modalLabelClass}>
                 {newItem.category === "todo" ? "PIC" : "Participants"}
                 <input
@@ -2004,7 +1963,6 @@ export default function Home() {
                   className={modalInputClass}
                 />
               </label>
-              ) : null}
 
               <label className={modalLabelClass}>
                 Details
@@ -2017,7 +1975,7 @@ export default function Home() {
                 />
               </label>
 
-              {newItem.category !== "wishlist" && newItem.category !== "birthday" && (
+              {newItem.category !== "wishlist" && (
                 <div>
                   <p className={`mb-2 text-sm font-medium ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
                     🔔 Reminder

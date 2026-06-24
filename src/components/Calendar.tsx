@@ -15,7 +15,7 @@ export type PlannerOwner = "shared" | "mine" | "partner";
 export type PlannerItem = {
   id: string;
   title: string;
-  category: "trip" | "event" | "todo" | "wishlist" | "birthday";
+  category: "trip" | "event" | "todo" | "wishlist";
   owner?: PlannerOwner;
   date: string; // YYYY-MM-DD
   endDate?: string;
@@ -267,16 +267,12 @@ export function Calendar({
                     ? isDarkMode
                       ? "border-pink-400 bg-slate-700 text-pink-300 hover:bg-slate-600"
                       : "border-pink-400 bg-pink-50 text-pink-600 font-semibold hover:bg-pink-100"
-                    : hasShared
-                      ? isDarkMode
-                        ? "border-red-800/60 bg-red-900/20 text-slate-200 hover:bg-red-900/30"
-                        : "border-red-200 bg-red-50 text-slate-700 hover:bg-red-100/70"
-                      : isDarkMode
-                        ? "border-transparent bg-slate-700 text-slate-200 hover:border-pink-300 hover:bg-slate-600"
-                        : "border-pink-100 bg-pink-50/40 text-slate-700 hover:border-pink-200 hover:bg-pink-50"
+                    : isDarkMode
+                      ? "border-transparent bg-slate-700 text-slate-200 hover:border-pink-300 hover:bg-slate-600"
+                      : "border-pink-100 bg-pink-50/40 text-slate-700 hover:border-pink-200 hover:bg-pink-50"
               }`}
             >
-              <span className="relative z-10 flex items-center gap-0.5">
+              <span className="relative z-10">
                 <span
                   className={
                     holidayName && !isSelected
@@ -288,10 +284,15 @@ export function Calendar({
                 >
                   {date.getDate()}
                 </span>
-                {hasShared ? (
-                  <span className="text-[10px] font-bold leading-none text-red-500" aria-label="Shared plan">✓</span>
-                ) : null}
               </span>
+              {hasShared ? (
+                <span
+                  className="pointer-events-none absolute right-0.5 top-0.5 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-extrabold leading-none text-white shadow"
+                  aria-label="Shared plan"
+                >
+                  ✓
+                </span>
+              ) : null}
               <span className="pointer-events-none absolute bottom-4 z-10 flex gap-1">
                 {indicatorItems.slice(0, 3).map((item) => (
                   <span
@@ -301,8 +302,6 @@ export function Calendar({
                         ? "bg-indigo-400"
                         : item.category === "event"
                         ? "bg-cyan-500"
-                        : item.category === "birthday"
-                        ? "bg-fuchsia-400"
                         : item.category === "todo"
                         ? item.completed
                           ? "bg-emerald-500"

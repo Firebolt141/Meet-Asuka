@@ -120,8 +120,7 @@ function buildReminders(items: PlannerItem[]): ScheduledReminder[] {
       trip: "✈️",
       event: "📅",
       todo: "✅",
-      wishlist: "⭐",
-      birthday: "🎂"
+      wishlist: "⭐"
     };
 
     reminders.push({
