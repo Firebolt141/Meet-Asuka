@@ -267,22 +267,28 @@ export function Calendar({
               }`}
             >
               <span className="relative z-10">
-                <span
-                  aria-label={hasShared ? "Shared plan" : undefined}
-                  className={
-                    hasShared
-                      ? `flex h-7 w-7 items-center justify-center rounded-lg border-2 ${
-                          isDarkMode ? "border-slate-400" : "border-rose-300"
-                        }`
-                      : holidayName && !isSelected
+                {hasShared ? (
+                  <span
+                    aria-label="Shared plan"
+                    className={`flex h-6 w-6 rotate-45 items-center justify-center rounded-sm border-2 ${
+                      isDarkMode ? "border-slate-400" : "border-rose-300"
+                    }`}
+                  >
+                    <span className="-rotate-45">{date.getDate()}</span>
+                  </span>
+                ) : (
+                  <span
+                    className={
+                      holidayName && !isSelected
                         ? isDarkMode ? "text-red-400" : "text-red-500"
                         : tripSpan && !isSelected
                           ? isDarkMode ? "text-indigo-300" : "text-indigo-700"
                           : ""
-                  }
-                >
-                  {date.getDate()}
-                </span>
+                    }
+                  >
+                    {date.getDate()}
+                  </span>
+                )}
               </span>
               <span className="pointer-events-none absolute bottom-4 z-10 flex gap-1">
                 {indicatorItems.slice(0, 3).map((item) => (
