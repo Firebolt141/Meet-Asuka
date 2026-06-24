@@ -270,7 +270,7 @@ export function Calendar({
                 {hasShared ? (
                   <span
                     aria-label="Shared plan"
-                    className="relative flex h-7 w-7 items-center justify-center"
+                    className="relative flex h-8 w-8 items-center justify-center"
                   >
                     <svg
                       viewBox="0 0 24 24"
