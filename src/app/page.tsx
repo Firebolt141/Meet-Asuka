@@ -2394,6 +2394,7 @@ export default function Home() {
                   if (nameModalShouldLogout) {
                     setNameModalShouldLogout(false);
                     setIsLoggedIn(false);
+                    setIsSecretUser(false);
                     setPinInput("");
                   }
                 }
@@ -2414,6 +2415,7 @@ export default function Home() {
                   if (nameModalShouldLogout) {
                     setNameModalShouldLogout(false);
                     setIsLoggedIn(false);
+                    setIsSecretUser(false);
                     setPinInput("");
                   }
                 }}
@@ -2433,6 +2435,7 @@ export default function Home() {
                   if (nameModalShouldLogout) {
                     setNameModalShouldLogout(false);
                     setIsLoggedIn(false);
+                    setIsSecretUser(false);
                     setPinInput("");
                   }
                 }}
