@@ -60,7 +60,7 @@ export const OWNER_DOT_COLOR: Record<PlannerOwner, string> = {
 };
 
 export const OWNER_LABEL: Record<PlannerOwner, string> = {
-  shared: "Both",
+  shared: "Us",
   mine: "Asuka",
   partner: "Shota"
 };
@@ -267,9 +267,13 @@ export function Calendar({
                     ? isDarkMode
                       ? "border-pink-400 bg-slate-700 text-pink-300 hover:bg-slate-600"
                       : "border-pink-400 bg-pink-50 text-pink-600 font-semibold hover:bg-pink-100"
-                    : isDarkMode
-                      ? "border-transparent bg-slate-700 text-slate-200 hover:border-pink-300 hover:bg-slate-600"
-                      : "border-pink-100 bg-pink-50/40 text-slate-700 hover:border-pink-200 hover:bg-pink-50"
+                    : hasShared
+                      ? isDarkMode
+                        ? "border-red-800/60 bg-red-900/20 text-slate-200 hover:bg-red-900/30"
+                        : "border-red-200 bg-red-50 text-slate-700 hover:bg-red-100/70"
+                      : isDarkMode
+                        ? "border-transparent bg-slate-700 text-slate-200 hover:border-pink-300 hover:bg-slate-600"
+                        : "border-pink-100 bg-pink-50/40 text-slate-700 hover:border-pink-200 hover:bg-pink-50"
               }`}
             >
               <span className="relative z-10 flex items-center gap-0.5">
