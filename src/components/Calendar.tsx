@@ -270,11 +270,20 @@ export function Calendar({
                 {hasShared ? (
                   <span
                     aria-label="Shared plan"
-                    className={`flex h-6 w-6 rotate-45 items-center justify-center rounded-sm border-2 ${
-                      isDarkMode ? "border-slate-400" : "border-rose-300"
-                    }`}
+                    className="relative flex h-7 w-7 items-center justify-center"
                   >
-                    <span className="-rotate-45">{date.getDate()}</span>
+                    <svg
+                      viewBox="0 0 24 24"
+                      className={`absolute inset-0 h-full w-full ${
+                        isDarkMode ? "text-slate-400" : "text-rose-300"
+                      }`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <path d="M12 21s-7.5-4.6-10-9.1C0.3 8.5 1.7 4.7 5.2 4.1 7.6 3.7 9.9 5 12 7.5c2.1-2.5 4.4-3.8 6.8-3.4 3.5.6 4.9 4.4 3.2 7.8C19.5 16.4 12 21 12 21z" />
+                    </svg>
+                    <span className="relative z-10">{date.getDate()}</span>
                   </span>
                 ) : (
                   <span
