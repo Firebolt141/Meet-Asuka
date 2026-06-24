@@ -54,8 +54,8 @@ const MONTH_NAMES = [
 ];
 
 export const OWNER_DOT_COLOR: Record<PlannerOwner, string> = {
-  shared: "bg-amber-400",
-  mine: "bg-sky-400",
+  shared: "bg-rose-400",
+  mine: "bg-blue-400",
   partner: "bg-violet-400"
 };
 
@@ -66,9 +66,9 @@ export const OWNER_LABEL: Record<PlannerOwner, string> = {
 };
 
 export const OWNER_STYLES: Record<PlannerOwner, { badge: string; card: string; active: string }> = {
-  shared: { badge: "bg-amber-200 text-amber-700", card: "border-amber-400 bg-amber-50", active: "border-amber-400 bg-amber-50 text-amber-700" },
-  mine: { badge: "bg-sky-200 text-sky-700", card: "border-sky-400 bg-sky-50", active: "border-sky-400 bg-sky-50 text-sky-700" },
-  partner: { badge: "bg-violet-200 text-violet-700", card: "border-violet-400 bg-violet-50", active: "border-violet-400 bg-violet-50 text-violet-700" }
+  shared: { badge: "bg-rose-200 text-rose-900", card: "border-rose-300 bg-rose-100", active: "border-rose-300 bg-rose-100 text-rose-900" },
+  mine: { badge: "bg-blue-200 text-blue-900", card: "border-blue-300 bg-blue-100", active: "border-blue-300 bg-blue-100 text-blue-900" },
+  partner: { badge: "bg-violet-200 text-violet-900", card: "border-violet-300 bg-violet-100", active: "border-violet-300 bg-violet-100 text-violet-900" }
 };
 
 const pad = (value: number) => value.toString().padStart(2, "0");

@@ -1233,7 +1233,13 @@ export default function Home() {
                         }
                       }
                     }}
-                    className={`w-full cursor-pointer border-b border-l-4 px-6 py-4 text-left transition ${item.owner ? OWNER_STYLES[item.owner].card.split(" ")[0] : isDarkMode ? "border-l-slate-700" : "border-l-pink-100"} ${(item.category === "todo" || item.category === "wishlist") && item.completed ? (isDarkMode ? "border-emerald-800 bg-emerald-900/20 hover:bg-emerald-900/30" : "border-emerald-100 bg-emerald-50/70 hover:bg-emerald-50") : (isDarkMode ? "border-slate-700 hover:bg-slate-700/60" : "border-pink-100 hover:bg-pink-50/50")}`}
+                    className={`w-full cursor-pointer border-b-2 px-6 py-4 text-left transition ${
+                      (item.category === "todo" || item.category === "wishlist") && item.completed
+                        ? (isDarkMode ? "border-emerald-800 bg-emerald-900/20 hover:bg-emerald-900/30" : "border-emerald-100 bg-emerald-50/70 hover:bg-emerald-50")
+                        : item.owner
+                          ? `${OWNER_STYLES[item.owner].card} hover:brightness-95`
+                          : isDarkMode ? "border-slate-700 hover:bg-slate-700/60" : "border-pink-100 hover:bg-pink-50/50"
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className={`min-w-0 text-sm font-semibold ${(item.category === "todo" || item.category === "wishlist") && item.completed ? "text-slate-400 line-through" : (isDarkMode ? "text-slate-100" : "text-slate-800")}`}>
