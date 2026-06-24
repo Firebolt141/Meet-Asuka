@@ -275,9 +275,9 @@ export function Calendar({
               }`}
             >
               {dayOwners.length > 0 ? (
-                <span className="pointer-events-none absolute right-1 top-1 z-10 flex gap-0.5">
+                <span className="pointer-events-none absolute right-1.5 top-1.5 z-10 flex h-1.5 w-3.5 overflow-hidden rounded-full">
                   {dayOwners.slice(0, 3).map((owner) => (
-                    <span key={owner} className={`h-1.5 w-1.5 rounded-full ${OWNER_DOT_COLOR[owner]}`} />
+                    <span key={owner} className={`flex-1 ${OWNER_DOT_COLOR[owner]}`} />
                   ))}
                 </span>
               ) : null}
