@@ -53,12 +53,6 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December"
 ];
 
-export const OWNER_DOT_COLOR: Record<PlannerOwner, string> = {
-  shared: "bg-rose-400",
-  mine: "bg-blue-400",
-  partner: "bg-violet-400"
-};
-
 export const OWNER_LABEL: Record<PlannerOwner, string> = {
   shared: "Us",
   mine: "Asuka",
@@ -287,7 +281,7 @@ export function Calendar({
               </span>
               {hasShared ? (
                 <span
-                  className="pointer-events-none absolute right-0.5 top-0.5 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-extrabold leading-none text-white shadow"
+                  className="pointer-events-none absolute right-0.5 top-0.5 z-10 text-lg font-extrabold leading-none text-red-500"
                   aria-label="Shared plan"
                 >
                   ✓
@@ -324,15 +318,6 @@ export function Calendar({
           );
         });
         })()}
-      </div>
-
-      <div className={`mt-3 flex justify-center gap-3 text-[11px] ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
-        {(Object.keys(OWNER_LABEL) as PlannerOwner[]).map((owner) => (
-          <span key={owner} className="flex items-center gap-1">
-            <span className={`h-2 w-2 rounded-full ${OWNER_DOT_COLOR[owner]}`} />
-            {OWNER_LABEL[owner]}
-          </span>
-        ))}
       </div>
     </div>
   );
