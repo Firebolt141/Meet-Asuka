@@ -268,25 +268,22 @@ export function Calendar({
             >
               <span className="relative z-10">
                 <span
+                  aria-label={hasShared ? "Shared plan" : undefined}
                   className={
-                    holidayName && !isSelected
-                      ? isDarkMode ? "text-red-400" : "text-red-500"
-                      : tripSpan && !isSelected
-                        ? isDarkMode ? "text-indigo-300" : "text-indigo-700"
-                        : ""
+                    hasShared
+                      ? `flex h-7 w-7 items-center justify-center rounded-lg border-2 ${
+                          isDarkMode ? "border-pink-500" : "border-pink-600"
+                        }`
+                      : holidayName && !isSelected
+                        ? isDarkMode ? "text-red-400" : "text-red-500"
+                        : tripSpan && !isSelected
+                          ? isDarkMode ? "text-indigo-300" : "text-indigo-700"
+                          : ""
                   }
                 >
                   {date.getDate()}
                 </span>
               </span>
-              {hasShared ? (
-                <span
-                  className="pointer-events-none absolute right-0.5 top-0.5 z-10 text-lg font-extrabold leading-none text-red-500"
-                  aria-label="Shared plan"
-                >
-                  ✓
-                </span>
-              ) : null}
               <span className="pointer-events-none absolute bottom-4 z-10 flex gap-1">
                 {indicatorItems.slice(0, 3).map((item) => (
                   <span
