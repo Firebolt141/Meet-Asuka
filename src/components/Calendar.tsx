@@ -59,10 +59,10 @@ export const OWNER_LABEL: Record<PlannerOwner, string> = {
   partner: "Shota"
 };
 
-export const OWNER_STYLES: Record<PlannerOwner, { badge: string; card: string; active: string }> = {
-  shared: { badge: "bg-rose-200 text-rose-900", card: "border-rose-300 bg-rose-100", active: "border-rose-300 bg-rose-100 text-rose-900" },
-  mine: { badge: "bg-blue-200 text-blue-900", card: "border-blue-300 bg-blue-100", active: "border-blue-300 bg-blue-100 text-blue-900" },
-  partner: { badge: "bg-violet-200 text-violet-900", card: "border-violet-300 bg-violet-100", active: "border-violet-300 bg-violet-100 text-violet-900" }
+export const OWNER_STYLES: Record<PlannerOwner, { badge: string; card: string; cardDark: string; active: string }> = {
+  shared: { badge: "bg-rose-200 text-rose-900", card: "border-rose-300 bg-rose-100", cardDark: "border-rose-800 bg-rose-900/30", active: "border-rose-300 bg-rose-100 text-rose-900" },
+  mine: { badge: "bg-blue-200 text-blue-900", card: "border-blue-300 bg-blue-100", cardDark: "border-blue-800 bg-blue-900/30", active: "border-blue-300 bg-blue-100 text-blue-900" },
+  partner: { badge: "bg-violet-200 text-violet-900", card: "border-violet-300 bg-violet-100", cardDark: "border-violet-800 bg-violet-900/30", active: "border-violet-300 bg-violet-100 text-violet-900" }
 };
 
 const pad = (value: number) => value.toString().padStart(2, "0");

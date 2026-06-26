@@ -1218,12 +1218,12 @@ export default function Home() {
                       (item.category === "todo" || item.category === "wishlist") && item.completed
                         ? (isDarkMode ? "border-emerald-800 bg-emerald-900/20 hover:bg-emerald-900/30" : "border-emerald-100 bg-emerald-50/70 hover:bg-emerald-50")
                         : item.owner
-                          ? `${OWNER_STYLES[item.owner].card} hover:brightness-95`
+                          ? `${isDarkMode ? OWNER_STYLES[item.owner].cardDark : OWNER_STYLES[item.owner].card} hover:brightness-95`
                           : isDarkMode ? "border-slate-700 hover:bg-slate-700/60" : "border-pink-100 hover:bg-pink-50/50"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <p className={`min-w-0 text-sm font-semibold ${(item.category === "todo" || item.category === "wishlist") && item.completed ? "text-slate-400 line-through" : item.owner ? "text-slate-800" : (isDarkMode ? "text-slate-100" : "text-slate-800")}`}>
+                      <p className={`min-w-0 text-sm font-semibold ${(item.category === "todo" || item.category === "wishlist") && item.completed ? "text-slate-400 line-through" : (isDarkMode ? "text-slate-100" : "text-slate-800")}`}>
                         {item.title}
                       </p>
                       <div className="flex shrink-0 items-center gap-1.5">
@@ -1247,14 +1247,14 @@ export default function Home() {
                         </button>
                       </div>
                     </div>
-                    <p className={`mt-2 text-xs font-semibold ${item.owner ? "text-pink-500" : (isDarkMode ? "text-pink-300" : "text-pink-400")}`}>
+                    <p className={`mt-2 text-xs font-semibold ${isDarkMode ? "text-pink-300" : "text-pink-400"}`}>
                       {formatMeta(item)}
                     </p>
-                    <p className={`mt-2 text-sm ${item.owner ? "text-slate-600" : (isDarkMode ? "text-slate-300" : "text-slate-600")}`}>{item.details}</p>
+                    <p className={`mt-2 text-sm ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}>{item.details}</p>
                     {item.category === "todo" ? (
-                      item.pic ? <p className={`mt-1 text-xs ${item.owner ? "text-slate-500" : (isDarkMode ? "text-slate-400" : "text-slate-500")}`}>👤 PIC: {item.pic}</p> : null
+                      item.pic ? <p className={`mt-1 text-xs ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>👤 PIC: {item.pic}</p> : null
                     ) : item.participants ? (
-                      <p className={`mt-1 text-xs ${item.owner ? "text-slate-500" : (isDarkMode ? "text-slate-400" : "text-slate-500")}`}>👥 {item.participants}</p>
+                      <p className={`mt-1 text-xs ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>👥 {item.participants}</p>
                     ) : null}
                     {item.category === "todo" && item.parentTripId ? (() => {
                       const parent = items.find((p) => p.id === item.parentTripId);
