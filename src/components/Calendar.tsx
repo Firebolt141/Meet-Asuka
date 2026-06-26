@@ -266,38 +266,30 @@ export function Calendar({
                       : "border-pink-100 bg-pink-50/40 text-slate-700 hover:border-pink-200 hover:bg-pink-50"
               }`}
             >
+              {hasShared ? (
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-label="Shared plan"
+                  className={`absolute right-1 top-1 z-10 h-3 w-3 ${
+                    isDarkMode ? "text-rose-300" : "text-rose-400"
+                  }`}
+                  fill="currentColor"
+                >
+                  <path d="M12 21s-7.5-4.6-10-9.1C0.3 8.5 1.7 4.7 5.2 4.1 7.6 3.7 9.9 5 12 7.5c2.1-2.5 4.4-3.8 6.8-3.4 3.5.6 4.9 4.4 3.2 7.8C19.5 16.4 12 21 12 21z" />
+                </svg>
+              ) : null}
               <span className="relative z-10">
-                {hasShared ? (
-                  <span
-                    aria-label="Shared plan"
-                    className="relative flex h-8 w-8 items-center justify-center"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      className={`absolute inset-0 h-full w-full ${
-                        isDarkMode ? "text-slate-400" : "text-rose-300"
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                    >
-                      <path d="M12 21s-7.5-4.6-10-9.1C0.3 8.5 1.7 4.7 5.2 4.1 7.6 3.7 9.9 5 12 7.5c2.1-2.5 4.4-3.8 6.8-3.4 3.5.6 4.9 4.4 3.2 7.8C19.5 16.4 12 21 12 21z" />
-                    </svg>
-                    <span className="relative z-10">{date.getDate()}</span>
-                  </span>
-                ) : (
-                  <span
-                    className={
-                      holidayName && !isSelected
-                        ? isDarkMode ? "text-red-400" : "text-red-500"
-                        : tripSpan && !isSelected
-                          ? isDarkMode ? "text-indigo-300" : "text-indigo-700"
-                          : ""
-                    }
-                  >
-                    {date.getDate()}
-                  </span>
-                )}
+                <span
+                  className={
+                    holidayName && !isSelected
+                      ? isDarkMode ? "text-red-400" : "text-red-500"
+                      : tripSpan && !isSelected
+                        ? isDarkMode ? "text-indigo-300" : "text-indigo-700"
+                        : ""
+                  }
+                >
+                  {date.getDate()}
+                </span>
               </span>
               <span className="pointer-events-none absolute bottom-4 z-10 flex gap-1">
                 {indicatorItems.slice(0, 3).map((item) => (
