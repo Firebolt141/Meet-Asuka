@@ -270,7 +270,7 @@ export function Calendar({
                 <svg
                   viewBox="0 0 24 24"
                   aria-label="Shared plan"
-                  className={`absolute right-1 top-1 z-10 h-3 w-3 ${
+                  className={`absolute left-1/2 top-0.5 z-10 h-2 w-2 -translate-x-1/2 ${
                     isDarkMode ? "text-rose-300" : "text-rose-400"
                   }`}
                   fill="currentColor"
