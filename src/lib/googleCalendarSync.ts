@@ -294,13 +294,22 @@ const isAppEvent = (description: string | null) =>
 
 type FoundEvent = { id: string; description: string };
 
-type FindResult = { groups: Map<string, FoundEvent[]>; diagnostics: string };
+// Events the user created themselves, keyed by title and the day the event (or
+// its series) starts. Used to replace a user's own copy of a plan.
+const dayKey = (title: string, isAllDay: boolean, start: number) => {
+  const date = new Date(start);
+  const isUtcMidnight = date.getUTCHours() === 0 && date.getUTCMinutes() === 0;
+  return JSON.stringify([squash(title), ymd(date, isAllDay && isUtcMidnight)]);
+};
+
+type FindResult = { groups: Map<string, FoundEvent[]>; userEvents: Map<string, string[]>; diagnostics: string };
 
 // Calendar events created by this app, grouped by eventKey. Each group lists the
 // distinct event (series) ids; more than one means duplicates.
 async function findAppEvents(calendarId: string, plans: EventPlan[]): Promise<FindResult> {
   const groups = new Map<string, FoundEvent[]>();
-  if (plans.length === 0) return { groups, diagnostics: "no dated plans" };
+  const userEvents = new Map<string, string[]>();
+  if (plans.length === 0) return { groups, userEvents, diagnostics: "no dated plans" };
 
   const { CapacitorCalendar } = await getPlugin();
   const starts = plans.map((plan) => plan.startDate);
@@ -320,7 +329,14 @@ async function findAppEvents(calendarId: string, plans: EventPlan[]): Promise<Fi
     const day = `${squash(event.title)}|${ymd(new Date(event.startDate), false)}`;
     lookalikes.set(day, [...(lookalikes.get(day) ?? []), event]);
 
-    if (!isAppEvent(event.description)) continue;
+    if (!isAppEvent(event.description)) {
+      const seriesId = event.masterId ?? event.id;
+      const key = dayKey(event.title, event.isAllDay, event.seriesStartDate ?? event.startDate);
+      const ids = userEvents.get(key) ?? [];
+      if (!ids.includes(seriesId)) ids.push(seriesId);
+      userEvents.set(key, ids);
+      continue;
+    }
     appEvents += 1;
     const seriesId = event.masterId ?? event.id;
     const key = eventKey(event.title, event.description ?? "", event.isAllDay, event.seriesStartDate ?? event.startDate);
@@ -348,7 +364,7 @@ async function findAppEvents(calendarId: string, plans: EventPlan[]): Promise<Fi
     `Checked ${result.length} events, ${inCalendar} in this calendar, ${appEvents} from this app; ` +
     `${duplicateGroups} duplicate groups, ${lookalikeGroups.length} same-title-same-day groups.` +
     sampleText;
-  return { groups, diagnostics };
+  return { groups, userEvents, diagnostics };
 }
 
 async function removeEvents(eventIds: string[]): Promise<{ deleted: number; problem: string }> {
@@ -391,9 +407,11 @@ export async function syncToGoogleCalendar(
   // record here (e.g. after reinstalling the app) adopts that event instead of
   // creating another copy.
   let groups = new Map<string, FoundEvent[]>();
+  let userEvents = new Map<string, string[]>();
   try {
     const found = await findAppEvents(calendarId, planned.map((entry) => entry.plan));
     groups = found.groups;
+    userEvents = found.userEvents;
     result.diagnostics = found.diagnostics;
   } catch (error) {
     result.diagnostics = `Couldn't read the calendar: ${error instanceof Error ? error.message : String(error)}`;
@@ -420,6 +438,13 @@ export async function syncToGoogleCalendar(
     const upToDate = adopted.description === normalizeText(plan.description);
     state.events[item.id] = { eventId: adopted.id, hash: upToDate ? hashPlan(plan) : "" };
     currentIds.add(adopted.id);
+  }
+  // Events the user had already added themselves for a current plan (same
+  // title, same start day) are replaced by the app's copy, so edits sync.
+  for (const { plan } of planned) {
+    for (const id of userEvents.get(dayKey(plan.title, plan.isAllDay, plan.startDate)) ?? []) {
+      if (!trackedIds.has(id) && !extraIds.includes(id)) extraIds.push(id);
+    }
   }
   for (const found of groups.values()) {
     if (found.length < 2) continue;
