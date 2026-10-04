@@ -27,10 +27,13 @@ import {
 } from "@/lib/notifications";
 import {
   getLastCalendarSyncAt,
+  EVENT_COLORS,
   getSelectedSyncCalendarId,
+  getSyncColorKey,
   listSyncCalendars,
   removeSyncedEvents,
   setSelectedSyncCalendarId,
+  setSyncColorKey,
   syncToGoogleCalendar,
   type SyncCalendarOption
 } from "@/lib/googleCalendarSync";
@@ -271,6 +274,7 @@ export default function Home() {
   const [calendarSyncDiagnostics, setCalendarSyncDiagnostics] = useState<string | null>(null);
   const [calendarChoices, setCalendarChoices] = useState<SyncCalendarOption[] | null>(null);
   const [lastCalendarSyncAt, setLastCalendarSyncAt] = useState<number | null>(null);
+  const [calendarColorKey, setCalendarColorKey] = useState("5");
   const [userName, setUserName] = useState("");
   const [showNameModal, setShowNameModal] = useState(false);
   const [nameModalShouldLogout, setNameModalShouldLogout] = useState(false);
@@ -793,6 +797,7 @@ export default function Home() {
 
   useEffect(() => {
     setLastCalendarSyncAt(getLastCalendarSyncAt());
+    setCalendarColorKey(getSyncColorKey());
   }, []);
 
   const runCalendarSync = async (pickCalendar = false) => {
@@ -2486,6 +2491,29 @@ export default function Home() {
                           ? `Last synced ${new Date(lastCalendarSyncAt).toLocaleString()}`
                           : "Adds Asuka's and shared plans, new and edited. Plans deleted here stay in Google Calendar.")}
                     </p>
+                    <div className="mt-3">
+                      <p className={`text-[11px] ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                        Event color: {EVENT_COLORS.find((color) => color.key === calendarColorKey)?.name}
+                      </p>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {EVENT_COLORS.map((color) => (
+                          <button
+                            key={color.key}
+                            type="button"
+                            disabled={isCalendarSyncing}
+                            onClick={() => {
+                              setSyncColorKey(color.key);
+                              setCalendarColorKey(color.key);
+                              setCalendarSyncMessage(`Color set to ${color.name}. Tap Sync to apply it.`);
+                            }}
+                            className={`h-6 w-6 rounded-full transition ${calendarColorKey === color.key ? `ring-2 ring-offset-2 ${isDarkMode ? "ring-slate-200 ring-offset-slate-800" : "ring-slate-700 ring-offset-white"}` : ""}`}
+                            style={{ backgroundColor: color.hex }}
+                            aria-label={color.name}
+                            title={color.name}
+                          />
+                        ))}
+                      </div>
+                    </div>
                     {calendarSyncDiagnostics && !isCalendarSyncing ? (
                       <p className={`mt-2 break-words rounded-lg px-2 py-1 font-mono text-[10px] leading-snug ${isDarkMode ? "bg-slate-900 text-slate-400" : "bg-slate-50 text-slate-500"}`}>
                         {calendarSyncDiagnostics}

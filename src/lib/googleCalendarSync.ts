@@ -16,10 +16,70 @@ const isCapacitor = () =>
 
 const STORAGE_KEY = "asuka_google_calendar_sync";
 
+// Google Calendar's event colors. Individual events can only use these 11;
+// the key is Google's colorId. Calendar-only colors like Mango or Avocado
+// aren't available for events.
+export const EVENT_COLORS = [
+  { key: "5", name: "Banana", hex: "#F6BF26" },
+  { key: "6", name: "Tangerine", hex: "#F4511E" },
+  { key: "2", name: "Sage", hex: "#33B679" },
+  { key: "10", name: "Basil", hex: "#0B8043" },
+  { key: "7", name: "Peacock", hex: "#039BE5" },
+  { key: "9", name: "Blueberry", hex: "#3F51B5" },
+  { key: "1", name: "Lavender", hex: "#7986CB" },
+  { key: "3", name: "Grape", hex: "#8E24AA" },
+  { key: "4", name: "Flamingo", hex: "#E67C73" },
+  { key: "11", name: "Tomato", hex: "#D50000" },
+  { key: "8", name: "Graphite", hex: "#616161" }
+] as const;
+const DEFAULT_COLOR_KEY = "5";
+
+type InspectedEvent = {
+  id: string;
+  found: boolean;
+  calendarId?: string;
+  calendarName?: string;
+  accountName?: string;
+  accountType?: string;
+  descriptionLength?: number;
+  syncId?: string | null;
+  dirty?: number;
+  deleted?: number;
+  organizer?: string | null;
+  rrule?: string | null;
+  originalId?: string | null;
+  colorKey?: string | null;
+};
+
+type CalendarToolsPlugin = {
+  setEventColor(options: { eventId: string; colorKey: string; color: string }): Promise<{ updated: number; usedKey: boolean }>;
+  inspectEvents(options: { ids: string[] }): Promise<{ events: InspectedEvent[] }>;
+};
+
+// Native helper in the Android app (android/.../CalendarToolsPlugin.java).
+let calendarTools: CalendarToolsPlugin | null = null;
+async function getCalendarTools(): Promise<CalendarToolsPlugin> {
+  if (!calendarTools) {
+    const { registerPlugin } = await import("@capacitor/core");
+    calendarTools = registerPlugin<CalendarToolsPlugin>("CalendarTools");
+  }
+  return calendarTools;
+}
+
+async function inspectEvents(ids: string[]): Promise<InspectedEvent[]> {
+  if (ids.length === 0) return [];
+  try {
+    return (await (await getCalendarTools()).inspectEvents({ ids })).events;
+  } catch {
+    return [];
+  }
+}
+
 type SyncedEvent = { eventId: string; hash: string };
 
 type SyncState = {
   calendarId: string | null;
+  colorKey?: string;
   events: Record<string, SyncedEvent>;
   lastSyncedAt: number | null;
 };
@@ -62,12 +122,19 @@ export const getLastCalendarSyncAt = (): number | null => loadState().lastSynced
 
 export const getSelectedSyncCalendarId = (): string | null => loadState().calendarId;
 
+export const getSyncColorKey = (): string => loadState().colorKey ?? DEFAULT_COLOR_KEY;
+
+// Takes effect on the next sync: every synced event is replaced in the new color.
+export function setSyncColorKey(colorKey: string): void {
+  saveState({ ...loadState(), colorKey });
+}
+
 export function setSelectedSyncCalendarId(calendarId: string): void {
   const state = loadState();
   if (state.calendarId === calendarId) return;
   // Events created in a different calendar don't count for the new one, so
   // the next sync pushes everything again into the newly chosen calendar.
-  saveState({ calendarId, events: {}, lastSyncedAt: null });
+  saveState({ calendarId, colorKey: state.colorKey, events: {}, lastSyncedAt: null });
 }
 
 async function getPlugin() {
@@ -139,9 +206,14 @@ type EventPlan = {
   endDate: number; // all-day: local midnight of the last (inclusive) day
   recurrence?: "daily" | "weekly" | "monthly" | "yearly";
   alerts?: number[];
+  colorKey: string;
 };
 
-function buildEventPlan(item: PlannerItem, ownerLabel: (owner: PlannerItem["owner"]) => string): EventPlan | null {
+function buildEventPlan(
+  item: PlannerItem,
+  ownerLabel: (owner: PlannerItem["owner"]) => string,
+  colorKey: string
+): EventPlan | null {
   const startDay = parseDate(item.date);
   if (!startDay) return null;
   const endDay = parseDate(item.endDate) ?? startDay;
@@ -189,13 +261,26 @@ function buildEventPlan(item: PlannerItem, ownerLabel: (owner: PlannerItem["owne
     startDate,
     endDate,
     recurrence: item.recurring ? RECURRENCE[item.recurring] : undefined,
-    alerts
+    alerts,
+    colorKey
   };
 }
 
 const hashPlan = (plan: EventPlan): string => JSON.stringify(plan);
 
 async function createEvent(calendarId: string, plan: EventPlan): Promise<string> {
+  const id = await insertEvent(calendarId, plan);
+  const color = EVENT_COLORS.find((entry) => entry.key === plan.colorKey);
+  if (color) {
+    // Best effort: an event without the color is still a correct event.
+    await (await getCalendarTools())
+      .setEventColor({ eventId: id, colorKey: color.key, color: color.hex })
+      .catch(() => undefined);
+  }
+  return id;
+}
+
+async function insertEvent(calendarId: string, plan: EventPlan): Promise<string> {
   const { CapacitorCalendar } = await getPlugin();
   const base = {
     calendarId,
@@ -312,14 +397,19 @@ const dayKey = (title: string, isAllDay: boolean, start: number) => {
   return JSON.stringify([squash(title), ymd(date, isAllDay && isUtcMidnight)]);
 };
 
-type FindResult = { groups: Map<string, FoundEvent[]>; userEvents: Map<string, string[]>; diagnostics: string };
+type FindResult = {
+  groups: Map<string, FoundEvent[]>;
+  userEvents: Map<string, string[]>;
+  diagnostics: string;
+  sampleIds: string[];
+};
 
 // Calendar events created by this app, grouped by eventKey. Each group lists the
 // distinct event (series) ids; more than one means duplicates.
 async function findAppEvents(calendarId: string, plans: EventPlan[]): Promise<FindResult> {
   const groups = new Map<string, FoundEvent[]>();
   const userEvents = new Map<string, string[]>();
-  if (plans.length === 0) return { groups, userEvents, diagnostics: "no dated plans" };
+  if (plans.length === 0) return { groups, userEvents, diagnostics: "no dated plans", sampleIds: [] };
 
   const { CapacitorCalendar } = await getPlugin();
   const starts = plans.map((plan) => plan.startDate);
@@ -374,7 +464,7 @@ async function findAppEvents(calendarId: string, plans: EventPlan[]): Promise<Fi
     `Checked ${result.length} events, ${inCalendar} in this calendar, ${appEvents} from this app; ` +
     `${duplicateGroups} duplicate groups, ${lookalikeGroups.length} same-title-same-day groups.` +
     sampleText;
-  return { groups, userEvents, diagnostics };
+  return { groups, userEvents, diagnostics, sampleIds: sample ? sample.map((event) => event.masterId ?? event.id) : [] };
 }
 
 async function removeEvents(eventIds: string[]): Promise<{ deleted: number; problem: string }> {
@@ -410,7 +500,7 @@ export async function syncToGoogleCalendar(
 
   const planned = items
     .filter(isAsukaInvolved)
-    .map((item) => ({ item, plan: buildEventPlan(item, ownerLabel) }))
+    .map((item) => ({ item, plan: buildEventPlan(item, ownerLabel, state.colorKey ?? DEFAULT_COLOR_KEY) }))
     .filter((entry): entry is { item: PlannerItem; plan: EventPlan } => entry.plan !== null); // skips undated items
 
   // Clean up duplicates (e.g. from an earlier interrupted sync), keeping the
@@ -419,10 +509,12 @@ export async function syncToGoogleCalendar(
   // creating another copy.
   let groups = new Map<string, FoundEvent[]>();
   let userEvents = new Map<string, string[]>();
+  let sampleIds: string[] = [];
   try {
     const found = await findAppEvents(calendarId, planned.map((entry) => entry.plan));
     groups = found.groups;
     userEvents = found.userEvents;
+    sampleIds = found.sampleIds;
     result.diagnostics = found.diagnostics;
   } catch (error) {
     result.diagnostics = `Couldn't read the calendar: ${error instanceof Error ? error.message : String(error)}`;
@@ -476,6 +568,18 @@ export async function syncToGoogleCalendar(
   const removal = await removeEvents(extraIds);
   result.duplicatesRemoved = Math.max(0, removal.deleted - result.outOfScopeRemoved);
   if (removal.problem) result.diagnostics += ` (${removal.problem})`;
+
+  // Low-level details of the example events, and whether deletions stuck.
+  const describe = (event: InspectedEvent) =>
+    event.found
+      ? `#${event.id} ${event.calendarName ?? "?"}/${event.accountType ?? "?"} sync=${event.syncId ? "y" : "n"} ` +
+        `dirty=${event.dirty} del=${event.deleted} org=${event.organizer ?? "-"} desc=${event.descriptionLength}` +
+        `${event.rrule ? " recurring" : ""}${event.originalId ? ` orig=${event.originalId}` : ""}`
+      : `#${event.id} gone`;
+  const inspected = await inspectEvents(sampleIds);
+  if (inspected.length) result.diagnostics += ` Details: ${inspected.map(describe).join(" | ")}`;
+  const leftovers = (await inspectEvents(extraIds)).filter((event) => event.found && !event.deleted);
+  if (leftovers.length) result.diagnostics += ` Not removed: ${leftovers.length} (${leftovers.slice(0, 3).map(describe).join(" | ")})`;
   for (const [itemId, synced] of Object.entries(state.events)) {
     if (extraIds.includes(synced.eventId) && !currentIds.has(synced.eventId)) delete state.events[itemId];
   }
@@ -525,7 +629,7 @@ export async function removeSyncedEvents(): Promise<number> {
   }
 
   const { deleted, problem } = await removeEvents([...ids]);
-  saveState({ calendarId: state.calendarId, events: {}, lastSyncedAt: null });
+  saveState({ calendarId: state.calendarId, colorKey: state.colorKey, events: {}, lastSyncedAt: null });
   if (problem && deleted === 0) throw new Error(`Couldn't remove events (${problem}).`);
   return deleted;
 }
