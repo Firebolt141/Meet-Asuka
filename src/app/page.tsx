@@ -29,6 +29,7 @@ import {
   getLastCalendarSyncAt,
   getSelectedSyncCalendarId,
   listSyncCalendars,
+  removeSyncedEvents,
   setSelectedSyncCalendarId,
   syncToGoogleCalendar,
   type SyncCalendarOption
@@ -819,6 +820,7 @@ export default function Home() {
         result.created ? `${result.created} added` : "",
         result.updated ? `${result.updated} updated` : "",
         result.duplicatesRemoved ? `${result.duplicatesRemoved} duplicates removed` : "",
+        result.outOfScopeRemoved ? `${result.outOfScopeRemoved} Shota-only plans removed` : "",
         result.failed ? `${result.failed} failed` : ""
       ].filter(Boolean);
       setCalendarSyncMessage(parts.length ? `Synced: ${parts.join(", ")}.` : "Everything is already up to date.");
@@ -829,6 +831,26 @@ export default function Home() {
     } finally {
       setIsCalendarSyncing(false);
       setCalendarSyncProgress(null);
+    }
+  };
+
+  const runCalendarUnsync = async () => {
+    if (isCalendarSyncing) return;
+    const confirmed = window.confirm(
+      "Remove all events this app added to Google Calendar? Your own calendar events stay. You can sync again any time."
+    );
+    if (!confirmed) return;
+    setIsCalendarSyncing(true);
+    setCalendarSyncMessage(null);
+    setCalendarSyncDiagnostics(null);
+    try {
+      const removed = await removeSyncedEvents();
+      setCalendarSyncMessage(`Removed ${removed} synced events from Google Calendar.`);
+      setLastCalendarSyncAt(getLastCalendarSyncAt());
+    } catch (error) {
+      setCalendarSyncMessage(error instanceof Error ? error.message : "Couldn't remove synced events.");
+    } finally {
+      setIsCalendarSyncing(false);
     }
   };
 
@@ -2462,7 +2484,7 @@ export default function Home() {
                         : calendarSyncMessage ??
                         (lastCalendarSyncAt
                           ? `Last synced ${new Date(lastCalendarSyncAt).toLocaleString()}`
-                          : "Adds new and edited plans. Plans deleted here stay in Google Calendar.")}
+                          : "Adds Asuka's and shared plans, new and edited. Plans deleted here stay in Google Calendar.")}
                     </p>
                     {calendarSyncDiagnostics && !isCalendarSyncing ? (
                       <p className={`mt-2 break-words rounded-lg px-2 py-1 font-mono text-[10px] leading-snug ${isDarkMode ? "bg-slate-900 text-slate-400" : "bg-slate-50 text-slate-500"}`}>
@@ -2470,14 +2492,24 @@ export default function Home() {
                       </p>
                     ) : null}
                     {getSelectedSyncCalendarId() ? (
-                      <button
-                        type="button"
-                        disabled={isCalendarSyncing}
-                        onClick={() => void runCalendarSync(true)}
-                        className={`mt-1 text-[11px] underline ${isDarkMode ? "text-slate-400" : "text-slate-400"}`}
-                      >
-                        Change calendar
-                      </button>
+                      <div className="mt-1 flex justify-between">
+                        <button
+                          type="button"
+                          disabled={isCalendarSyncing}
+                          onClick={() => void runCalendarSync(true)}
+                          className={`text-[11px] underline ${isDarkMode ? "text-slate-400" : "text-slate-400"}`}
+                        >
+                          Change calendar
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isCalendarSyncing}
+                          onClick={() => void runCalendarUnsync()}
+                          className="text-[11px] text-rose-400 underline"
+                        >
+                          Remove synced events
+                        </button>
+                      </div>
                     ) : null}
                   </>
                 )}

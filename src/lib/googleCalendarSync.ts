@@ -32,6 +32,7 @@ export type SyncResult = {
   unchanged: number;
   failed: number;
   duplicatesRemoved: number;
+  outOfScopeRemoved: number;
   // What the duplicate check saw, shown in the app to help diagnose sync issues.
   diagnostics: string;
 };
@@ -247,6 +248,15 @@ async function createEvent(calendarId: string, plan: EventPlan): Promise<string>
   return id;
 }
 
+// ---------- Which plans sync ----------
+
+// The calendar belongs to Asuka, so only plans she is part of are synced:
+// her own plans, shared ("Us") plans, and Shota's plans that list her as a
+// participant.
+const ASUKA_NAMES = /asuka|あすか|アスカ|明日香/i;
+export const isAsukaInvolved = (item: PlannerItem): boolean =>
+  item.owner !== "partner" || ASUKA_NAMES.test(item.participants ?? "");
+
 // ---------- Duplicate detection ----------
 
 const DAY = 24 * 60 * MINUTE;
@@ -396,9 +406,10 @@ export async function syncToGoogleCalendar(
   }
   const calendarId = state.calendarId;
 
-  const result: SyncResult = { created: 0, updated: 0, unchanged: 0, failed: 0, duplicatesRemoved: 0, diagnostics: "" };
+  const result: SyncResult = { created: 0, updated: 0, unchanged: 0, failed: 0, duplicatesRemoved: 0, outOfScopeRemoved: 0, diagnostics: "" };
 
   const planned = items
+    .filter(isAsukaInvolved)
     .map((item) => ({ item, plan: buildEventPlan(item, ownerLabel) }))
     .filter((entry): entry is { item: PlannerItem; plan: EventPlan } => entry.plan !== null); // skips undated items
 
@@ -453,8 +464,17 @@ export async function syncToGoogleCalendar(
     if (keep.length === 0) keep.push(ids.find((id) => trackedIds.has(id)) ?? ids[0]);
     extraIds.push(...ids.filter((id) => !keep.includes(id)));
   }
+  // Plans still in the app that are no longer synced (e.g. Shota-only plans)
+  // have their events removed from the calendar.
+  const outOfScope = items.filter((item) => !isAsukaInvolved(item) && state.events[item.id]);
+  for (const item of outOfScope) {
+    extraIds.push(state.events[item.id].eventId);
+    delete state.events[item.id];
+  }
+  result.outOfScopeRemoved = outOfScope.length;
+
   const removal = await removeEvents(extraIds);
-  result.duplicatesRemoved = removal.deleted;
+  result.duplicatesRemoved = Math.max(0, removal.deleted - result.outOfScopeRemoved);
   if (removal.problem) result.diagnostics += ` (${removal.problem})`;
   for (const [itemId, synced] of Object.entries(state.events)) {
     if (extraIds.includes(synced.eventId) && !currentIds.has(synced.eventId)) delete state.events[itemId];
@@ -485,4 +505,28 @@ export async function syncToGoogleCalendar(
   state.lastSyncedAt = Date.now();
   saveState(state);
   return result;
+}
+
+// ---------- Unsync ----------
+
+// Deletes every event this app put in the chosen calendar: events it tracks
+// on this phone plus any event carrying its "<Category> · <Owner>" line within
+// three years either side of today. The user's own events are not touched.
+export async function removeSyncedEvents(): Promise<number> {
+  await ensurePermission();
+  const state = loadState();
+  if (!state.calendarId) return 0;
+
+  const ids = new Set(Object.values(state.events).map((synced) => synced.eventId));
+  const { CapacitorCalendar } = await getPlugin();
+  const now = Date.now();
+  const { result } = await CapacitorCalendar.listEventsInRange({ from: now - 3 * 365 * DAY, to: now + 3 * 365 * DAY });
+  for (const event of result) {
+    if (event.calendarId === state.calendarId && isAppEvent(event.description)) ids.add(event.masterId ?? event.id);
+  }
+
+  const { deleted, problem } = await removeEvents([...ids]);
+  saveState({ calendarId: state.calendarId, events: {}, lastSyncedAt: null });
+  if (problem && deleted === 0) throw new Error(`Couldn't remove events (${problem}).`);
+  return deleted;
 }
