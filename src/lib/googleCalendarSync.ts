@@ -26,7 +26,13 @@ type SyncState = {
 
 export type SyncCalendarOption = { id: string; title: string; account: string };
 
-export type SyncResult = { created: number; updated: number; unchanged: number; failed: number };
+export type SyncResult = {
+  created: number;
+  updated: number;
+  unchanged: number;
+  failed: number;
+  duplicatesRemoved: number;
+};
 
 const emptyState = (): SyncState => ({ calendarId: null, events: {}, lastSyncedAt: null });
 
@@ -239,20 +245,77 @@ async function createEvent(calendarId: string, plan: EventPlan): Promise<string>
   return id;
 }
 
-async function removeEvent(eventId: string): Promise<void> {
+// ---------- Duplicate detection ----------
+
+const DAY = 24 * 60 * MINUTE;
+
+const ymd = (date: Date, utc: boolean) =>
+  utc
+    ? `${date.getUTCFullYear()}-${date.getUTCMonth() + 1}-${date.getUTCDate()}`
+    : `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+
+// Identifies "the same event" regardless of which calendar row holds it:
+// title, description and when the event (or its series) starts. All-day events
+// are stored at UTC midnight, so they are compared by calendar day.
+const eventKey = (title: string, description: string, isAllDay: boolean, start: number) => {
+  const date = new Date(start);
+  const isUtcMidnight = date.getUTCHours() === 0 && date.getUTCMinutes() === 0;
+  const when = isAllDay ? ymd(date, isUtcMidnight) : String(start);
+  return JSON.stringify([title, description, isAllDay, when]);
+};
+
+const planKey = (plan: EventPlan) => eventKey(plan.title, plan.description, plan.isAllDay, plan.startDate);
+
+// Only events this app created are ever considered: their description starts
+// with "<Category> · <Owner>". The user's own calendar events are never touched.
+const APP_DESCRIPTION_PREFIXES = Object.values(CATEGORY_LABEL).map((label) => `${label} · `);
+const isAppEvent = (description: string | null) =>
+  !!description && APP_DESCRIPTION_PREFIXES.some((prefix) => description.startsWith(prefix));
+
+// Calendar events created by this app, grouped by eventKey. Each group lists the
+// distinct event (series) ids; more than one id means duplicates.
+async function findAppEvents(calendarId: string, plans: EventPlan[]): Promise<Map<string, string[]>> {
+  const groups = new Map<string, string[]>();
+  if (plans.length === 0) return groups;
+
+  const { CapacitorCalendar } = await getPlugin();
+  const starts = plans.map((plan) => plan.startDate);
+  const { result } = await CapacitorCalendar.listEventsInRange({
+    from: Math.min(...starts) - 2 * DAY,
+    to: Math.max(...starts) + 2 * DAY
+  });
+
+  for (const event of result) {
+    if (event.calendarId !== calendarId || !isAppEvent(event.description)) continue;
+    const seriesId = event.masterId ?? event.id;
+    const key = eventKey(event.title, event.description ?? "", event.isAllDay, event.seriesStartDate ?? event.startDate);
+    const ids = groups.get(key) ?? [];
+    if (!ids.includes(seriesId)) ids.push(seriesId);
+    groups.set(key, ids);
+  }
+  return groups;
+}
+
+async function removeEvents(eventIds: string[]): Promise<number> {
+  if (eventIds.length === 0) return 0;
   const { CapacitorCalendar, EventSpan } = await getPlugin();
-  // Whole series for recurring events. Failures (e.g. the event was already
-  // deleted in Google Calendar) are fine: a fresh event is created either way.
-  await CapacitorCalendar.deleteEventsById({ ids: [eventId], span: EventSpan.THIS_AND_FUTURE_EVENTS }).catch(
-    () => undefined
-  );
+  try {
+    const { result } = await CapacitorCalendar.deleteEventsById({
+      ids: eventIds,
+      span: EventSpan.THIS_AND_FUTURE_EVENTS
+    });
+    return result.deleted.length;
+  } catch {
+    return 0;
+  }
 }
 
 // ---------- Sync ----------
 
 export async function syncToGoogleCalendar(
   items: PlannerItem[],
-  ownerLabel: (owner: PlannerItem["owner"]) => string
+  ownerLabel: (owner: PlannerItem["owner"]) => string,
+  onProgress?: (done: number, total: number) => void
 ): Promise<SyncResult> {
   await ensurePermission();
 
@@ -262,12 +325,46 @@ export async function syncToGoogleCalendar(
   }
   const calendarId = state.calendarId;
 
-  const result: SyncResult = { created: 0, updated: 0, unchanged: 0, failed: 0 };
+  const result: SyncResult = { created: 0, updated: 0, unchanged: 0, failed: 0, duplicatesRemoved: 0 };
 
-  for (const item of items) {
-    const plan = buildEventPlan(item, ownerLabel);
-    if (!plan) continue; // no date (e.g. undated wishlist ideas)
+  const planned = items
+    .map((item) => ({ item, plan: buildEventPlan(item, ownerLabel) }))
+    .filter((entry): entry is { item: PlannerItem; plan: EventPlan } => entry.plan !== null); // skips undated items
 
+  // Clean up duplicates (e.g. from an earlier interrupted sync), keeping the
+  // copy this phone already tracks. A plan that has a matching event but no
+  // record here (e.g. after reinstalling the app) adopts that event instead of
+  // creating another copy.
+  const groups = await findAppEvents(calendarId, planned.map((entry) => entry.plan)).catch(
+    () => new Map<string, string[]>()
+  );
+  const keepIds = new Set(Object.values(state.events).map((synced) => synced.eventId));
+  const extraIds: string[] = [];
+  for (const { item, plan } of planned) {
+    const ids = groups.get(planKey(plan));
+    const existing = state.events[item.id];
+    if (!ids || (existing && ids.includes(existing.eventId))) continue; // already tracked
+    const adopted = ids.find((id) => !keepIds.has(id));
+    if (!adopted) continue;
+    // An untracked copy of this plan already exists: track it instead of
+    // creating another. A previously tracked older version is replaced by it.
+    if (existing) {
+      extraIds.push(existing.eventId);
+      keepIds.delete(existing.eventId);
+    }
+    state.events[item.id] = { eventId: adopted, hash: hashPlan(plan) };
+    keepIds.add(adopted);
+  }
+  for (const ids of groups.values()) {
+    if (ids.length < 2) continue;
+    const keep = ids.find((id) => keepIds.has(id)) ?? ids[0];
+    extraIds.push(...ids.filter((id) => id !== keep && !keepIds.has(id)));
+  }
+  result.duplicatesRemoved = await removeEvents(extraIds);
+  saveState(state);
+
+  for (const [index, { item, plan }] of planned.entries()) {
+    onProgress?.(index, planned.length);
     const hash = hashPlan(plan);
     const existing = state.events[item.id];
     if (existing && existing.hash === hash) {
@@ -276,7 +373,7 @@ export async function syncToGoogleCalendar(
     }
 
     try {
-      if (existing) await removeEvent(existing.eventId);
+      if (existing) await removeEvents([existing.eventId]);
       const eventId = await createEvent(calendarId, plan);
       state.events[item.id] = { eventId, hash };
       if (existing) result.updated += 1;

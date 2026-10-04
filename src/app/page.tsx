@@ -265,6 +265,7 @@ export default function Home() {
   const [notifPermission, setNotifPermission] = useState<"granted" | "denied" | "default" | "unsupported">("default");
   const [syncError, setSyncError] = useState<string | null>(null);
   const [isCalendarSyncing, setIsCalendarSyncing] = useState(false);
+  const [calendarSyncProgress, setCalendarSyncProgress] = useState<{ done: number; total: number } | null>(null);
   const [calendarSyncMessage, setCalendarSyncMessage] = useState<string | null>(null);
   const [calendarChoices, setCalendarChoices] = useState<SyncCalendarOption[] | null>(null);
   const [lastCalendarSyncAt, setLastCalendarSyncAt] = useState<number | null>(null);
@@ -808,10 +809,15 @@ export default function Home() {
         }
         setSelectedSyncCalendarId(calendars[0].id);
       }
-      const result = await syncToGoogleCalendar(items, (owner) => OWNER_LABEL[owner ?? "shared"]);
+      const result = await syncToGoogleCalendar(
+        items,
+        (owner) => OWNER_LABEL[owner ?? "shared"],
+        (done, total) => setCalendarSyncProgress({ done, total })
+      );
       const parts = [
         result.created ? `${result.created} added` : "",
         result.updated ? `${result.updated} updated` : "",
+        result.duplicatesRemoved ? `${result.duplicatesRemoved} duplicates removed` : "",
         result.failed ? `${result.failed} failed` : ""
       ].filter(Boolean);
       setCalendarSyncMessage(parts.length ? `Synced: ${parts.join(", ")}.` : "Everything is already up to date.");
@@ -820,6 +826,7 @@ export default function Home() {
       setCalendarSyncMessage(error instanceof Error ? error.message : "Sync failed. Please try again.");
     } finally {
       setIsCalendarSyncing(false);
+      setCalendarSyncProgress(null);
     }
   };
 
@@ -2441,10 +2448,16 @@ export default function Home() {
                       className={`flex w-full items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-60 ${isDarkMode ? "bg-fuchsia-600 hover:bg-fuchsia-500" : "bg-pink-500 hover:bg-pink-400"}`}
                     >
                       <span aria-hidden>📅</span>
-                      {isCalendarSyncing ? "Syncing…" : "Sync to Google Calendar"}
+                      {isCalendarSyncing
+                        ? calendarSyncProgress
+                          ? `Syncing ${calendarSyncProgress.done}/${calendarSyncProgress.total}…`
+                          : "Syncing…"
+                        : "Sync to Google Calendar"}
                     </button>
                     <p className={`mt-2 text-[11px] leading-snug ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
-                      {calendarSyncMessage ??
+                      {isCalendarSyncing
+                        ? "Keep the app open until syncing finishes."
+                        : calendarSyncMessage ??
                         (lastCalendarSyncAt
                           ? `Last synced ${new Date(lastCalendarSyncAt).toLocaleString()}`
                           : "Adds new and edited plans. Plans deleted here stay in Google Calendar.")}
