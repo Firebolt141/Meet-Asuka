@@ -509,20 +509,19 @@ export async function syncToGoogleCalendar(
 
 // ---------- Unsync ----------
 
-// Deletes every event this app put in the chosen calendar: events it tracks
-// on this phone plus any event carrying its "<Category> · <Owner>" line within
-// three years either side of today. The user's own events are not touched.
+// Deletes every event this app put in any calendar on this phone: events it
+// tracks plus any event carrying its "<Category> · <Owner>" line within three
+// years either side of today. The user's own events are not touched.
 export async function removeSyncedEvents(): Promise<number> {
   await ensurePermission();
   const state = loadState();
-  if (!state.calendarId) return 0;
 
   const ids = new Set(Object.values(state.events).map((synced) => synced.eventId));
   const { CapacitorCalendar } = await getPlugin();
   const now = Date.now();
   const { result } = await CapacitorCalendar.listEventsInRange({ from: now - 3 * 365 * DAY, to: now + 3 * 365 * DAY });
   for (const event of result) {
-    if (event.calendarId === state.calendarId && isAppEvent(event.description)) ids.add(event.masterId ?? event.id);
+    if (isAppEvent(event.description)) ids.add(event.masterId ?? event.id);
   }
 
   const { deleted, problem } = await removeEvents([...ids]);

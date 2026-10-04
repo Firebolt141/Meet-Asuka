@@ -2491,8 +2491,8 @@ export default function Home() {
                         {calendarSyncDiagnostics}
                       </p>
                     ) : null}
-                    {getSelectedSyncCalendarId() ? (
-                      <div className="mt-1 flex justify-between">
+                    <div className="mt-1 flex justify-between gap-2">
+                      {getSelectedSyncCalendarId() ? (
                         <button
                           type="button"
                           disabled={isCalendarSyncing}
@@ -2501,16 +2501,18 @@ export default function Home() {
                         >
                           Change calendar
                         </button>
-                        <button
-                          type="button"
-                          disabled={isCalendarSyncing}
-                          onClick={() => void runCalendarUnsync()}
-                          className="text-[11px] text-rose-400 underline"
-                        >
-                          Remove synced events
-                        </button>
-                      </div>
-                    ) : null}
+                      ) : (
+                        <span />
+                      )}
+                      <button
+                        type="button"
+                        disabled={isCalendarSyncing}
+                        onClick={() => void runCalendarUnsync()}
+                        className="text-[11px] text-rose-400 underline"
+                      >
+                        Remove synced events
+                      </button>
+                    </div>
                   </>
                 )}
               </div>
