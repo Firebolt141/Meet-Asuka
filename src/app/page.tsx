@@ -25,6 +25,14 @@ import {
   requestNotificationPermission,
   scheduleReminders
 } from "@/lib/notifications";
+import {
+  getLastCalendarSyncAt,
+  getSelectedSyncCalendarId,
+  listSyncCalendars,
+  setSelectedSyncCalendarId,
+  syncToGoogleCalendar,
+  type SyncCalendarOption
+} from "@/lib/googleCalendarSync";
 
 const pad = (value: number) => value.toString().padStart(2, "0");
 
@@ -256,6 +264,10 @@ export default function Home() {
   const [hasHydratedPlanner, setHasHydratedPlanner] = useState(false);
   const [notifPermission, setNotifPermission] = useState<"granted" | "denied" | "default" | "unsupported">("default");
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [isCalendarSyncing, setIsCalendarSyncing] = useState(false);
+  const [calendarSyncMessage, setCalendarSyncMessage] = useState<string | null>(null);
+  const [calendarChoices, setCalendarChoices] = useState<SyncCalendarOption[] | null>(null);
+  const [lastCalendarSyncAt, setLastCalendarSyncAt] = useState<number | null>(null);
   const [userName, setUserName] = useState("");
   const [showNameModal, setShowNameModal] = useState(false);
   const [nameModalShouldLogout, setNameModalShouldLogout] = useState(false);
@@ -773,6 +785,41 @@ export default function Home() {
     if (returnToNavAfterModal) {
       setIsNavOpen(true);
       setReturnToNavAfterModal(false);
+    }
+  };
+
+  useEffect(() => {
+    setLastCalendarSyncAt(getLastCalendarSyncAt());
+  }, []);
+
+  const runCalendarSync = async (pickCalendar = false) => {
+    if (isCalendarSyncing) return;
+    setIsCalendarSyncing(true);
+    setCalendarSyncMessage(null);
+    try {
+      if (pickCalendar || !getSelectedSyncCalendarId()) {
+        const calendars = await listSyncCalendars();
+        if (calendars.length === 0) {
+          throw new Error("No Google calendar found on this phone. Add your Google account in the phone's settings first.");
+        }
+        if (pickCalendar || calendars.length > 1) {
+          setCalendarChoices(calendars);
+          return;
+        }
+        setSelectedSyncCalendarId(calendars[0].id);
+      }
+      const result = await syncToGoogleCalendar(items, (owner) => OWNER_LABEL[owner ?? "shared"]);
+      const parts = [
+        result.created ? `${result.created} added` : "",
+        result.updated ? `${result.updated} updated` : "",
+        result.failed ? `${result.failed} failed` : ""
+      ].filter(Boolean);
+      setCalendarSyncMessage(parts.length ? `Synced: ${parts.join(", ")}.` : "Everything is already up to date.");
+      setLastCalendarSyncAt(getLastCalendarSyncAt());
+    } catch (error) {
+      setCalendarSyncMessage(error instanceof Error ? error.message : "Sync failed. Please try again.");
+    } finally {
+      setIsCalendarSyncing(false);
     }
   };
 
@@ -2353,6 +2400,67 @@ export default function Home() {
                     </div>
                   );
                 })}
+              </div>
+
+              <p className={`mt-8 text-xs uppercase tracking-[0.2em] ${isDarkMode ? "text-pink-300" : "text-pink-400"}`}>Google Calendar</p>
+              <div className={`mt-4 rounded-2xl border p-3 ${isDarkMode ? "border-slate-700 bg-slate-800/80" : "border-pink-100 bg-white/80"}`}>
+                {calendarChoices ? (
+                  <div className="space-y-2">
+                    <p className={`text-xs ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>Which calendar should plans go to?</p>
+                    {calendarChoices.map((cal) => (
+                      <button
+                        key={cal.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedSyncCalendarId(cal.id);
+                          setCalendarChoices(null);
+                          void runCalendarSync();
+                        }}
+                        className={`block w-full rounded-xl border px-3 py-2 text-left text-sm transition ${isDarkMode ? "border-slate-600 text-slate-100 hover:bg-slate-700" : "border-pink-100 text-slate-700 hover:bg-pink-50"}`}
+                      >
+                        <span className="block font-semibold">{cal.title}</span>
+                        {cal.account && cal.account !== cal.title ? (
+                          <span className={`block text-[11px] ${isDarkMode ? "text-slate-400" : "text-slate-400"}`}>{cal.account}</span>
+                        ) : null}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setCalendarChoices(null)}
+                      className={`w-full text-center text-xs ${isDarkMode ? "text-slate-400" : "text-slate-400"}`}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      disabled={isCalendarSyncing}
+                      onClick={() => void runCalendarSync()}
+                      className={`flex w-full items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-60 ${isDarkMode ? "bg-fuchsia-600 hover:bg-fuchsia-500" : "bg-pink-500 hover:bg-pink-400"}`}
+                    >
+                      <span aria-hidden>📅</span>
+                      {isCalendarSyncing ? "Syncing…" : "Sync to Google Calendar"}
+                    </button>
+                    <p className={`mt-2 text-[11px] leading-snug ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                      {calendarSyncMessage ??
+                        (lastCalendarSyncAt
+                          ? `Last synced ${new Date(lastCalendarSyncAt).toLocaleString()}`
+                          : "Adds new and edited plans. Plans deleted here stay in Google Calendar.")}
+                    </p>
+                    {getSelectedSyncCalendarId() ? (
+                      <button
+                        type="button"
+                        disabled={isCalendarSyncing}
+                        onClick={() => void runCalendarSync(true)}
+                        className={`mt-1 text-[11px] underline ${isDarkMode ? "text-slate-400" : "text-slate-400"}`}
+                      >
+                        Change calendar
+                      </button>
+                    ) : null}
+                  </>
+                )}
               </div>
             </div>
           </div>
