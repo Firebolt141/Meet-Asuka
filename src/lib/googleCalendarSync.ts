@@ -254,14 +254,29 @@ const ymd = (date: Date, utc: boolean) =>
     ? `${date.getUTCFullYear()}-${date.getUTCMonth() + 1}-${date.getUTCDate()}`
     : `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
 
+// Google may rewrite an event's text after it syncs (HTML line breaks,
+// different whitespace), so text is compared in a normalized form.
+const toPlainText = (value: string) =>
+  value
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&");
+const squash = (value: string) => value.replace(/\s+/g, " ").trim();
+const normalizeText = (value: string) => squash(toPlainText(value));
+const firstLine = (value: string) => squash(toPlainText(value).trim().split("\n")[0] ?? "");
+
 // Identifies "the same event" regardless of which calendar row holds it:
-// title, description and when the event (or its series) starts. All-day events
-// are stored at UTC midnight, so they are compared by calendar day.
+// title, the "<Category> · <Owner>" line and when the event (or its series)
+// starts, to the minute. All-day events are stored at UTC midnight, so they
+// are compared by calendar day.
 const eventKey = (title: string, description: string, isAllDay: boolean, start: number) => {
   const date = new Date(start);
   const isUtcMidnight = date.getUTCHours() === 0 && date.getUTCMinutes() === 0;
-  const when = isAllDay ? ymd(date, isUtcMidnight) : String(start);
-  return JSON.stringify([title, description, isAllDay, when]);
+  const when = isAllDay
+    ? ymd(date, isUtcMidnight)
+    : `${ymd(date, false)} ${date.getHours()}:${date.getMinutes()}`;
+  return JSON.stringify([squash(title), firstLine(description), isAllDay, when]);
 };
 
 const planKey = (plan: EventPlan) => eventKey(plan.title, plan.description, plan.isAllDay, plan.startDate);
@@ -270,12 +285,14 @@ const planKey = (plan: EventPlan) => eventKey(plan.title, plan.description, plan
 // with "<Category> · <Owner>". The user's own calendar events are never touched.
 const APP_DESCRIPTION_PREFIXES = Object.values(CATEGORY_LABEL).map((label) => `${label} · `);
 const isAppEvent = (description: string | null) =>
-  !!description && APP_DESCRIPTION_PREFIXES.some((prefix) => description.startsWith(prefix));
+  !!description && APP_DESCRIPTION_PREFIXES.some((prefix) => normalizeText(description).startsWith(prefix));
+
+type FoundEvent = { id: string; description: string };
 
 // Calendar events created by this app, grouped by eventKey. Each group lists the
-// distinct event (series) ids; more than one id means duplicates.
-async function findAppEvents(calendarId: string, plans: EventPlan[]): Promise<Map<string, string[]>> {
-  const groups = new Map<string, string[]>();
+// distinct event (series) ids; more than one means duplicates.
+async function findAppEvents(calendarId: string, plans: EventPlan[]): Promise<Map<string, FoundEvent[]>> {
+  const groups = new Map<string, FoundEvent[]>();
   if (plans.length === 0) return groups;
 
   const { CapacitorCalendar } = await getPlugin();
@@ -289,9 +306,11 @@ async function findAppEvents(calendarId: string, plans: EventPlan[]): Promise<Ma
     if (event.calendarId !== calendarId || !isAppEvent(event.description)) continue;
     const seriesId = event.masterId ?? event.id;
     const key = eventKey(event.title, event.description ?? "", event.isAllDay, event.seriesStartDate ?? event.startDate);
-    const ids = groups.get(key) ?? [];
-    if (!ids.includes(seriesId)) ids.push(seriesId);
-    groups.set(key, ids);
+    const found = groups.get(key) ?? [];
+    if (!found.some((entry) => entry.id === seriesId)) {
+      found.push({ id: seriesId, description: normalizeText(event.description ?? "") });
+    }
+    groups.set(key, found);
   }
   return groups;
 }
@@ -336,31 +355,42 @@ export async function syncToGoogleCalendar(
   // record here (e.g. after reinstalling the app) adopts that event instead of
   // creating another copy.
   const groups = await findAppEvents(calendarId, planned.map((entry) => entry.plan)).catch(
-    () => new Map<string, string[]>()
+    () => new Map<string, FoundEvent[]>()
   );
-  const keepIds = new Set(Object.values(state.events).map((synced) => synced.eventId));
+  // Events tracked for plans that still exist in the app. Events tracked for
+  // plans deleted in the app are kept too, but only one copy of each.
+  const currentIds = new Set(planned.map(({ item }) => state.events[item.id]?.eventId).filter(Boolean));
+  const trackedIds = new Set(Object.values(state.events).map((synced) => synced.eventId));
   const extraIds: string[] = [];
   for (const { item, plan } of planned) {
-    const ids = groups.get(planKey(plan));
+    const found = groups.get(planKey(plan));
     const existing = state.events[item.id];
-    if (!ids || (existing && ids.includes(existing.eventId))) continue; // already tracked
-    const adopted = ids.find((id) => !keepIds.has(id));
+    if (!found || (existing && found.some((entry) => entry.id === existing.eventId))) continue; // already tracked
+    const adopted = found.find((entry) => !currentIds.has(entry.id));
     if (!adopted) continue;
     // An untracked copy of this plan already exists: track it instead of
     // creating another. A previously tracked older version is replaced by it.
     if (existing) {
       extraIds.push(existing.eventId);
-      keepIds.delete(existing.eventId);
+      currentIds.delete(existing.eventId);
     }
-    state.events[item.id] = { eventId: adopted, hash: hashPlan(plan) };
-    keepIds.add(adopted);
+    // If its details differ from the plan, an empty hash makes the update step
+    // below replace it with an up-to-date event.
+    const upToDate = adopted.description === normalizeText(plan.description);
+    state.events[item.id] = { eventId: adopted.id, hash: upToDate ? hashPlan(plan) : "" };
+    currentIds.add(adopted.id);
   }
-  for (const ids of groups.values()) {
-    if (ids.length < 2) continue;
-    const keep = ids.find((id) => keepIds.has(id)) ?? ids[0];
-    extraIds.push(...ids.filter((id) => id !== keep && !keepIds.has(id)));
+  for (const found of groups.values()) {
+    if (found.length < 2) continue;
+    const ids = found.map((entry) => entry.id);
+    const keep = ids.filter((id) => currentIds.has(id));
+    if (keep.length === 0) keep.push(ids.find((id) => trackedIds.has(id)) ?? ids[0]);
+    extraIds.push(...ids.filter((id) => !keep.includes(id)));
   }
   result.duplicatesRemoved = await removeEvents(extraIds);
+  for (const [itemId, synced] of Object.entries(state.events)) {
+    if (extraIds.includes(synced.eventId) && !currentIds.has(synced.eventId)) delete state.events[itemId];
+  }
   saveState(state);
 
   for (const [index, { item, plan }] of planned.entries()) {
