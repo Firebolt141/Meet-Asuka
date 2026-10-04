@@ -267,6 +267,7 @@ export default function Home() {
   const [isCalendarSyncing, setIsCalendarSyncing] = useState(false);
   const [calendarSyncProgress, setCalendarSyncProgress] = useState<{ done: number; total: number } | null>(null);
   const [calendarSyncMessage, setCalendarSyncMessage] = useState<string | null>(null);
+  const [calendarSyncDiagnostics, setCalendarSyncDiagnostics] = useState<string | null>(null);
   const [calendarChoices, setCalendarChoices] = useState<SyncCalendarOption[] | null>(null);
   const [lastCalendarSyncAt, setLastCalendarSyncAt] = useState<number | null>(null);
   const [userName, setUserName] = useState("");
@@ -821,6 +822,7 @@ export default function Home() {
         result.failed ? `${result.failed} failed` : ""
       ].filter(Boolean);
       setCalendarSyncMessage(parts.length ? `Synced: ${parts.join(", ")}.` : "Everything is already up to date.");
+      setCalendarSyncDiagnostics(result.diagnostics || null);
       setLastCalendarSyncAt(getLastCalendarSyncAt());
     } catch (error) {
       setCalendarSyncMessage(error instanceof Error ? error.message : "Sync failed. Please try again.");
@@ -2462,6 +2464,11 @@ export default function Home() {
                           ? `Last synced ${new Date(lastCalendarSyncAt).toLocaleString()}`
                           : "Adds new and edited plans. Plans deleted here stay in Google Calendar.")}
                     </p>
+                    {calendarSyncDiagnostics && !isCalendarSyncing ? (
+                      <p className={`mt-2 break-words rounded-lg px-2 py-1 font-mono text-[10px] leading-snug ${isDarkMode ? "bg-slate-900 text-slate-400" : "bg-slate-50 text-slate-500"}`}>
+                        {calendarSyncDiagnostics}
+                      </p>
+                    ) : null}
                     {getSelectedSyncCalendarId() ? (
                       <button
                         type="button"

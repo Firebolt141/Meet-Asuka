@@ -32,6 +32,8 @@ export type SyncResult = {
   unchanged: number;
   failed: number;
   duplicatesRemoved: number;
+  // What the duplicate check saw, shown in the app to help diagnose sync issues.
+  diagnostics: string;
 };
 
 const emptyState = (): SyncState => ({ calendarId: null, events: {}, lastSyncedAt: null });
@@ -256,12 +258,15 @@ const ymd = (date: Date, utc: boolean) =>
 
 // Google may rewrite an event's text after it syncs (HTML line breaks,
 // different whitespace), so text is compared in a normalized form.
+const NAMED_ENTITIES: Record<string, string> = { nbsp: " ", amp: "&", middot: "·", quot: '"', apos: "'", lt: "<", gt: ">" };
 const toPlainText = (value: string) =>
   value
-    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<br\s*\/?>|<\/p>|<\/div>/gi, "\n")
     .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&");
+    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code: string) => String.fromCodePoint(parseInt(code, 16)))
+    .replace(/&([a-z]+);/gi, (entity, name: string) => NAMED_ENTITIES[name.toLowerCase()] ?? entity)
+    .replace(/\u00a0/g, " ");
 const squash = (value: string) => value.replace(/\s+/g, " ").trim();
 const normalizeText = (value: string) => squash(toPlainText(value));
 const firstLine = (value: string) => squash(toPlainText(value).trim().split("\n")[0] ?? "");
@@ -289,11 +294,13 @@ const isAppEvent = (description: string | null) =>
 
 type FoundEvent = { id: string; description: string };
 
+type FindResult = { groups: Map<string, FoundEvent[]>; diagnostics: string };
+
 // Calendar events created by this app, grouped by eventKey. Each group lists the
 // distinct event (series) ids; more than one means duplicates.
-async function findAppEvents(calendarId: string, plans: EventPlan[]): Promise<Map<string, FoundEvent[]>> {
+async function findAppEvents(calendarId: string, plans: EventPlan[]): Promise<FindResult> {
   const groups = new Map<string, FoundEvent[]>();
-  if (plans.length === 0) return groups;
+  if (plans.length === 0) return { groups, diagnostics: "no dated plans" };
 
   const { CapacitorCalendar } = await getPlugin();
   const starts = plans.map((plan) => plan.startDate);
@@ -302,8 +309,19 @@ async function findAppEvents(calendarId: string, plans: EventPlan[]): Promise<Ma
     to: Math.max(...starts) + 2 * DAY
   });
 
+  // For diagnostics: same title on the same day in this calendar, app event or not.
+  const lookalikes = new Map<string, typeof result>();
+  let inCalendar = 0;
+  let appEvents = 0;
+
   for (const event of result) {
-    if (event.calendarId !== calendarId || !isAppEvent(event.description)) continue;
+    if (event.calendarId !== calendarId) continue;
+    inCalendar += 1;
+    const day = `${squash(event.title)}|${ymd(new Date(event.startDate), false)}`;
+    lookalikes.set(day, [...(lookalikes.get(day) ?? []), event]);
+
+    if (!isAppEvent(event.description)) continue;
+    appEvents += 1;
     const seriesId = event.masterId ?? event.id;
     const key = eventKey(event.title, event.description ?? "", event.isAllDay, event.seriesStartDate ?? event.startDate);
     const found = groups.get(key) ?? [];
@@ -312,20 +330,38 @@ async function findAppEvents(calendarId: string, plans: EventPlan[]): Promise<Ma
     }
     groups.set(key, found);
   }
-  return groups;
+
+  const duplicateGroups = [...groups.values()].filter((found) => found.length > 1).length;
+  const lookalikeGroups = [...lookalikes.values()].filter((events) => events.length > 1);
+  const sample = lookalikeGroups[0];
+  const sampleText = sample
+    ? ` Example "${sample[0].title}": ` +
+      sample
+        .map((event) => {
+          const app = isAppEvent(event.description) ? "app" : "not app";
+          const desc = JSON.stringify((event.description ?? "").slice(0, 24));
+          return `#${event.id}/${event.masterId ?? "-"} ${app} ${event.isAllDay ? "all-day" : "timed"} ${desc}`;
+        })
+        .join(" | ")
+    : "";
+  const diagnostics =
+    `Checked ${result.length} events, ${inCalendar} in this calendar, ${appEvents} from this app; ` +
+    `${duplicateGroups} duplicate groups, ${lookalikeGroups.length} same-title-same-day groups.` +
+    sampleText;
+  return { groups, diagnostics };
 }
 
-async function removeEvents(eventIds: string[]): Promise<number> {
-  if (eventIds.length === 0) return 0;
+async function removeEvents(eventIds: string[]): Promise<{ deleted: number; problem: string }> {
+  if (eventIds.length === 0) return { deleted: 0, problem: "" };
   const { CapacitorCalendar, EventSpan } = await getPlugin();
   try {
     const { result } = await CapacitorCalendar.deleteEventsById({
       ids: eventIds,
       span: EventSpan.THIS_AND_FUTURE_EVENTS
     });
-    return result.deleted.length;
-  } catch {
-    return 0;
+    return { deleted: result.deleted.length, problem: result.failed.length ? `${result.failed.length} deletes failed` : "" };
+  } catch (error) {
+    return { deleted: 0, problem: `delete error: ${error instanceof Error ? error.message : String(error)}` };
   }
 }
 
@@ -344,7 +380,7 @@ export async function syncToGoogleCalendar(
   }
   const calendarId = state.calendarId;
 
-  const result: SyncResult = { created: 0, updated: 0, unchanged: 0, failed: 0, duplicatesRemoved: 0 };
+  const result: SyncResult = { created: 0, updated: 0, unchanged: 0, failed: 0, duplicatesRemoved: 0, diagnostics: "" };
 
   const planned = items
     .map((item) => ({ item, plan: buildEventPlan(item, ownerLabel) }))
@@ -354,9 +390,14 @@ export async function syncToGoogleCalendar(
   // copy this phone already tracks. A plan that has a matching event but no
   // record here (e.g. after reinstalling the app) adopts that event instead of
   // creating another copy.
-  const groups = await findAppEvents(calendarId, planned.map((entry) => entry.plan)).catch(
-    () => new Map<string, FoundEvent[]>()
-  );
+  let groups = new Map<string, FoundEvent[]>();
+  try {
+    const found = await findAppEvents(calendarId, planned.map((entry) => entry.plan));
+    groups = found.groups;
+    result.diagnostics = found.diagnostics;
+  } catch (error) {
+    result.diagnostics = `Couldn't read the calendar: ${error instanceof Error ? error.message : String(error)}`;
+  }
   // Events tracked for plans that still exist in the app. Events tracked for
   // plans deleted in the app are kept too, but only one copy of each.
   const currentIds = new Set(planned.map(({ item }) => state.events[item.id]?.eventId).filter(Boolean));
@@ -387,7 +428,9 @@ export async function syncToGoogleCalendar(
     if (keep.length === 0) keep.push(ids.find((id) => trackedIds.has(id)) ?? ids[0]);
     extraIds.push(...ids.filter((id) => !keep.includes(id)));
   }
-  result.duplicatesRemoved = await removeEvents(extraIds);
+  const removal = await removeEvents(extraIds);
+  result.duplicatesRemoved = removal.deleted;
+  if (removal.problem) result.diagnostics += ` (${removal.problem})`;
   for (const [itemId, synced] of Object.entries(state.events)) {
     if (extraIds.includes(synced.eventId) && !currentIds.has(synced.eventId)) delete state.events[itemId];
   }
