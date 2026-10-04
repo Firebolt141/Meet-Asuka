@@ -66,6 +66,9 @@ async function getPlugin() {
 }
 
 async function ensurePermission(): Promise<void> {
+  if (!isCapacitor()) {
+    throw new Error("Google Calendar sync is only available in the Android app.");
+  }
   const { CapacitorCalendar } = await getPlugin();
   const { result } = await CapacitorCalendar.requestFullCalendarAccess();
   if (result !== "granted") {
@@ -251,9 +254,6 @@ export async function syncToGoogleCalendar(
   items: PlannerItem[],
   ownerLabel: (owner: PlannerItem["owner"]) => string
 ): Promise<SyncResult> {
-  if (!isCapacitor()) {
-    throw new Error("Google Calendar sync is only available in the Android app.");
-  }
   await ensurePermission();
 
   const state = loadState();
