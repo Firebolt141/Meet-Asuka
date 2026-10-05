@@ -795,22 +795,28 @@ export default function Home() {
     setLastCalendarSyncAt(getLastCalendarSyncAt());
   }, []);
 
-  const runCalendarSync = async (pickCalendar = false) => {
+  // Tapping Sync first asks which Google calendar to sync to (skipped when the
+  // phone has only one); choosing one starts the sync.
+  const runCalendarSync = async (chosenCalendarId?: string) => {
     if (isCalendarSyncing) return;
     setIsCalendarSyncing(true);
     setCalendarSyncMessage(null);
+    setCalendarSyncDiagnostics(null);
     try {
-      if (pickCalendar || !getSelectedSyncCalendarId()) {
+      let calendarId = chosenCalendarId;
+      if (!calendarId) {
+        setCalendarSyncStatus("Finding your Google calendars…");
         const calendars = await listSyncCalendars();
         if (calendars.length === 0) {
           throw new Error("No Google calendar found on this phone. Add your Google account in the phone's settings first.");
         }
-        if (pickCalendar || calendars.length > 1) {
+        if (calendars.length > 1) {
           setCalendarChoices(calendars);
           return;
         }
-        setSelectedSyncCalendarId(calendars[0].id);
+        calendarId = calendars[0].id;
       }
+      setSelectedSyncCalendarId(calendarId);
       const result = await syncToGoogleCalendar(
         items,
         (owner) => OWNER_LABEL[owner ?? "shared"],
@@ -2437,19 +2443,23 @@ export default function Home() {
               <div className={`mt-4 rounded-2xl border p-3 ${isDarkMode ? "border-slate-700 bg-slate-800/80" : "border-pink-100 bg-white/80"}`}>
                 {calendarChoices ? (
                   <div className="space-y-2">
-                    <p className={`text-xs ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>Which calendar should plans go to?</p>
+                    <p className={`text-xs ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>Sync to which calendar?</p>
                     {calendarChoices.map((cal) => (
                       <button
                         key={cal.id}
                         type="button"
                         onClick={() => {
-                          setSelectedSyncCalendarId(cal.id);
                           setCalendarChoices(null);
-                          void runCalendarSync();
+                          void runCalendarSync(cal.id);
                         }}
                         className={`block w-full rounded-xl border px-3 py-2 text-left text-sm transition ${isDarkMode ? "border-slate-600 text-slate-100 hover:bg-slate-700" : "border-pink-100 text-slate-700 hover:bg-pink-50"}`}
                       >
-                        <span className="block font-semibold">{cal.title}</span>
+                        <span className="block font-semibold">
+                          {cal.title}
+                          {cal.id === getSelectedSyncCalendarId() ? (
+                            <span className={`ml-2 text-[10px] font-normal ${isDarkMode ? "text-slate-400" : "text-slate-400"}`}>last used</span>
+                          ) : null}
+                        </span>
                         {cal.account && cal.account !== cal.title ? (
                           <span className={`block text-[11px] ${isDarkMode ? "text-slate-400" : "text-slate-400"}`}>{cal.account}</span>
                         ) : null}
@@ -2490,19 +2500,7 @@ export default function Home() {
                         {calendarSyncDiagnostics}
                       </p>
                     ) : null}
-                    <div className="mt-1 flex justify-between gap-2">
-                      {getSelectedSyncCalendarId() ? (
-                        <button
-                          type="button"
-                          disabled={isCalendarSyncing}
-                          onClick={() => void runCalendarSync(true)}
-                          className={`text-[11px] underline ${isDarkMode ? "text-slate-400" : "text-slate-400"}`}
-                        >
-                          Change calendar
-                        </button>
-                      ) : (
-                        <span />
-                      )}
+                    <div className="mt-1 flex justify-end">
                       <button
                         type="button"
                         disabled={isCalendarSyncing}
