@@ -16,9 +16,14 @@ const isCapacitor = () =>
 
 const STORAGE_KEY = "asuka_google_calendar_sync";
 
-// App events are pink: Google Calendar's "Flamingo" event color (colorId 4).
-// Events synced earlier in another color are recolored in place on the next sync.
-const SYNC_COLOR = { key: "4", name: "Flamingo", hex: "#E67C73" };
+// Event colors by whose plan it is, from Google Calendar's event colors:
+// Asuka-only plans are Lavender (colorId 1); shared ("Us") plans and Shota's
+// plans with Asuka are Grape (colorId 3). Events synced earlier in another
+// color are recolored in place on the next sync.
+type SyncColor = { key: string; name: string; hex: string };
+const ASUKA_COLOR: SyncColor = { key: "1", name: "Lavender", hex: "#7986CB" };
+const US_COLOR: SyncColor = { key: "3", name: "Grape", hex: "#8E24AA" };
+const colorFor = (item: PlannerItem): SyncColor => (item.owner === "mine" ? ASUKA_COLOR : US_COLOR);
 
 // A calendar event as listed by the native helper (one-off events and
 // recurring series; exceptions to a series are left out).
@@ -307,14 +312,14 @@ const utcMidnight = (localTime: number) => {
 // The calendar row for a plan. All-day events are stored at UTC midnight with
 // an exclusive end; recurring events use a DURATION instead of an end time,
 // as Android requires.
-function toInsert(plan: EventPlan): EventInsert {
+function toInsert(plan: EventPlan, color: SyncColor): EventInsert {
   const base = {
     title: plan.title,
     description: plan.description,
     ...(plan.location ? { location: plan.location } : {}),
     reminders: (plan.alerts ?? []).map((alert) => -alert).filter((minutes) => minutes >= 0),
-    colorKey: SYNC_COLOR.key,
-    color: SYNC_COLOR.hex
+    colorKey: color.key,
+    color: color.hex
   };
   if (plan.isAllDay) {
     const dtstart = utcMidnight(plan.startDate);
@@ -457,8 +462,6 @@ export async function syncToGoogleCalendar(
     throw new Error("Choose a Google calendar to sync to first.");
   }
   const calendarId = state.calendarId;
-  const colorKey = SYNC_COLOR.key;
-  const color = SYNC_COLOR;
   const tools = await getCalendarTools();
 
   const result: SyncResult = {
@@ -554,9 +557,10 @@ export async function syncToGoogleCalendar(
     const existing = state.events[item.id];
     if (existing && sameHash(existing.hash, hash)) {
       result.unchanged += 1;
-      if (existing.colorKey !== colorKey) {
+      const color = colorFor(item);
+      if (existing.colorKey !== color.key) {
         recolors.push({ id: existing.eventId, colorKey: color.key, color: color.hex });
-        state.events[item.id] = { eventId: existing.eventId, hash, colorKey };
+        state.events[item.id] = { eventId: existing.eventId, hash, colorKey: color.key };
       }
       continue;
     }
@@ -590,7 +594,7 @@ export async function syncToGoogleCalendar(
       const chunk = creatable.slice(start, start + APPLY_CHUNK);
       const { insertedIds, errors } = await tools.applyChanges({
         calendarId,
-        inserts: chunk.map(({ plan }) => toInsert(plan))
+        inserts: chunk.map(({ item, plan }) => toInsert(plan, colorFor(item)))
       });
       problems.push(...errors);
       chunk.forEach(({ item, plan, replaced }, index) => {
@@ -599,7 +603,7 @@ export async function syncToGoogleCalendar(
           result.failed += 1;
           return;
         }
-        state.events[item.id] = { eventId, hash: hashPlan(plan), colorKey };
+        state.events[item.id] = { eventId, hash: hashPlan(plan), colorKey: colorFor(item).key };
         if (replaced) result.updated += 1;
         else result.created += 1;
       });

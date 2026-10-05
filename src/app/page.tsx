@@ -2490,7 +2490,7 @@ export default function Home() {
                         : calendarSyncMessage ??
                         (lastCalendarSyncAt
                           ? `Last synced ${new Date(lastCalendarSyncAt).toLocaleString()}`
-                          : "Adds Asuka's and shared plans in pink, new and edited. Plans deleted here stay in Google Calendar.")}
+                          : "Adds Asuka's plans in Lavender and shared plans in Grape, new and edited. Plans deleted here stay in Google Calendar.")}
                     </p>
                     <p className={`mt-2 text-[10px] ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
                       App version {process.env.NEXT_PUBLIC_BUILD_ID}
