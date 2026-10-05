@@ -2,7 +2,9 @@ import withPWAInit from "next-pwa";
 
 const withPWA = withPWAInit({
   dest: "public",
-  register: true,
+  // Registered from the page instead (see layout.tsx): only on the web, never
+  // inside the Android app, where the cached old version would keep running.
+  register: false,
   skipWaiting: true,
   disable: process.env.NODE_ENV === "development",
   runtimeCaching: [
@@ -49,6 +51,10 @@ const withPWA = withPWAInit({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "export",
+  env: {
+    // Shown in the app so it's clear which version is running.
+    NEXT_PUBLIC_BUILD_ID: (process.env.GITHUB_SHA || "dev").slice(0, 7)
+  },
   images: {
     unoptimized: true
   }

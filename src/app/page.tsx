@@ -27,13 +27,10 @@ import {
 } from "@/lib/notifications";
 import {
   getLastCalendarSyncAt,
-  EVENT_COLORS,
   getSelectedSyncCalendarId,
-  getSyncColorKey,
   listSyncCalendars,
   removeSyncedEvents,
   setSelectedSyncCalendarId,
-  setSyncColorKey,
   syncToGoogleCalendar,
   type SyncCalendarOption
 } from "@/lib/googleCalendarSync";
@@ -269,12 +266,11 @@ export default function Home() {
   const [notifPermission, setNotifPermission] = useState<"granted" | "denied" | "default" | "unsupported">("default");
   const [syncError, setSyncError] = useState<string | null>(null);
   const [isCalendarSyncing, setIsCalendarSyncing] = useState(false);
-  const [calendarSyncProgress, setCalendarSyncProgress] = useState<{ done: number; total: number } | null>(null);
+  const [calendarSyncStatus, setCalendarSyncStatus] = useState<string | null>(null);
   const [calendarSyncMessage, setCalendarSyncMessage] = useState<string | null>(null);
   const [calendarSyncDiagnostics, setCalendarSyncDiagnostics] = useState<string | null>(null);
   const [calendarChoices, setCalendarChoices] = useState<SyncCalendarOption[] | null>(null);
   const [lastCalendarSyncAt, setLastCalendarSyncAt] = useState<number | null>(null);
-  const [calendarColorKey, setCalendarColorKey] = useState("5");
   const [userName, setUserName] = useState("");
   const [showNameModal, setShowNameModal] = useState(false);
   const [nameModalShouldLogout, setNameModalShouldLogout] = useState(false);
@@ -797,7 +793,6 @@ export default function Home() {
 
   useEffect(() => {
     setLastCalendarSyncAt(getLastCalendarSyncAt());
-    setCalendarColorKey(getSyncColorKey());
   }, []);
 
   const runCalendarSync = async (pickCalendar = false) => {
@@ -819,7 +814,7 @@ export default function Home() {
       const result = await syncToGoogleCalendar(
         items,
         (owner) => OWNER_LABEL[owner ?? "shared"],
-        (done, total) => setCalendarSyncProgress({ done, total })
+        (status) => setCalendarSyncStatus(status)
       );
       const parts = [
         result.created ? `${result.created} added` : "",
@@ -835,7 +830,7 @@ export default function Home() {
       setCalendarSyncMessage(error instanceof Error ? error.message : "Sync failed. Please try again.");
     } finally {
       setIsCalendarSyncing(false);
-      setCalendarSyncProgress(null);
+      setCalendarSyncStatus(null);
     }
   };
 
@@ -2477,43 +2472,19 @@ export default function Home() {
                       className={`flex w-full items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-60 ${isDarkMode ? "bg-fuchsia-600 hover:bg-fuchsia-500" : "bg-pink-500 hover:bg-pink-400"}`}
                     >
                       <span aria-hidden>📅</span>
-                      {isCalendarSyncing
-                        ? calendarSyncProgress
-                          ? `Syncing ${calendarSyncProgress.done}/${calendarSyncProgress.total}…`
-                          : "Syncing…"
-                        : "Sync to Google Calendar"}
+                      {isCalendarSyncing ? "Syncing…" : "Sync to Google Calendar"}
                     </button>
                     <p className={`mt-2 text-[11px] leading-snug ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
                       {isCalendarSyncing
-                        ? "Keep the app open until syncing finishes."
+                        ? `${calendarSyncStatus ?? "Starting…"} Keep the app open until it finishes.`
                         : calendarSyncMessage ??
                         (lastCalendarSyncAt
                           ? `Last synced ${new Date(lastCalendarSyncAt).toLocaleString()}`
-                          : "Adds Asuka's and shared plans, new and edited. Plans deleted here stay in Google Calendar.")}
+                          : "Adds Asuka's and shared plans in yellow, new and edited. Plans deleted here stay in Google Calendar.")}
                     </p>
-                    <div className="mt-3">
-                      <p className={`text-[11px] ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
-                        Event color: {EVENT_COLORS.find((color) => color.key === calendarColorKey)?.name}
-                      </p>
-                      <div className="mt-1 flex flex-wrap gap-1.5">
-                        {EVENT_COLORS.map((color) => (
-                          <button
-                            key={color.key}
-                            type="button"
-                            disabled={isCalendarSyncing}
-                            onClick={() => {
-                              setSyncColorKey(color.key);
-                              setCalendarColorKey(color.key);
-                              setCalendarSyncMessage(`Color set to ${color.name}. Tap Sync to apply it.`);
-                            }}
-                            className={`h-6 w-6 rounded-full transition ${calendarColorKey === color.key ? `ring-2 ring-offset-2 ${isDarkMode ? "ring-slate-200 ring-offset-slate-800" : "ring-slate-700 ring-offset-white"}` : ""}`}
-                            style={{ backgroundColor: color.hex }}
-                            aria-label={color.name}
-                            title={color.name}
-                          />
-                        ))}
-                      </div>
-                    </div>
+                    <p className={`mt-2 text-[10px] ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+                      App version {process.env.NEXT_PUBLIC_BUILD_ID}
+                    </p>
                     {calendarSyncDiagnostics && !isCalendarSyncing ? (
                       <p className={`mt-2 break-words rounded-lg px-2 py-1 font-mono text-[10px] leading-snug ${isDarkMode ? "bg-slate-900 text-slate-400" : "bg-slate-50 text-slate-500"}`}>
                         {calendarSyncDiagnostics}

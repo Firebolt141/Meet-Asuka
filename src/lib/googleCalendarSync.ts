@@ -16,23 +16,8 @@ const isCapacitor = () =>
 
 const STORAGE_KEY = "asuka_google_calendar_sync";
 
-// Google Calendar's event colors. Individual events can only use these 11;
-// the key is Google's colorId. Calendar-only colors like Mango or Avocado
-// aren't available for events.
-export const EVENT_COLORS = [
-  { key: "5", name: "Banana", hex: "#F6BF26" },
-  { key: "6", name: "Tangerine", hex: "#F4511E" },
-  { key: "2", name: "Sage", hex: "#33B679" },
-  { key: "10", name: "Basil", hex: "#0B8043" },
-  { key: "7", name: "Peacock", hex: "#039BE5" },
-  { key: "9", name: "Blueberry", hex: "#3F51B5" },
-  { key: "1", name: "Lavender", hex: "#7986CB" },
-  { key: "3", name: "Grape", hex: "#8E24AA" },
-  { key: "4", name: "Flamingo", hex: "#E67C73" },
-  { key: "11", name: "Tomato", hex: "#D50000" },
-  { key: "8", name: "Graphite", hex: "#616161" }
-] as const;
-const DEFAULT_COLOR_KEY = "5";
+// App events are yellow: Google Calendar's "Banana" event color (colorId 5).
+const SYNC_COLOR = { key: "5", name: "Banana", hex: "#F6BF26" };
 
 // A calendar event as listed by the native helper (one-off events and
 // recurring series; exceptions to a series are left out).
@@ -84,9 +69,30 @@ let calendarTools: CalendarToolsPlugin | null = null;
 async function getCalendarTools(): Promise<CalendarToolsPlugin> {
   if (!calendarTools) {
     const { registerPlugin } = await import("@capacitor/core");
-    calendarTools = registerPlugin<CalendarToolsPlugin>("CalendarTools");
+    const native = registerPlugin<CalendarToolsPlugin>("CalendarTools");
+    // A stuck call ends with a clear error instead of an endless "Syncing…".
+    calendarTools = {
+      listEvents: (options) => withTimeout(native.listEvents(options), 30_000, "Reading the calendar"),
+      applyChanges: (options) => withTimeout(native.applyChanges(options), 90_000, "Saving to the calendar")
+    };
   }
   return calendarTools;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, step: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${step} took too long (over ${ms / 1000}s).`)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
 }
 
 type SyncedEvent = { eventId: string; hash: string; colorKey?: string };
@@ -136,13 +142,6 @@ export const getLastCalendarSyncAt = (): number | null => loadState().lastSynced
 
 export const getSelectedSyncCalendarId = (): string | null => loadState().calendarId;
 
-export const getSyncColorKey = (): string => loadState().colorKey ?? DEFAULT_COLOR_KEY;
-
-// Takes effect on the next sync, which recolors the synced events in place.
-export function setSyncColorKey(colorKey: string): void {
-  saveState({ ...loadState(), colorKey });
-}
-
 export function setSelectedSyncCalendarId(calendarId: string): void {
   const state = loadState();
   if (state.calendarId === calendarId) return;
@@ -159,8 +158,8 @@ async function ensurePermission(): Promise<void> {
   if (!isCapacitor()) {
     throw new Error("Google Calendar sync is only available in the Android app.");
   }
-  const { CapacitorCalendar } = await getPlugin();
-  const { result } = await CapacitorCalendar.requestFullCalendarAccess();
+  const { CapacitorCalendar } = await withTimeout(getPlugin(), 15_000, "Loading the calendar plugin");
+  const { result } = await withTimeout(CapacitorCalendar.requestFullCalendarAccess(), 120_000, "Asking for calendar permission");
   if (result !== "granted") {
     throw new Error("Calendar permission is needed to sync. Enable it in the phone's app settings.");
   }
@@ -307,14 +306,14 @@ const utcMidnight = (localTime: number) => {
 // The calendar row for a plan. All-day events are stored at UTC midnight with
 // an exclusive end; recurring events use a DURATION instead of an end time,
 // as Android requires.
-function toInsert(plan: EventPlan, colorKey: string): EventInsert {
-  const color = EVENT_COLORS.find((entry) => entry.key === colorKey);
+function toInsert(plan: EventPlan): EventInsert {
   const base = {
     title: plan.title,
     description: plan.description,
     ...(plan.location ? { location: plan.location } : {}),
     reminders: (plan.alerts ?? []).map((alert) => -alert).filter((minutes) => minutes >= 0),
-    ...(color ? { colorKey: color.key, color: color.hex } : {})
+    colorKey: SYNC_COLOR.key,
+    color: SYNC_COLOR.hex
   };
   if (plan.isAllDay) {
     const dtstart = utcMidnight(plan.startDate);
@@ -447,8 +446,9 @@ const APPLY_CHUNK = 40;
 export async function syncToGoogleCalendar(
   items: PlannerItem[],
   ownerLabel: (owner: PlannerItem["owner"]) => string,
-  onProgress?: (done: number, total: number) => void
+  onStatus?: (status: string) => void
 ): Promise<SyncResult> {
+  onStatus?.("Checking calendar permission…");
   await ensurePermission();
 
   const state = loadState();
@@ -456,8 +456,8 @@ export async function syncToGoogleCalendar(
     throw new Error("Choose a Google calendar to sync to first.");
   }
   const calendarId = state.calendarId;
-  const colorKey = state.colorKey ?? DEFAULT_COLOR_KEY;
-  const color = EVENT_COLORS.find((entry) => entry.key === colorKey) ?? EVENT_COLORS[0];
+  const colorKey = SYNC_COLOR.key;
+  const color = SYNC_COLOR;
   const tools = await getCalendarTools();
 
   const result: SyncResult = {
@@ -477,11 +477,14 @@ export async function syncToGoogleCalendar(
 
   let scan: Scan = { groups: new Map(), userEvents: new Map(), diagnostics: "", sample: [] };
   try {
+    onStatus?.("Reading calendar…");
     const rows = (await tools.listEvents({ calendarId })).events;
     scan = scanCalendar(rows, rows.length);
     result.diagnostics = scan.diagnostics;
   } catch (error) {
-    result.diagnostics = `Couldn't read the calendar: ${error instanceof Error ? error.message : String(error)}`;
+    // Without knowing what's already in the calendar, adding events could
+    // create copies, so stop here.
+    throw new Error(`Couldn't read the calendar: ${error instanceof Error ? error.message : String(error)}`);
   }
   const { groups, userEvents } = scan;
 
@@ -563,7 +566,7 @@ export async function syncToGoogleCalendar(
   // Apply in a few batches; the record is saved after each one so an
   // interrupted sync never creates duplicates.
   const total = toCreate.length;
-  onProgress?.(0, total);
+  onStatus?.(deletes.length || recolors.length ? `Cleaning up ${deletes.length + recolors.length} events…` : `Adding 0/${total}…`);
   const problems: string[] = [];
   try {
     // Deletes and recolors first. If deleting fails, edited plans keep their
@@ -586,7 +589,7 @@ export async function syncToGoogleCalendar(
       const chunk = creatable.slice(start, start + APPLY_CHUNK);
       const { insertedIds, errors } = await tools.applyChanges({
         calendarId,
-        inserts: chunk.map(({ plan }) => toInsert(plan, colorKey))
+        inserts: chunk.map(({ plan }) => toInsert(plan))
       });
       problems.push(...errors);
       chunk.forEach(({ item, plan, replaced }, index) => {
@@ -600,7 +603,7 @@ export async function syncToGoogleCalendar(
         else result.created += 1;
       });
       saveState(state);
-      onProgress?.(Math.min(total, start + APPLY_CHUNK), total);
+      onStatus?.(`Adding ${Math.min(total, start + APPLY_CHUNK)}/${total}…`);
     }
   } catch (error) {
     problems.push(error instanceof Error ? error.message : String(error));
