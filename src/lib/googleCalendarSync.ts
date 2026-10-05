@@ -16,8 +16,9 @@ const isCapacitor = () =>
 
 const STORAGE_KEY = "asuka_google_calendar_sync";
 
-// App events are yellow: Google Calendar's "Banana" event color (colorId 5).
-const SYNC_COLOR = { key: "5", name: "Banana", hex: "#F6BF26" };
+// App events are pink: Google Calendar's "Flamingo" event color (colorId 4).
+// Events synced earlier in another color are recolored in place on the next sync.
+const SYNC_COLOR = { key: "4", name: "Flamingo", hex: "#E67C73" };
 
 // A calendar event as listed by the native helper (one-off events and
 // recurring series; exceptions to a series are left out).
